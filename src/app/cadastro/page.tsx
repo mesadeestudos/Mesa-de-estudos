@@ -7,7 +7,7 @@ export default function CadastroPage() {
   const [formData, setFormData] = useState({
     nome: '',
     email: '',
-    password: '',
+    senha: '',
     confirmPassword: '',
     aceite: false
   });
@@ -17,11 +17,11 @@ export default function CadastroPage() {
 
   // Lógica de Validação de Segurança (Reutilizada para consistência)
   const passwordValidations = {
-    minChars: formData.password.length >= 8,
-    upper: /[A-Z]/.test(formData.password),
-    lower: /[a-z]/.test(formData.password),
-    number: /[0-9]/.test(formData.password),
-    special: /[!@#$%^&*(),.?":{}|<>]/.test(formData.password),
+    minChars: formData.senha.length >= 8,
+    upper: /[A-Z]/.test(formData.senha),
+    lower: /[a-z]/.test(formData.senha),
+    number: /[0-9]/.test(formData.senha),
+    special: /[!@#$%^&*(),.?":{}|<>]/.test(formData.senha),
   };
 
   const isPasswordStrong = Object.values(passwordValidations).every(v => v === true);
@@ -33,8 +33,7 @@ export default function CadastroPage() {
     { label: "Número", met: passwordValidations.number },
     { label: "Especial", met: passwordValidations.special },
   ];
-
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setErrors({});
@@ -44,7 +43,7 @@ export default function CadastroPage() {
     if (formData.nome.length < 3) newErrors.nome = "Digite seu nome completo.";
     if (!formData.email.includes('@')) newErrors.email = "E-mail inválido.";
     if (!isPasswordStrong) newErrors.password = "A senha não cumpre os requisitos de segurança.";
-    if (formData.password !== formData.confirmPassword) {
+    if (formData.senha !== formData.confirmPassword) {
       newErrors.confirmPassword = "As senhas não coincidem.";
     }
     if (!formData.aceite) newErrors.aceite = "Você precisa aceitar os termos.";
@@ -55,11 +54,56 @@ export default function CadastroPage() {
       return;
     }
 
-    setTimeout(() => {
-      console.log("Conta criada:", formData);
-      setIsLoading(false);
+    try {
+
+      // Faz uma requisição HTTP para o backend na rota /api/cadastro
+      const response = await fetch('/api/cadastro', {
+
+        // Define o método da requisição
+        method: 'POST',
+
+        // Define o tipo de conteúdo enviado para a API
+        headers: {
+          'Content-Type': 'application/json'
+        },
+
+        // Corpo da requisição enviado para o backend
+        // Converte os dados do formulário para JSON
+        body: JSON.stringify({
+          nome: formData.nome,   // nome digitado no formulário
+          email: formData.email, // email digitado
+          senha: formData.senha  // senha digitada
+        })
+
+      });
+
+      // Converte a resposta da API (JSON) para um objeto JavaScript
+      const data = await response.json();
+
+      // Verifica se o backend retornou erro (status diferente de 200 ou 201)
+      if (!response.ok) {
+
+        // Se houve erro, lança uma exceção com a mensagem enviada pela API
+        throw new Error(data.message);
+
+      }
+
+      // Se chegou aqui, o cadastro foi realizado com sucesso
       alert("Conta criada com sucesso!");
-    }, 1500);
+
+      } catch (error: any) {
+
+        // Caso ocorra erro (ex: usuário já existe, erro de rede, etc.)
+        // mostra a mensagem retornada pelo backend
+        alert(error.message);
+
+      } finally {
+
+        // Executa sempre (independente de sucesso ou erro)
+        // remove o estado de loading do botão
+        setIsLoading(false);
+        
+    }
   };
 
   return (
@@ -109,7 +153,7 @@ export default function CadastroPage() {
                   type="password" 
                   placeholder="••••••••"
                   className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-100 focus:border-cyan-500 outline-none transition-all"
-                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  onChange={(e) => setFormData({...formData, senha: e.target.value})}
                 />
               </div>
               <div>
