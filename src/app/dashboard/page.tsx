@@ -1,281 +1,397 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 
-export default function DashboardPage() {
-  const [abaInterna, setAbaInterna] = useState<'estudo' | 'historico'>('estudo');
+export default function DashboardQuantumV23() {
   const [isRunning, setIsRunning] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [isSent, setIsSent] = useState(false); // Novo estado para o Check
   const [seconds, setSeconds] = useState(0);
-  const [xp, setXp] = useState(750);
-  const [strike, setStrike] = useState(12);
-  const [filtroMateria, setFiltroMateria] = useState('Todas');
-  const [showMateriaSelector, setShowMateriaSelector] = useState(false);
+  const [semanaAtual, setSemanaAtual] = useState(1);
+  
+  const TEMPO_META_TOPICO = 1800; 
 
-  const [materias, setMaterias] = useState([
-    { id: 1, nome: 'Direito Constitucional', cor: '#06b6d4', topicos: [{ id: 101, nome: 'Direitos Fundamentais', tempoEstudado: 145, metaMinutos: 240, concluido: false }, { id: 102, nome: 'Organização do Estado', tempoEstudado: 80, metaMinutos: 180, concluido: false }] },
-    { id: 2, nome: 'Português', cor: '#6366f1', topicos: [{ id: 201, nome: 'Sintaxe', tempoEstudado: 300, metaMinutos: 300, concluido: true }, { id: 202, nome: 'Morfologia', tempoEstudado: 45, metaMinutos: 200, concluido: false }] },
-    { id: 3, nome: 'Direito Administrativo', cor: '#f59e0b', topicos: [{ id: 301, nome: 'Atos Administrativos', tempoEstudado: 10, metaMinutos: 360, concluido: false }] }
+  const [disciplinas, setDisciplinas] = useState([
+    { 
+      id: 1, nome: "D. Constitucional", cor: "#0284C7", corFinal: "#10B981", semana: 1, metaHoras: 7200,
+      topicos: [
+        { id: 101, nome: "Direitos Fundamentais", tempoSec: 4500, status: 'concluido' },
+        { id: 102, nome: "Controle de Const.", tempoSec: 2900, status: 'revisar' },
+        { id: 103, nome: "Poder Judiciário", tempoSec: 0, status: 'pendente' },
+      ]
+    },
+    { 
+      id: 2, nome: "D. Administrativo", cor: "#4361EE", corFinal: "#4CC9F0", semana: 1, metaHoras: 7200,
+      topicos: [
+        { id: 201, nome: "Atos Administrativos", tempoSec: 3600, status: 'concluido' },
+        { id: 202, nome: "Licitações", tempoSec: 540, status: 'pendente' },
+      ]
+    }
   ]);
 
-  const [missoes, setMissoes] = useState([
-    { id: 1, tarefa: 'Estudar Constitucional', detalhe: 'Bater meta de 2h', concluida: false },
-    { id: 2, tarefa: 'Revisar Sintaxe', detalhe: 'Ciclo de 7 dias', concluida: true },
-  ]);
+  const [idDiscAtiva, setIdDiscAtiva] = useState(1);
+  const [idTopicoAtivo, setIdTopicoAtivo] = useState(101);
 
-  const [materiaAtivaIdx, setMateriaAtivaIdx] = useState(0);
-  const [topicoAtivoIdx, setTopicoAtivoIdx] = useState(0);
+  const discAtual = disciplinas.find(d => d.id === idDiscAtiva);
+  const topicoAtivo = discAtual?.topicos.find(t => t.id === idTopicoAtivo);
+
+  const radarRevisao = disciplinas.flatMap(d => 
+    d.topicos.filter(t => t.status === 'revisar')
+      .map(t => ({ ...t, idMateria: d.id, nomeMateria: d.nome, corMateria: d.cor, corFinalMateria: d.corFinal }))
+  );
+
+  const moverParaRevisao = useCallback((idTop: number) => {
+    setDisciplinas(prev => prev.map(d => ({
+      ...d,
+      topicos: d.topicos.map(t => {
+        if (t.id === idTop) {
+          return { ...t, status: t.status === 'revisar' ? 'pendente' : 'revisar' };
+        }
+        return t;
+      })
+    })));
+  }, []);
 
   useEffect(() => {
-    let interval: any;
+    let interval: any = null; 
     if (isRunning) {
       interval = setInterval(() => {
-        setSeconds(s => s + 1);
-        if (seconds % 60 === 0) setXp(prev => prev + 1);
+        setSeconds(prev => {
+          if (prev + 1 >= TEMPO_META_TOPICO) {
+            setIsRunning(false);
+            moverParaRevisao(idTopicoAtivo);
+            return 0;
+          }
+          return prev + 1;
+        });
+
+        setDisciplinas(prev => prev.map(d => ({
+          ...d,
+          topicos: d.topicos.map(t => 
+            t.id === idTopicoAtivo ? { ...t, tempoSec: t.tempoSec + 1, status: 'estudando' } : t
+          )
+        })));
       }, 1000);
     }
-    return () => clearInterval(interval);
-  }, [isRunning, seconds]);
+    return () => { if(interval) clearInterval(interval); };
+  }, [isRunning, idTopicoAtivo, moverParaRevisao]);
 
-  const formatTime = (s: number) => {
-    const h = Math.floor(s / 3600).toString().padStart(2, '0');
-    const m = Math.floor((s % 3600) / 60).toString().padStart(2, '0');
-    const sec = (s % 60).toString().padStart(2, '0');
-    return `${h}:${m}:${sec}`;
+  const formatarTempo = (s: number) => {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    return `${h}h ${m}m ${sec}s`;
   };
 
-  const concluirTopico = (mIdx: number, tIdx: number) => {
-    const novasMaterias = [...materias];
-    novasMaterias[mIdx].topicos[tIdx].concluido = true;
-    setMaterias(novasMaterias);
+  const handleSendFeedback = () => {
+    setIsSent(true);
+    setTimeout(() => {
+      setIsFeedbackOpen(false);
+      setTimeout(() => setIsSent(false), 300); 
+    }, 2000);
   };
+// Consolidamos todos os tópicos em uma lista plana para busca
+  const todosOsTopicos = disciplinas.flatMap(d => 
+    d.topicos.map(t => ({ ...t, nomeMateria: d.nome, discId: d.id }))
+  );
 
-  const materiaAtiva = materias[materiaAtivaIdx];
-  const topicoAtivo = materiaAtiva.topicos[topicoAtivoIdx];
+  // PRIORIDADE 1: Se houver algo sendo estudado agora, focar nele
+  // PRIORIDADE 2: Se não, buscar o primeiro pendente
+  const proximoSugerido = todosOsTopicos.find(t => t.status === 'estudando') || 
+                          todosOsTopicos.find(t => t.status === 'pendente') || 
+                          { 
+                            nome: "Edital Completo", 
+                            nomeMateria: "Parabéns", 
+                            status: "Finalizado",
+                            discId: null 
+                          };
+
+  const iniciarSugerido = () => {
+    if (proximoSugerido.discId) {
+      setIdDiscAtiva(proximoSugerido.discId);
+      setIdTopicoAtivo(proximoSugerido.id);
+      setIsRunning(true);
+      // setSeconds(0); <- Removido para não zerar se você apenas pausar e voltar
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-sans">
+    <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B] font-sans">
       
-      {/* HEADER PRINCIPAL (XP E STRIKE) */}
-      <header className="h-20 bg-white flex items-center justify-between px-8 sticky top-0 z-50 border-b border-slate-200">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3">
-            <img src="/logo_azul.png" alt="Logo" className="h-10 w-auto" />
-            <span className="text-[#0F172A] font-black text-lg tracking-tighter uppercase italic hidden xl:block">Mesa de Estudos</span>
+      {!isRunning && (
+        <header className="h-20 bg-[#082040] fixed top-0 w-full z-50 px-10 flex items-center justify-between shadow-lg">
+          <div className="flex items-center gap-5">
+            <div className="">
+              <img src="/logo_azul.png" alt="Logo" className="h-40 w-auto" />
+            </div>
+            <div className="h-6 w-[1px] bg-white/10" />
+            <h1 className="text-[11px] font-black uppercase tracking-[0.4em] text-white">
+              Dashboard <span className="text-cyan-400">Inteligente</span>
+            </h1>
           </div>
-        </div>
+
+          <div className="flex items-center gap-8">
+            <Link href="/radar" className="flex items-center gap-3 group transition-all border-r border-white/10 pr-6">
+              <div className="h-9 w-9 rounded-xl bg-white/5 flex items-center justify-center text-base group-hover:bg-cyan-500/20 group-hover:text-cyan-400 transition-all border border-white/10 group-hover:border-cyan-500/50">
+                📊
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-white uppercase tracking-widest group-hover:text-cyan-400 transition-colors">Radar</span>
+                <span className="text-[7px] font-bold text-slate-400 uppercase tracking-tight -mt-0.5">Desempenho</span>
+              </div>
+            </Link>
+
+            <div className="flex items-center gap-3">
+              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]" />
+              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Sincronizado</span>
+            </div>
+          </div>
+        </header>
+      )}
+
+      <main className={`transition-all duration-700 ${isRunning ? 'pt-0' : 'pt-32 pb-20 px-10 max-w-[1900px] mx-auto'}`}>
         
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 bg-orange-50 px-4 py-2 rounded-2xl border border-orange-100 font-black text-orange-600 shadow-sm">🔥 {strike}</div>
-          <div className="hidden sm:flex flex-col gap-1 w-32 text-right">
-            <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase"><span>Nível {Math.floor(xp / 100)}</span><span>{xp % 100}%</span></div>
-            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
-              <div className="h-full bg-cyan-500 transition-all duration-500" style={{ width: `${xp % 100}%` }} />
-            </div>
-          </div>
-          <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-bold">MS</div>
-        </div>
-      </header>
+        {/* NOVO BLOCO: ESTRATÉGIA DO EDITAL (CORAÇÃO DO SISTEMA) */}
+        {!isRunning && (
+         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10 animate-in fade-in slide-in-from-top-4 duration-700">
+    
+    {/* Card de Foco do Dia */}
+    <div className="lg:col-span-2 bg-gradient-to-br from-[#082040] to-[#164F73] p-8 rounded-[40px] text-white flex flex-col md:flex-row justify-between items-center shadow-2xl relative overflow-hidden group">
+      <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 blur-[80px] rounded-full translate-x-1/2 -translate-y-1/2 group-hover:bg-cyan-500/20 transition-all duration-700" />
+      
+      <div className="relative z-10">
+        <p className="text-cyan-400 text-[10px] font-black uppercase tracking-widest mb-2">Sugestão da Inteligência Quantum</p>
+        <h3 className="text-3xl font-black italic tracking-tighter uppercase">
+          {proximoSugerido?.nomeMateria}: <span className="text-cyan-200">{proximoSugerido?.nome}</span>
+        </h3>
+        <p className="text-slate-300 text-xs mt-1 font-medium">
+          Status: <span className="text-white italic uppercase tracking-widest text-[9px]">{proximoSugerido?.status || 'Pendente'}</span>
+        </p>
+      </div>
 
-      <main className="flex-1 p-6 lg:p-10">
-        <div className="max-w-[1500px] mx-auto grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+      <button 
+        onClick={iniciarSugerido}
+        disabled={!proximoSugerido?.discId}
+        className="relative z-10 mt-6 md:mt-0 bg-cyan-500 hover:bg-cyan-400 disabled:bg-slate-700 disabled:text-slate-400 text-[#082040] px-10 py-5 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all shadow-lg shadow-cyan-500/20 active:scale-95"
+      >
+        {proximoSugerido?.discId ? 'Começar Agora' : 'Edital Vencido'}
+      </button>
+    </div>
+
+    {/* Saúde do Edital Dinâmica */}
+    <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm flex flex-col justify-center">
+      <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-4">Saúde do Edital (Progresso Geral)</p>
+      <div className="flex items-end gap-2 mb-3">
+        <span className="text-5xl font-black italic text-slate-900 tracking-tighter">
+          {todosOsTopicos.length > 0 
+            ? Math.round((todosOsTopicos.filter(t => t.status === 'concluido').length / todosOsTopicos.length) * 100) 
+            : 0}%
+        </span>
+        <span className="text-emerald-500 text-[11px] font-black mb-1.5 uppercase">+3% esta semana</span>
+      </div>
+      <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+        <div 
+          className="h-full bg-cyan-500 transition-all duration-1000 shadow-[0_0_10px_#06b6d4]" 
+          style={{ 
+            width: `${todosOsTopicos.length > 0 
+              ? (todosOsTopicos.filter(t => t.status === 'concluido').length / todosOsTopicos.length) * 100 
+              : 0}%` 
+          }} 
+        />
+      </div>
+      <p className="text-[9px] text-slate-400 font-bold mt-3 uppercase tracking-tight">
+        {todosOsTopicos.filter(t => t.status === 'concluido').length} de {todosOsTopicos.length} tópicos vencidos
+      </p>
+    </div>
+  </div>
+        )}
+
+        <div className={`grid grid-cols-12 gap-8 items-start ${isRunning ? 'hidden' : ''}`}>
           
-          {/* COLUNA PRINCIPAL (DINÂMICA) */}
-          <div className={`space-y-8 ${isRunning ? 'xl:col-span-12' : 'xl:col-span-8'}`}>
-            
-            {/* SELETOR DE ABAS INTERNAS NO DASHBOARD */}
-            {!isRunning && (
-              <div className="flex gap-2 p-1.5 bg-slate-200/50 w-fit rounded-2xl border border-slate-200">
-                <button 
-                  onClick={() => setAbaInterna('estudo')}
-                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${abaInterna === 'estudo' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                  Mesa de Estudo
-                </button>
-                <button 
-                  onClick={() => setAbaInterna('historico')}
-                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${abaInterna === 'historico' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                  Análise & Histórico
-                </button>
-              </div>
-            )}
+          {/* ESQUERDA: DISCIPLINAS */}
+          <div className="col-span-12 lg:col-span-3 space-y-6">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] ml-2">Ciclo de estudos</h3>
+            {disciplinas.map((disc) => {
+              const tempoTotal = disc.topicos.reduce((acc, t) => acc + t.tempoSec, 0);
+              const progresso = Math.min((tempoTotal / disc.metaHoras) * 100, 100);
 
-            {abaInterna === 'estudo' || isRunning ? (
-              <>
-                {/* CARD CRONÔMETRO / FOCO */}
-                <section className="bg-white border border-slate-200 p-10 rounded-[40px] shadow-lg relative overflow-hidden">
-                  {isRunning && (
-                    <button onClick={() => setShowMateriaSelector(!showMateriaSelector)} className="absolute top-8 right-8 bg-slate-50 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase border border-slate-200 hover:bg-slate-100 z-50">🔄 Trocar Matéria</button>
-                  )}
-                  {showMateriaSelector && isRunning && (
-                    <div className="absolute top-20 right-8 w-64 bg-white rounded-[30px] shadow-2xl border border-slate-200 p-5 z-50 animate-in zoom-in-95">
-                      {materias.map((m, idx) => (
-                        <button key={m.id} onClick={() => { setMateriaAtivaIdx(idx); setShowMateriaSelector(false); }} className={`w-full text-left p-4 rounded-2xl text-[10px] font-bold mb-1 ${materiaAtivaIdx === idx ? 'bg-cyan-50 text-cyan-600' : 'hover:bg-slate-50'}`}>{m.nome}</button>
-                      ))}
+              return (
+                <div key={disc.id} className={`bg-white rounded-[24px] border transition-all duration-500 ${idDiscAtiva === disc.id ? 'border-slate-200 shadow-xl shadow-slate-200/50 scale-[1.02]' : 'border-transparent opacity-60'}`}>
+                  <button onClick={() => setIdDiscAtiva(disc.id)} className="w-full p-6 text-left">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-1.5 h-7 rounded-full" style={{ background: `linear-gradient(to bottom, ${disc.cor}, ${disc.corFinal})` }} />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-black uppercase text-slate-800 tracking-tight">{disc.nome}</span>
+                        <span className="text-[9px] text-slate-400 font-bold tabular-nums">{formatarTempo(tempoTotal)}</span>
+                      </div>
                     </div>
-                  )}
+                    <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full transition-all duration-1000" style={{ width: `${progresso}%`, background: `linear-gradient(to right, ${disc.cor}, ${disc.corFinal})` }} />
+                    </div>
+                  </button>
 
-                  <div className="flex flex-col md:flex-row justify-between items-center gap-8">
-                    <div className="text-center md:text-left">
-                      <h2 className="text-5xl font-black text-slate-800 tracking-tight leading-tight">{materiaAtiva.nome}</h2>
-                      <p className="text-cyan-600 font-black text-md uppercase tracking-[0.2em] mt-3">{topicoAtivo.concluido ? '✅ Concluído' : topicoAtivo.nome}</p>
-                    </div>
-                    <div className={`font-black font-mono text-slate-900 tabular-nums ${isRunning ? 'text-9xl' : 'text-7xl'}`}>{formatTime(seconds)}</div>
-                  </div>
-                  
-                  <div className={`flex gap-4 mt-12 ${isRunning ? 'justify-center' : ''}`}>
-                    <button onClick={() => setIsRunning(!isRunning)} className="px-12 py-6 rounded-[28px] font-black text-sm uppercase tracking-widest bg-[#0F172A] text-white shadow-lg transform transition active:scale-95">{isRunning ? 'Pausar Estudo' : 'Iniciar Modo de Foco'}</button>
-                    {isRunning && <button onClick={() => concluirTopico(materiaAtivaIdx, topicoAtivoIdx)} className="px-8 py-6 rounded-[28px] font-black text-[10px] uppercase tracking-widest bg-emerald-500 text-white shadow-lg">Concluir Tópico</button>}
-                  </div>
-                </section>
-
-                {/* LISTA DE TÓPICOS ABAIXO DO CRONÔMETRO */}
-                {!isRunning && (
-                  <section className="bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm animate-in fade-in slide-in-from-bottom-4">
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase mb-6 tracking-widest italic text-center underline decoration-cyan-400">Progresso da Disciplina</h3>
-                    <div className="grid grid-cols-1 gap-4">
-                      {materiaAtiva.topicos.map((t, idx) => {
-                        const percent = Math.min(Math.round((t.tempoEstudado / t.metaMinutos) * 100), 100);
-                        return (
-                          <div key={t.id} className={`p-6 rounded-[32px] border flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all ${topicoAtivoIdx === idx ? 'bg-slate-50 border-cyan-400' : 'bg-white border-slate-100 hover:border-slate-200'}`}>
-                            <div className="flex-1 cursor-pointer" onClick={() => setTopicoAtivoIdx(idx)}>
-                              <div className="flex items-center gap-3 mb-2">
-                                <p className={`text-[13px] font-black uppercase ${t.concluido ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{t.nome}</p>
-                                {t.concluido && <span className="bg-emerald-100 text-emerald-600 text-[8px] px-2 py-0.5 rounded-full font-black uppercase">Finalizado</span>}
-                              </div>
-                              <div className="flex items-center gap-4">
-                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div className={`h-full ${t.concluido ? 'bg-emerald-500' : 'bg-cyan-500'}`} style={{ width: `${percent}%` }} /></div>
-                                <span className="text-[10px] font-black text-slate-500">{percent}%</span>
-                              </div>
-                            </div>
-                            <button onClick={() => concluirTopico(materiaAtivaIdx, idx)} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${t.concluido ? 'bg-slate-100 text-slate-300 pointer-events-none' : 'bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-500 hover:text-white'}`}>{t.concluido ? 'Concluído' : 'Concluir'}</button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </section>
-                )}
-              </>
-            ) : (
-              /* SEÇÃO DE HISTÓRICO (DENTRO DA COLUNA PRINCIPAL) */
-              <div className="space-y-8 animate-in fade-in duration-500">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {/* VOLUME SEMANAL */}
-                  <section className="bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm">
-                    <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-widest mb-8 italic border-b border-slate-100 pb-4">Volume Semanal</h3>
-                    <div className="flex items-end justify-between h-40 gap-2">
-                      {[240, 180, 310, 150, 200, 90, 0].map((min, i) => (
-                        <div key={i} className="flex-1 flex flex-col items-center gap-3 group">
-                          <div className="w-full bg-slate-50 rounded-t-xl relative flex items-end h-full overflow-hidden border border-slate-100/50">
-                            <div className="w-full bg-[#0F172A] transition-all duration-1000" style={{ height: `${(min/350)*100}%` }} />
-                          </div>
-                          <span className="text-[9px] font-black text-slate-400 uppercase">{['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'][i]}</span>
+                  <div className={`transition-all overflow-hidden ${idDiscAtiva === disc.id ? 'max-h-[600px] p-5 pt-0' : 'max-h-0'}`}>
+                    <div className="space-y-2 pt-2">
+                      {disc.topicos.map(t => (
+                        <div key={t.id} onClick={() => setIdTopicoAtivo(t.id)} className={`p-4 rounded-2xl border transition-all cursor-pointer ${idTopicoAtivo === t.id ? 'bg-slate-50 border-slate-200 shadow-inner' : 'bg-transparent border-transparent hover:bg-slate-50'}`}>
+                          <p className="text-[11px] font-bold text-slate-600 mb-4">{t.nome}</p>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); moverParaRevisao(t.id); }} 
+                            className={`w-full py-2 rounded-xl text-[8px] font-black uppercase transition-all ${t.status === 'revisar' ? 'bg-cyan-100 text-cyan-700 border border-cyan-200' : 'bg-white border border-slate-200 text-slate-400 hover:text-slate-600 shadow-sm'}`}
+                          >
+                            {t.status === 'revisar' ? '✓ Na Fila' : 'Concluir Tópico'}
+                          </button>
                         </div>
                       ))}
                     </div>
-                  </section>
-
-                  {/* RESUMO TÉCNICO */}
-                  <section className="bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm flex flex-col justify-between">
-                    <div>
-                      <h3 className="text-[11px] font-black text-slate-400 uppercase mb-4 tracking-widest italic">Performance</h3>
-                      <div className="space-y-3">
-                        {['Total: 19h 30m', 'Meta: 85%', 'Eficiência: +12%'].map(stat => (
-                          <div key={stat} className="p-3 bg-slate-50 rounded-xl text-[10px] font-black uppercase text-slate-700 border border-slate-100">{stat}</div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="pt-6 border-t border-slate-100 mt-6">
-                      <p className="text-[9px] font-black text-slate-400 uppercase italic">Filtro Ativo: {filtroMateria}</p>
-                    </div>
-                  </section>
+                  </div>
                 </div>
-
-                {/* ANÁLISE DETALHADA POR MATÉRIA E TÓPICO */}
-                <section className="bg-white p-10 rounded-[50px] border border-slate-200 shadow-lg">
-                  <h3 className="text-[12px] font-black text-slate-800 uppercase tracking-[0.2em] mb-10 border-b pb-4">Análise por Disciplina</h3>
-                  <div className="space-y-12">
-                    {materias.map(m => (
-                      <div key={m.id} className="space-y-6">
-                        <div className="flex justify-between items-end">
-                          <div className="flex items-center gap-3">
-                            <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: m.cor }} />
-                            <span className="text-[14px] font-black uppercase text-slate-800 italic">{m.nome}</span>
-                          </div>
-                          <span className="text-2xl font-black italic text-slate-800">{Math.round((m.topicos.reduce((a,b)=>a+b.tempoEstudado,0)/m.topicos.reduce((a,b)=>a+b.metaMinutos,0))*100)}%</span>
-                        </div>
-                        <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
-                          <div className="h-full transition-all duration-1000 shadow-sm" style={{ width: `${Math.round((m.topicos.reduce((a,b)=>a+b.tempoEstudado,0)/m.topicos.reduce((a,b)=>a+b.metaMinutos,0))*100)}%`, backgroundColor: m.cor }} />
-                        </div>
-                        {/* MINI-TÓPICOS NO HISTÓRICO */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {m.topicos.map(t => (
-                            <div key={t.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
-                              <span className="text-[10px] font-bold text-slate-500 uppercase truncate pr-4">{t.nome}</span>
-                              <span className="text-[10px] font-black text-slate-700">{Math.round((t.tempoEstudado/t.metaMinutos)*100)}%</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              </div>
-            )}
+              );
+            })}
           </div>
 
-          {/* COLUNA LATERAL FIXA (MISSÕES E REVISÕES) */}
-          {!isRunning && (
-            <div className="xl:col-span-4 space-y-8 animate-in slide-in-from-right-5">
+          {/* CENTRO: CRONÔMETRO */}
+          <div className="col-span-12 lg:col-span-6 sticky top-32">
+            <div className="bg-white border border-white rounded-[56px] p-16 flex flex-col items-center shadow-2xl shadow-slate-200/60 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1.5" style={{ background: `linear-gradient(90deg, ${discAtual?.cor}, ${discAtual?.corFinal})` }} />
               
-              {/* MISSÕES DE HOJE */}
-              <section className="bg-[#0F172A] p-8 rounded-[40px] shadow-xl text-white">
-                <h3 className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-6 italic underline decoration-cyan-400/30">Missões Diárias</h3>
-                <div className="space-y-4">
-                  {missoes.map(m => (
-                    <div key={m.id} className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all cursor-pointer">
-                      <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${m.concluida ? 'bg-cyan-500 border-cyan-500 scale-110 shadow-lg' : 'border-white/20 hover:border-white/40'}`}>
-                        {m.concluida && <span className="text-[10px] font-bold">✓</span>}
-                      </div>
-                      <p className={`text-[11px] font-black uppercase tracking-tight ${m.concluida ? 'line-through text-slate-500' : 'text-white'}`}>{m.tarefa}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
+              <h2 className="text-4xl font-black text-slate-900 italic tracking-tighter mb-2 uppercase">{discAtual?.nome}</h2>
+              <p className="text-cyan-600 font-bold text-[10px] uppercase tracking-[0.5em] mb-12">{topicoAtivo?.nome}</p>
 
-              {/* SELETOR DE MATÉRIA LATERAL */}
-              <section className="bg-white p-8 rounded-[40px] shadow-md border border-slate-200">
-                <h3 className="text-[10px] font-black text-slate-400 uppercase mb-6 tracking-widest italic text-center">Focar em Disciplina</h3>
-                <div className="flex flex-col gap-2">
-                  {materias.map((m, idx) => (
-                    <button 
-                      key={m.id} 
-                      onClick={() => { setMateriaAtivaIdx(idx); setAbaInterna('estudo'); }} 
-                      className={`p-4 rounded-2xl text-[10px] font-black uppercase text-left border transition-all ${materiaAtivaIdx === idx ? 'bg-[#0F172A] text-white border-[#0F172A] shadow-md scale-102' : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-300'}`}
-                    >
-                      {m.nome}
-                    </button>
-                  ))}
+              <div className="relative">
+                <div className="absolute inset-0 bg-cyan-400/10 blur-[60px] rounded-full animate-pulse" />
+                <div className="relative text-[10rem] font-medium text-slate-900 leading-none mb-16 tracking-tighter tabular-nums">
+                  {new Date(seconds * 1000).toISOString().substr(11, 8)}
                 </div>
-              </section>
+              </div>
 
-              {/* REVISÕES PENDENTES */}
-              <section className="bg-white p-8 rounded-[40px] shadow-md border border-slate-200">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-[10px] font-black text-indigo-500 uppercase tracking-widest italic">Revisões</h3>
-                  <span className="text-[8px] font-black text-white bg-indigo-500 px-2 py-0.5 rounded-full">3 Hoje</span>
-                </div>
-                <div className="space-y-3">
-                  <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-100 flex justify-between items-center group cursor-pointer hover:bg-indigo-100 transition-all">
-                    <span className="text-[10px] font-bold text-indigo-900 uppercase">Sintaxe</span>
-                    <span className="text-[8px] bg-white text-indigo-600 px-2 py-1 rounded-lg font-black uppercase tracking-widest border border-indigo-200 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all">Revisar</span>
-                  </div>
-                </div>
-              </section>
-
+              <div className="flex gap-4">
+                <button onClick={() => {setIsRunning(true); setSeconds(0)}} className="bg-cyan-50 text-cyan-600 border border-cyan-200 px-16 py-6 rounded-full font-black text-[12px] uppercase tracking-[0.5em] transition-all hover:bg-cyan-600 hover:text-white hover:shadow-xl active:scale-95">
+                  Iniciar Foco
+                </button>
+              </div>
             </div>
-          )}
+
+            <div className="mt-8 grid grid-cols-2 gap-4">
+               <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Total Hoje</span>
+                  <p className="text-xl font-black text-slate-800 tracking-tight">04h 22m</p>
+               </div>
+               <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Média Semanal</span>
+                  <p className="text-xl font-black text-slate-800 tracking-tight">05h 10m</p>
+               </div>
+            </div>
+          </div>
+
+          {/* DIREITA: FILA DE REVISÕES + CARD DE SUGESTÕES */}
+          <div className="col-span-12 lg:col-span-3 flex flex-col gap-6">
+            <div className="bg-slate-50 rounded-[40px] p-8 border border-slate-200 flex flex-col min-h-[400px]">
+              <div className="flex items-center justify-between mb-8">
+                 <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.4em]">Fila de revisões</h3>
+                 <div className="h-6 w-6 rounded-full bg-cyan-100 border border-cyan-200 flex items-center justify-center text-[10px] font-black text-cyan-600">
+                    {radarRevisao.length}
+                 </div>
+              </div>
+              
+              <div className="space-y-4">
+                {radarRevisao.length > 0 ? radarRevisao.map((item) => (
+                  <div key={item.id} className="bg-white p-6 rounded-[28px] border border-slate-200 shadow-sm hover:border-cyan-300 transition-all group relative overflow-hidden animate-in fade-in slide-in-from-right-2">
+                    <div className="absolute top-0 left-0 h-full w-1.5" style={{ background: `linear-gradient(to bottom, ${item.corMateria}, ${item.corFinalMateria})` }} />
+                    <span className="text-[8px] font-black uppercase text-slate-400 mb-1 block tracking-widest">{item.nomeMateria}</span>
+                    <p className="text-[14px] font-bold italic text-slate-800 leading-tight mb-4">{item.nome}</p>
+                    <button className="w-full py-2 bg-slate-50 border border-slate-100 rounded-lg text-[7px] font-black uppercase text-slate-500 group-hover:bg-cyan-600 group-hover:text-white group-hover:border-cyan-600 transition-all">
+                      Iniciar Revisão
+                    </button>
+                  </div>
+                )) : (
+                  <div className="flex-1 flex flex-col items-center justify-center py-20 opacity-30 text-center">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nenhuma revisão pendente</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-8 pt-8 border-t border-slate-200">
+                <button 
+                  onClick={() => setIsFeedbackOpen(true)}
+                  className="w-full bg-white p-5 rounded-[28px] border-2 border-dashed border-slate-200 hover:border-cyan-400 hover:bg-cyan-50/30 transition-all group text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-cyan-100 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">💡</div>
+                    <div>
+                      <h4 className="text-[10px] font-black uppercase text-slate-800 tracking-tight">Sugestões MVP</h4>
+                      <p className="text-[9px] text-slate-400 font-medium leading-tight">Envie sua ideia agora</p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* MODAL DE SUGESTÕES */}
+        {isFeedbackOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-in fade-in duration-300">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !isSent && setIsFeedbackOpen(false)} />
+            
+            <div className="relative bg-white/90 backdrop-blur-2xl w-full max-w-lg rounded-[48px] p-12 shadow-2xl border border-white/20 animate-in zoom-in-95 duration-300">
+               <div className="absolute top-0 left-0 w-full h-1.5" style={{ background: `linear-gradient(90deg, transparent, ${discAtual?.cor || '#0284C7'}, transparent)` }} />
+               
+               {!isSent ? (
+                 <div className="animate-in fade-in duration-500">
+                    <div className="flex justify-between items-start mb-10">
+                      <div>
+                        <h3 className="text-2xl font-black text-slate-900 tracking-tighter italic uppercase">Feedback <span className="text-cyan-600">do Usuário</span></h3>
+                        <p className="text-[10px] text-slate-500 font-bold mt-2 uppercase tracking-widest">Colabore com o nosso MVP</p>
+                      </div>
+                      <button onClick={() => setIsFeedbackOpen(false)} className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors">✕</button>
+                    </div>
+
+                    <div className="space-y-6">
+                      <textarea 
+                        placeholder="O que falta para sua experiência ser perfeita?"
+                        className="w-full h-40 bg-white/50 border border-slate-200 rounded-[32px] p-6 text-sm text-slate-700 focus:outline-none focus:ring-4 focus:ring-cyan-500/10 focus:border-cyan-500 transition-all placeholder:text-slate-300 resize-none shadow-inner"
+                      />
+                      <button 
+                        onClick={handleSendFeedback}
+                        className="w-full py-5 rounded-full bg-[#164F73] text-white font-black text-[11px] uppercase tracking-[0.3em] shadow-xl shadow-cyan-900/20 hover:scale-[1.02] active:scale-95 transition-all"
+                      >
+                        Enviar Sugestão
+                      </button>
+                    </div>
+                 </div>
+               ) : (
+                 <div className="flex flex-col items-center justify-center py-10 animate-in zoom-in duration-500">
+                    <div className="h-20 w-20 rounded-full border-4 border-emerald-500 flex items-center justify-center text-emerald-500 text-4xl shadow-[0_0_20px_rgba(16,185,129,0.4)] animate-bounce mb-6">
+                        ✓
+                    </div>
+                    <h4 className="text-xl font-black text-slate-800 italic uppercase">Enviado com sucesso!</h4>
+                 </div>
+               )}
+            </div>
+          </div>
+        )}
+
+        {/* MODO IMERSÃO */}
+        {isRunning && (
+          <div className="fixed inset-0 bg-[#0F172A] z-[100] flex flex-col items-center justify-center p-12 overflow-hidden">
+             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(6,182,212,0.1)_0%,_transparent_70%)]" />
+             <div className="relative mb-12 text-center">
+                <h2 className="text-6xl lg:text-8xl font-black text-white italic tracking-tighter mb-4">{discAtual?.nome}</h2>
+                <p className="text-cyan-400 font-bold text-2xl italic uppercase tracking-[0.5em]">{topicoAtivo?.nome}</p>
+             </div>
+             <div className="relative">
+               <div className="absolute inset-0 bg-cyan-500/20 blur-[100px] animate-pulse" />
+               <div className="relative text-[22vw] font-medium text-white leading-none tracking-tighter mb-20 tabular-nums">
+                  {new Date(seconds * 1000).toISOString().substr(11, 8)}
+               </div>
+             </div>
+             <button onClick={() => setIsRunning(false)} className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-32 py-10 rounded-full font-black text-[13px] uppercase tracking-[0.8em] transition-all hover:bg-rose-600/50 hover:border-rose-500">
+                Pausar Sessão
+             </button>
+          </div>
+        )}
       </main>
     </div>
   );
