@@ -2,9 +2,6 @@ import { NextResponse } from 'next/server'
 import { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
 
-// Define que o proxy roda no Edge Runtime
-export const runtime = 'edge'
-
 // Função principal do proxy (middleware customizado)
 export async function proxy(request: NextRequest) {
 

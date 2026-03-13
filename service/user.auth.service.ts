@@ -83,7 +83,7 @@ export async function loginService(body: LoginDTO) {
 
   // se usuário não existir, retorna erro
   if (!user) {
-    throw new Error("Usuário não encontrado")
+    throw new Error("Usuário e Senha Inválidos")
   }
 
   // compara a senha digitada com a senha criptografada
@@ -91,7 +91,7 @@ export async function loginService(body: LoginDTO) {
 
   // se a senha estiver errada, retorna erro
   if (!senhaValida) {
-    throw new Error("Senha incorreta")
+    throw new Error("Usuário e Senha Inválidos")
   }
 
   // gera o token JWT
