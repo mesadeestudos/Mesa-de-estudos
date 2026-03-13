@@ -10,13 +10,13 @@ export const cadastroSchema = z.object({
   // VALIDAÇÃO DO NOME
   // ==========================
 
-  nome: z
-    // O nome deve ser uma string
-    .string()
-
-    // Deve ter no mínimo 3 caracteres
-    .min(3, "Nome deve ter pelo menos 3 caracteres"),
-
+nome: z
+  .string()
+  .min(3, "Nome deve ter pelo menos 3 caracteres")
+  .regex(
+    /^[A-Za-zÀ-ÿ]+( +[A-Za-zÀ-ÿ.]+)+$/,
+    "Digite nome e sobrenome"
+  ),
 
   // ==========================
   // VALIDAÇÃO DO EMAIL
