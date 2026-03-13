@@ -21,10 +21,14 @@ export default function CadastroPage() {
 
   const updateField = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
+    
+    // Mapeamento para garantir que ao digitar na 'senha', o erro de 'password' seja limpo
+    const errorKey = field === 'senha' ? 'password' : field;
+
+    if (errors[errorKey]) {
       setErrors(prev => {
         const newErrors = { ...prev };
-        delete newErrors[field];
+        delete newErrors[errorKey];
         return newErrors;
       });
     }
@@ -94,49 +98,30 @@ export default function CadastroPage() {
     }
 
     try {
-
-      // Faz uma requisição HTTP para o backend na rota /api/cadastro
       const response = await fetch('/api/cadastro', {
-
-        // Define o método da requisição
         method: 'POST',
-
-        // Define o tipo de conteúdo enviado para a API
         headers: {
           'Content-Type': 'application/json'
         },
-
-        // Corpo da requisição enviado para o backend
-        // Converte os dados do formulário para JSON
         body: JSON.stringify({
           nome: formData.nome,
           email: formData.email,
           senha: formData.senha
         })
-
       });
 
-      // Converte a resposta da API (JSON) para um objeto JavaScript
       const data = await response.json();
 
-      // Verifica se o backend retornou erro
       if (!response.ok) {
         throw new Error(data.message);
       }
 
-      // Cadastro concluído
       router.push("/login");
 
     } catch (error: any) {
-
-      // Erro vindo do backend
       alert(error.message);
-
     } finally {
-
-      // Remove loading
       setIsLoading(false);
-        
     }
   };
 
@@ -151,7 +136,6 @@ export default function CadastroPage() {
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4 relative overflow-hidden">
       
-      {/* Background Decorativo */}
       <div className="absolute top-[-10%] right-[-10%] w-[400px] h-[400px] bg-lime-50 rounded-full blur-[100px] opacity-50 pointer-events-none" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[400px] h-[400px] bg-cyan-50 rounded-full blur-[100px] opacity-50 pointer-events-none" />
 
@@ -201,7 +185,7 @@ export default function CadastroPage() {
                 <input 
                   type="password"
                   placeholder="••••••••"
-                  className={`w-full px-4 py-3.5 rounded-xl bg-slate-50 border outline-none text-sm transition-all ${errors.password ? 'border-red-300 ring-2 ring-red-500/5' : 'border-slate-100 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
+                  className={`w-full px-4 py-3.5 rounded-xl bg-slate-50 border outline-none text-sm transition-all ${errors.password ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-100 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
                   onChange={(e) => updateField('senha', e.target.value)}
                 />
                 <ErrorMsg field="password" />
@@ -212,7 +196,7 @@ export default function CadastroPage() {
                 <input 
                   type="password"
                   placeholder="••••••••"
-                  className={`w-full px-4 py-3.5 rounded-xl bg-slate-50 border outline-none text-sm transition-all ${errors.confirmPassword ? 'border-red-300 ring-2 ring-red-500/5' : 'border-slate-100 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
+                  className={`w-full px-4 py-3.5 rounded-xl bg-slate-50 border outline-none text-sm transition-all ${errors.confirmPassword ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-100 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
                   onChange={(e) => updateField('confirmPassword', e.target.value)}
                 />
                 <ErrorMsg field="confirmPassword" />
