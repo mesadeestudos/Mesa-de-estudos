@@ -2,8 +2,12 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from "next/navigation";
 
 export default function CadastroPage() {
+
+  const router = useRouter();
+
   const [formData, setFormData] = useState({
     nome: '',
     email: '',
@@ -121,7 +125,7 @@ export default function CadastroPage() {
       }
 
       // Cadastro concluído
-      alert("Conta criada com sucesso!");
+      router.push("/login");
 
     } catch (error: any) {
 
