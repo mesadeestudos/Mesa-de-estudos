@@ -152,6 +152,7 @@ export default function DashboardQuantumV23() {
 
       <main className={`transition-all duration-700 ${isRunning ? 'pt-0' : 'pt-32 pb-20 px-10 max-w-[1900px] mx-auto'}`}>
         
+<<<<<<< HEAD
         {/* BLOCO AJUSTADO: ALINHADO COM O GRID DE 12 COLUNAS ABAIXO */}
         {!isRunning && (
          <div className="grid grid-cols-12 gap-8 mb-10 animate-in fade-in slide-in-from-top-4 duration-700">
@@ -162,6 +163,18 @@ export default function DashboardQuantumV23() {
       
       <div className="relative z-10">
         <p className="text-cyan-400 text-[10px] font-black uppercase tracking-widest mb-2">Sugestão de Estudo Diário</p>
+=======
+        {/* NOVO BLOCO: ESTRATÉGIA DO EDITAL (CORAÇÃO DO SISTEMA) */}
+        {!isRunning && (
+         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10 animate-in fade-in slide-in-from-top-4 duration-700">
+    
+    {/* Card de Foco do Dia */}
+    <div className="lg:col-span-2 bg-gradient-to-br from-[#082040] to-[#164F73] p-8 rounded-[40px] text-white flex flex-col md:flex-row justify-between items-center shadow-2xl relative overflow-hidden group">
+      <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 blur-[80px] rounded-full translate-x-1/2 -translate-y-1/2 group-hover:bg-cyan-500/20 transition-all duration-700" />
+      
+      <div className="relative z-10">
+        <p className="text-cyan-400 text-[10px] font-black uppercase tracking-widest mb-2">Sugestão da Inteligência Quantum</p>
+>>>>>>> a4e78ecc479da0cc3f1d4a1b6d59544aa2b8ea59
         <h3 className="text-3xl font-black italic tracking-tighter uppercase">
           {proximoSugerido?.nomeMateria}: <span className="text-cyan-200">{proximoSugerido?.nome}</span>
         </h3>
@@ -179,8 +192,13 @@ export default function DashboardQuantumV23() {
       </button>
     </div>
 
+<<<<<<< HEAD
     {/* Saúde do Edital Dinâmica - Ocupa 3 colunas (alinhado com as Revisões) */}
     <div className="col-span-12 lg:col-span-3 bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm flex flex-col justify-center">
+=======
+    {/* Saúde do Edital Dinâmica */}
+    <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm flex flex-col justify-center">
+>>>>>>> a4e78ecc479da0cc3f1d4a1b6d59544aa2b8ea59
       <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-4">Saúde do Edital (Progresso Geral)</p>
       <div className="flex items-end gap-2 mb-3">
         <span className="text-5xl font-black italic text-slate-900 tracking-tighter">
