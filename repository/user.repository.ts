@@ -1,36 +1,111 @@
-// Usando um mock para simular um banco
-// Definição do tipo User (estrutura de um usuário)
-type User = {
-  id: string                // identificador único do usuário
-  nome: string              // nome do usuário
-  email: string             // email do usuário (usado no login)
-  senha: string             // senha do usuário (hash futuramente)
-  primeiroAcesso: boolean   // indica se é o primeiro acesso do usuário
-}
+// Mock compartilhado
+import { users, User } from "./usersMock"
 
 
-// Array que vai simular o banco de dados
-// Enquanto o banco real (Prisma) não existe,
-// os usuários serão armazenados aqui em memória
-const users: User[] = []
 
+/*
+========================
+BUSCAR POR EMAIL
+========================
+*/
+export async function findUserByEmail(
+  email: string
+) {
 
-// Função para buscar um usuário pelo email
-export async function findUserByEmail(email: string) {
+  console.log("USERS:", users)
 
-  // procura no array um usuário com o email informado
-  return users.find(user => user.email === email)
+  return users.find(
+    user => user.email === email
+  )
 
 }
 
 
-// Função para criar um novo usuário
-export async function createUser(user: User) {
 
-  // adiciona o novo usuário no array
+/*
+========================
+CRIAR USUÁRIO
+========================
+*/
+export async function createUser(
+  user: User
+) {
+
+  user.resetToken = null
+  user.resetTokenExpire = null
+
   users.push(user)
 
-  // retorna o usuário criado
+  return user
+
+}
+
+
+
+/*
+========================
+SALVAR TOKEN RESET
+========================
+*/
+export async function saveResetToken(
+  email: string,
+  token: string,
+  expire: Date
+) {
+
+  const user = users.find(
+    u => u.email === email
+  )
+
+  if (!user) return null
+
+  user.resetToken = token
+  user.resetTokenExpire = expire
+
+  return user
+
+}
+
+
+
+/*
+========================
+BUSCAR POR TOKEN
+========================
+*/
+export async function findByToken(
+  token: string
+) {
+
+  return users.find(
+    u => u.resetToken === token
+  )
+
+}
+
+
+
+/*
+========================
+ATUALIZAR SENHA
+========================
+*/
+export async function updatePassword(
+  userId: string,
+  senhaHash: string
+) {
+
+  const user = users.find(
+    u => u.id === userId
+  )
+
+  if (!user) return null
+
+  user.senha = senhaHash
+
+  user.resetToken = null
+  user.resetTokenExpire = null
+
   return user
 
 }

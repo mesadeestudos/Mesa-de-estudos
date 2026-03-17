@@ -1,28 +1,34 @@
 // biblioteca para gerar tokens JWT
 import jwt from "jsonwebtoken"
 
-// Função LoginDTO criado no DTO
+// DTOs
 import { LoginDTO } from "@/dto/login.dto"
-
-// Função cadastroDTO criado no DTO
 import { CadastroDTO } from "@/dto/cadastro.dto"
 
-// biblioteca para criptografar senha
+// criptografia
 import bcrypt from "bcryptjs"
 
-// função do Node para gerar ids únicos
+// gerar id
 import { randomUUID } from "crypto"
 
-// funções que criamos no repository
-import { findUserByEmail, createUser } from "../repository/user.repository"
+// repository (único)
+import {
+  findUserByEmail,
+  createUser
+} from "@/repository/user.repository"
 
 
-// chave secreta usada para assinar o token
-// futuramente virá do .env
-const SECRET = process.env.JWT_SECRET || "secret"
+// chave secreta
+const SECRET =
+  process.env.JWT_SECRET || "secret"
 
 
-// função responsável por gerar o token JWT
+
+/*
+========================
+GERAR TOKEN
+========================
+*/
 function createToken(user: any) {
 
   return jwt.sign(
@@ -33,74 +39,120 @@ function createToken(user: any) {
       primeiro_acesso: user.primeiroAcesso
     },
     SECRET,
-    { expiresIn: "1h" }
+    {
+      expiresIn: "1h"
+    }
   )
 
 }
 
-// função responsável por cadastrar um novo usuário
-export async function cadastroService(body: CadastroDTO) {
 
-  // verifica se já existe usuário com esse email
-  const userExistente = await findUserByEmail(body.email)
 
-  // se existir, lança erro
+/*
+========================
+CADASTRO
+========================
+*/
+export async function cadastroService(
+  body: CadastroDTO
+) {
+
+  // verifica se já existe
+  const userExistente =
+    await findUserByEmail(body.email)
+
   if (userExistente) {
-    throw new Error("Usuário já cadastrado")
+    throw new Error(
+      "Usuário já cadastrado"
+    )
   }
 
-  // criptografa a senha antes de salvar
-  const senhaHash = await bcrypt.hash(body.senha, 10)
 
-  // cria um novo usuário
-  const novoUsuario = await createUser({
+  // hash senha
+  const senhaHash =
+    await bcrypt.hash(
+      body.senha,
+      10
+    )
 
-    // gera um id único
-    id: randomUUID(),
 
-    // dados vindos do body
-    nome: body.nome,
-    email: body.email,
+  // cria usuário
+  const novoUsuario =
+    await createUser({
 
-    // salva senha criptografada
-    senha: senhaHash,
+      id: randomUUID(),
 
-    // define primeiro acesso como verdadeiro
-    primeiroAcesso: true
+      nome: body.nome,
 
-  })
+      email: body.email,
 
-  // retorna usuário criado
+      senha: senhaHash,
+
+      primeiroAcesso: true,
+
+      // importante para reset
+      resetToken: null,
+      resetTokenExpire: null
+
+    })
+
+
   return novoUsuario
 
 }
 
-// função responsável por fazer o login do usuário
-export async function loginService(body: LoginDTO) {
 
-  // busca usuário pelo email
-  const user = await findUserByEmail(body.email)
 
-  // se usuário não existir, retorna erro
+/*
+========================
+LOGIN
+========================
+*/
+export async function loginService(
+  body: LoginDTO
+) {
+
+  // busca usuário
+  const user =
+    await findUserByEmail(
+      body.email
+    )
+
+
   if (!user) {
-    throw new Error("Usuário e Senha Inválidos")
+    throw new Error(
+      "Usuário e Senha Inválidos"
+    )
   }
 
-  // compara a senha digitada com a senha criptografada
-  const senhaValida = await bcrypt.compare(body.senha, user.senha)
 
-  // se a senha estiver errada, retorna erro
+  // compara senha hash
+  const senhaValida =
+    await bcrypt.compare(
+      body.senha,
+      user.senha
+    )
+
+
   if (!senhaValida) {
-    throw new Error("Usuário e Senha Inválidos")
+    throw new Error(
+      "Usuário e Senha Inválidos"
+    )
   }
 
-  // gera o token JWT
-  const token = createToken(user)
 
-  // retorna token e informação de primeiro acesso
+  // gera token
+  const token =
+    createToken(user)
+
+
   return {
+
     token,
-    primeiroAcesso: user.primeiroAcesso
+
+    primeiroAcesso:
+      user.primeiroAcesso
+
   }
 
 }
