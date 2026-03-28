@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client"
-  output = "../src/generated/prisma"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -37,20 +37,23 @@ model sessao {
 }
 
 model usuario {
-  id_usuario           BigInt                 @id @default(autoincrement())
-  nome_completo        String                 @db.VarChar(150)
-  nome_usuario         String?                @unique @db.VarChar(30)
-  email                String                 @unique @db.VarChar(150)
-  foto_url             String?
-  ativo                Boolean?               @default(true)
-  primeiro_acesso      Boolean?               @default(true)
-  data_criacao         DateTime?              @default(now()) @db.Timestamptz(6)
-  credencial           credencial?
-  sessao               sessao[]
-  disciplina_progresso disciplina_progresso[]
-  plano_estudo         plano_estudo[]
-  sessao_estudo        sessao_estudo[]
-  topico_progresso     topico_progresso[]
+  id_usuario                  BigInt                 @id @default(autoincrement())
+  nome_completo               String                 @db.VarChar(150)
+  nome_usuario                String?                @unique @db.VarChar(30)
+  email                       String                 @unique @db.VarChar(150)
+  foto_url                    String?
+  ativo                       Boolean?               @default(true)
+  primeiro_acesso             Boolean?               @default(true)
+  data_criacao                DateTime?              @default(now()) @db.Timestamptz(6)
+  email_verificado            Boolean?               @default(false)
+  email_verificacao_token     String?
+  email_verificacao_expira_em DateTime?              @db.Timestamp(6)
+  credencial                  credencial?
+  sessao                      sessao[]
+  disciplina_progresso        disciplina_progresso[]
+  plano_estudo                plano_estudo[]
+  sessao_estudo               sessao_estudo[]
+  topico_progresso            topico_progresso[]
 
   @@index([email], map: "idx_usuario_email")
   @@schema("auth")

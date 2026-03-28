@@ -155,6 +155,11 @@ A plataforma tem como objetivo gerar automaticamente planos de estudo para concu
 | ativo | BOOLEAN | Usuário ativo ou não | TRUE |
 | primeiro_acesso | BOOLEAN | Indica onboarding concluído | TRUE |
 | data_criacao | TIMESTAMP | Registro de criação | 2026-03-28 08:30 |
+| email_verificado | BOOLEAN | Verifica se email foi verificado | FALSE |
+| email_verificacao_token | TEXT | Registra token verificacao email | abc123 |
+| email_verificacao_expira_em | TIMESTAMP | Registra tempo expiracao do token | 2026-03-28 10:15 |
+
+
 
 ### 1.2 Tabela: `credencial`
 - Função: Gerencia senha, redefinição e segurança.
@@ -259,7 +264,7 @@ A plataforma tem como objetivo gerar automaticamente planos de estudo para concu
 ## 5. Diagramas Visuais (Markdown + PlantUML)
 
 ### 5.1 Diagrama ER (PlantUML)
-![Diagrama UML](https://lh3.googleusercontent.com/u/0/d/1IWXi-uYjoQUaDFZu2g8KjUUvOPeLyU1h)
+![Diagrama UML](https://img.plantuml.biz/plantuml/svg/XLLDR-GW3BrNcl-0Ubnb_a2FbQggbpsizevSy4oycuIKZwghjlzz8K064gOzvXdydks78y72CnXaj-1iVylU3pUCuMJ9_cFEED2a8iRO3v8yGtVi_kdnwUVl63aUsQH6v4ADyu1MTGn7eA6BQBhJCOjwL8Q3GBBOiPEoYZljZu6bLn-VDOr8MeKJndX0Ud5SQ081EIT_HKqd4Y1tY3_4hVgBKok0RpDfu3W6nPz5aKAZn4aG36MT1RehrU3K0-_1z1tJQD1crkBZEf_nfK7LquJiU3IUVCO-PtS6DOUpJzCncZb8wQDcJPydy_5nFAhtegn6C38URlp5murS7I3K99msgdQ1qkTQRmJkcDVwyFZmgx90nmoT1zWM_GoJW3971AeSrL2Iacea6TipPr7RD2Z9rdDDI3D59kXO5hYJ1VfSQrg0PhR8jCqWoGYQ1vggRXHeMrcWyUy3WxWNA_cBGsCLccrwgsOIbSA4xCnLiQvfrXuderoAI8tBxWg2bWjB0n9Q9ooAIl6e9SIYXNAoH1e2qHSRzerDvm4c_0EZhtbZrH3nJzrO9wicb3UQhLXNrANPezzZOSVqIeFXizA-Ntj3a1XQX0lUP2gbf0L74mdA7oSQqpviSxKDj8krg9T3NJtvpez2uhYM6TL9s3ahLVg6mebw7QpO5vopCXIsC5YtVnFH5dpMwXmsMiE-HUoxwSKBtMAgmP5S_oBBjzdlY4ilsWgQyUzKb0ssofiuwJ9TgjRmLQ093riBByVtvY9yvxMuj1jck_R_-49JqQZiliLuqkdbRpdIv6nGPgmVsSKCrGFBpxTu0yjAADz4TQRU3zVFPKU5Ksb_LHlaCeZsdccDxEfVS5N--Hy0)
 
 ### 5.2 Fluxo do Ciclo de Estudos
 1. Usuário cria plano de estudo (`plano_estudo`) com cargo e horas/dia.
