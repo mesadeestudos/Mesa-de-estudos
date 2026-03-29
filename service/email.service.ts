@@ -22,8 +22,7 @@ export async function sendEmail(
   to: string,       // destinatário
   subject: string,  // assunto do email
   html: string      // conteúdo HTML do email
-) {
-
+  ) {
   try {
 
     // Envia o email usando a API do Resend

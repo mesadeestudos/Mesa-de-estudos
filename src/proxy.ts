@@ -52,6 +52,6 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     '/dashboard/:path*',     // protege dashboard
-    '/planejamento/:path*',  // protege planejamento
+    '/editais/:path*',  // protege editais
   ],
 }

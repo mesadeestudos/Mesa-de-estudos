@@ -69,7 +69,7 @@ export default function LoginPage() {
       // Redireciona o usuário para o dashboard após login bem sucedido
       if (data.primeiroAcesso === true) {
 
-        router.push('/planejamento')
+        router.push('/editais')
 
       } else {
 
