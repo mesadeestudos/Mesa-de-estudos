@@ -4,7 +4,7 @@ import { NextResponse } from "next/server"
 // service com regra de negócio
 import {
   requestResetService
-} from "@/service/reset.service"
+} from "@/service/user.auth.service"
 
 
 
