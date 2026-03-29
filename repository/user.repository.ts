@@ -1,8 +1,6 @@
 import prisma from "@/lib/prisma"
 import { CadastroDTO } from "@/dto/cadastro.dto"
 
-
-
 /*
 ========================
 BUSCAR POR EMAIL
@@ -29,8 +27,6 @@ export async function findUserByEmail(email: string) {
     resetTokenExpire: user.credencial?.reset_token_expira_em
   }
 }
-
-
 
 /*
 ========================
@@ -77,8 +73,6 @@ export async function createUser(user: CadastroDTO) {
   }
 }
 
-
-
 /*
 ========================
 SALVAR TOKEN RESET
@@ -110,8 +104,6 @@ export async function saveResetToken(
 
   return true
 }
-
-
 
 /*
 ========================
@@ -149,8 +141,6 @@ export async function findByToken(token: string) {
     primeiroAcesso: credencial.usuario.primeiro_acesso
   }
 }
-
-
 
 /*
 ========================

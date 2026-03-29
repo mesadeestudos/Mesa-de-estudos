@@ -8,6 +8,9 @@ import jwt from "jsonwebtoken"
 // criptografia de senha
 import bcrypt from "bcryptjs"
 
+// importar o função do email.service
+import { sendEmail } from "@/service/email.service"
+
 // geração de token seguro (reset)
 import crypto from "crypto"
 
@@ -69,8 +72,7 @@ function createToken(user: any) {
 // CADASTRO
 // ========================
 export async function cadastroService(
-  body: CadastroDTO
-) {
+  body: CadastroDTO) {
 
   // 1. verifica se usuário já existe
   const userExistente =
@@ -100,8 +102,7 @@ export async function cadastroService(
 // LOGIN
 // ========================
 export async function loginService(
-  body: LoginDTO
-) {
+  body: LoginDTO) {
 
   // 1. busca usuário
   const user =
@@ -147,8 +148,7 @@ export async function loginService(
 // SOLICITAR RESET DE SENHA
 // ========================
 export async function requestResetService(
-  data: RequestResetDTO
-) {
+  data: RequestResetDTO) {
 
   // 1. valida dados
   const parsed =
@@ -177,13 +177,22 @@ export async function requestResetService(
     expire
   )
 
-  // 6. gera link (simulação)
+  // 6. gera link e-mail
   const link =
-    `http://localhost:3000/redefinir?token=${token}`
+  `http://localhost:3000/redefinir?token=${token}`
 
-  console.log("🔐 LINK RESET:", link)
-
-  return link
+  // ✉️ enviar email
+  await sendEmail(
+    parsed.email,
+    "Recuperação de senha",
+    `
+    <h2>Recuperação de senha</h2>
+    <p>Olá!</p>
+    <p>Clique no link abaixo para redefinir sua senha da plataforma Mesa de Estudo:</p>
+    <a href="${link}">${link}</a>
+    <p>Esse link expira em 15 minutos.</p>  
+    `
+  )
 }
 
 
@@ -191,8 +200,7 @@ export async function requestResetService(
 // REDEFINIR SENHA
 // ========================
 export async function resetPasswordService(
-  data: ResetPasswordDTO
-) {
+  data: ResetPasswordDTO) {
 
   // 1. valida dados
   const parsed =
