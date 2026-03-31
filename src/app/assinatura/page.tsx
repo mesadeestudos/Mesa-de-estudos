@@ -14,6 +14,8 @@ export default function AssinaturaPage() {
     {
       name: "Plano Mensal",
       price: "39",
+      displayPrice: "39", // Valor que aparece no destaque
+      totalValue: "39",   // Valor real enviado para o checkout
       period: "/mês",
       description: "Flexibilidade total para organizar seus estudos mês a mês.",
       features: [
@@ -30,6 +32,8 @@ export default function AssinaturaPage() {
     {
       name: "Plano Anual",
       price: "24",
+      displayPrice: "24",
+      totalValue: "288", // O checkout cobrará o valor total anual
       period: "/mês",
       subtext: "Cobrado anualmente (R$ 288)",
       description: "O melhor custo-benefício para quem busca a aprovação.",
@@ -47,6 +51,8 @@ export default function AssinaturaPage() {
     {
       name: "Plano Trimestral",
       price: "32",
+      displayPrice: "32",
+      totalValue: "96", // O checkout cobrará o valor total trimestral
       period: "/mês",
       subtext: "Cobrado a cada 3 meses (R$ 96)",
       description: "Ideal para o planejamento de médio prazo.",
@@ -65,7 +71,6 @@ export default function AssinaturaPage() {
 
   return (
     <div className="min-h-screen bg-white py-20 px-6 relative overflow-hidden text-slate-900">
-      {/* Background Decorativo */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-gradient-to-b from-blue-50/50 to-transparent -z-10" />
 
       <div className="max-w-7xl mx-auto text-center mb-16">
@@ -73,7 +78,7 @@ export default function AssinaturaPage() {
           Escolha seu plano de <span className="text-cyan-600">Alta Performance</span>
         </h1>
         <p className="text-xl text-slate-500 max-w-2xl mx-auto font-medium">
-          Acesso total a todas as ferramentas de gerenciamento de estudos. Sem limitações, foco total na sua aprovação.
+          Acesso total a todas as ferramentas de gerenciamento de estudos.
         </p>
       </div>
 
@@ -100,13 +105,16 @@ export default function AssinaturaPage() {
               </p>
 
               <div className="flex items-baseline gap-1 mb-1">
-                <span className="text-4xl font-black">R$ {plan.price}</span>
+                <span className="text-4xl font-black">R$ {plan.displayPrice}</span>
                 <span className={`text-sm font-bold ${plan.highlight ? 'text-slate-500' : 'text-slate-400'}`}>{plan.period}</span>
               </div>
-              {plan.subtext && (
+              
+              {plan.subtext ? (
                 <p className={`text-[11px] font-bold mb-8 ${plan.highlight ? 'text-cyan-400' : 'text-slate-400'}`}>
                   {plan.subtext}
                 </p>
+              ) : (
+                <div className="h-[26px] mb-8" /> /* Mantém o alinhamento visual */
               )}
 
               <ul className="space-y-4 mb-10">
@@ -121,11 +129,15 @@ export default function AssinaturaPage() {
               </ul>
             </div>
 
-            <Link href="/cadastro" className="block mt-6">
+            {/* CORREÇÃO PRINCIPAL: Passando parâmetros via Query String */}
+            <Link 
+              href={`/pagamento?plano=${encodeURIComponent(plan.name)}&valor=${plan.totalValue}&subtext=${encodeURIComponent(plan.subtext || 'Pagamento mensal')}`} 
+              className="block mt-6"
+            >
               <button className={`w-full py-4 rounded-2xl font-black text-sm transition-all ${
                 plan.highlight 
                 ? 'bg-cyan-500 hover:bg-cyan-400 text-slate-900 shadow-lg shadow-cyan-500/30' 
-                : 'bg-slate-100 hover:bg-slate-200 text-slate-900'
+                : 'bg-slate-900 text-white hover:bg-slate-800 shadow-lg'
               }`}>
                 {plan.button}
               </button>
@@ -137,9 +149,9 @@ export default function AssinaturaPage() {
       <div className="mt-20 text-center">
         <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] mb-6">Assinatura Segura • Cancele a qualquer momento</p>
         <div className="flex flex-wrap justify-center gap-10 opacity-30 font-black text-lg italic">
-             <span>PIX</span>
-             <span>STRIPE</span>
-             <span>SSL SECURE</span>
+              <span>PIX</span>
+              <span>STRIPE</span>
+              <span>SSL SECURE</span>
         </div>
       </div>
     </div>

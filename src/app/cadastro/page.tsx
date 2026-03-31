@@ -18,6 +18,7 @@ export default function CadastroPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false); // Estado para mensagem de sucesso
   
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -112,10 +113,26 @@ export default function CadastroPage() {
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message);
-      router.push("/login");
+
+      if (!response.ok) {
+        // Verifica se o erro é de email já existente
+        if (data.message?.toLowerCase().includes("email") || response.status === 409) {
+          setErrors(prev => ({ ...prev, email: "Este e-mail já está cadastrado." }));
+          throw new Error("E-mail duplicado");
+        }
+        throw new Error(data.message || "Erro ao realizar cadastro");
+      }
+
+      // Sucesso
+      setShowSuccess(true);
+      setTimeout(() => {
+        router.push("/login");
+      }, 3000); // Aguarda 3 segundos exibindo a mensagem
+
     } catch (error: any) {
-      alert(error.message);
+      if (error.message !== "E-mail duplicado") {
+        alert(error.message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -161,121 +178,135 @@ export default function CadastroPage() {
 
         <div className="bg-white/80 backdrop-blur-2xl p-6 md:p-8 rounded-[32px] border border-slate-100 shadow-2xl shadow-slate-100/50 transition-all">
 
-          <form onSubmit={handleRegister} className="flex flex-col gap-3">
-
-            {/* Nome */}
-            <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nome Completo</label>
-              <input 
-                type="text"
-                placeholder="Como quer ser chamado?"
-                className={`w-full px-4 py-3.5 rounded-xl bg-slate-50 border outline-none text-sm transition-all ${errors.nome ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-100 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
-                onChange={(e) => updateField('nome', e.target.value)}
-              />
-              <ErrorMsg field="nome" />
-            </div>
-
-            {/* Email */}
-            <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">E-mail</label>
-              <input 
-                type="email"
-                placeholder="exemplo@email.com"
-                className={`w-full px-4 py-3.5 rounded-xl bg-slate-50 border outline-none text-sm transition-all ${errors.email ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-100 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
-                onChange={(e) => updateField('email', e.target.value)}
-              />
-              <ErrorMsg field="email" />
-            </div>
-
-            {/* Senhas */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-              <div className="relative">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Senha</label>
-                <div className="relative group">
-                  <input 
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    className={`w-full pl-4 pr-10 py-3.5 rounded-xl bg-slate-50 border outline-none text-sm transition-all ${errors.password ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-100 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
-                    onChange={(e) => updateField('senha', e.target.value)}
-                  />
-                  <button 
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-cyan-500 transition-colors p-1"
-                  >
-                    <EyeIcon visible={showPassword} />
-                  </button>
-                </div>
-                <ErrorMsg field="password" />
+          {showSuccess ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center animate-in fade-in zoom-in duration-300">
+              <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-8 h-8">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
               </div>
-
-              <div className="relative">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Confirmar</label>
-                <div className="relative group">
-                  <input 
-                    type={showConfirmPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    className={`w-full pl-4 pr-10 py-3.5 rounded-xl bg-slate-50 border outline-none text-sm transition-all ${errors.confirmPassword ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-100 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
-                    onChange={(e) => updateField('confirmPassword', e.target.value)}
-                  />
-                  <button 
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-cyan-500 transition-colors p-1"
-                  >
-                    <EyeIcon visible={showConfirmPassword} />
-                  </button>
-                </div>
-                <ErrorMsg field="confirmPassword" />
-              </div>
-
+              <h3 className="text-xl font-black text-slate-900">Conta criada!</h3>
+              <p className="text-slate-500 text-sm mt-2">Redirecionando você para o login...</p>
             </div>
+          ) : (
+            <form onSubmit={handleRegister} className="flex flex-col gap-3">
 
-            {/* Requisitos */}
-            <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-              <div className="grid grid-cols-2 gap-y-1.5 gap-x-2">
-                {requirements.map((req, idx) => (
-                  <div key={idx} className="flex items-center gap-1.5">
-                    <div className={`w-1 h-1 rounded-full transition-all ${req.met ? 'bg-cyan-500' : 'bg-slate-300'}`} />
-                    <span className={`text-[9px] font-bold ${req.met ? 'text-slate-900' : 'text-slate-400'}`}>
-                      {req.label}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Termos */}
-            <div className="py-1">
-              <label className="flex items-start gap-2.5 cursor-pointer">
+              {/* Nome */}
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nome Completo</label>
                 <input 
-                  type="checkbox"
-                  className={`w-4 h-4 border-2 rounded ${errors.aceite ? 'border-red-300' : 'border-slate-200'}`}
-                  onChange={(e) => updateField('aceite', e.target.checked)}
+                  type="text"
+                  placeholder="Como quer ser chamado?"
+                  className={`w-full px-4 py-3.5 rounded-xl bg-slate-50 border outline-none text-sm text-slate-900 transition-all autofill:shadow-[inset_0_0_0px_1000px_#f8fafc] ${errors.nome ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-100 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
+                  onChange={(e) => updateField('nome', e.target.value)}
                 />
-                <span className="text-[10px] font-bold text-slate-500">
-                  Aceito os Termos e Política.
-                </span>
-              </label>
-              <ErrorMsg field="aceite" />
-            </div>
+                <ErrorMsg field="nome" />
+              </div>
 
-            <button 
-              type="submit"
-              disabled={isLoading}
-              className={`w-full py-4 text-white text-xs font-black rounded-xl transition-all
-                ${isLoading ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                : 'bg-gradient-to-r from-indigo-600 to-cyan-500 shadow-lg shadow-cyan-500/20 hover:scale-[1.02]'}`}
-            >
-              {isLoading ? "PROCESSANDO..." : "CRIAR MINHA MESA"}
-            </button>
+              {/* Email */}
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">E-mail</label>
+                <input 
+                  type="email"
+                  placeholder="exemplo@email.com"
+                  className={`w-full px-4 py-3.5 rounded-xl bg-slate-50 border outline-none text-sm text-slate-900 transition-all autofill:shadow-[inset_0_0_0px_1000px_#f8fafc] ${errors.email ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-100 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
+                  onChange={(e) => updateField('email', e.target.value)}
+                />
+                <ErrorMsg field="email" />
+              </div>
 
-          </form>
+              {/* Senhas */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
-          <p className="mt-6 text-center text-xs text-slate-500 font-medium">
-            Já tem conta? <Link href="/login" className="text-cyan-600 font-bold hover:underline">Entrar</Link>
-          </p>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Senha</label>
+                  <div className="relative group">
+                    <input 
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      className={`w-full pl-4 pr-10 py-3.5 rounded-xl bg-slate-50 border outline-none text-sm text-slate-900 transition-all autofill:shadow-[inset_0_0_0px_1000px_#f8fafc] ${errors.password ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-100 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
+                      onChange={(e) => updateField('senha', e.target.value)}
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-cyan-500 transition-colors p-1"
+                    >
+                      <EyeIcon visible={showPassword} />
+                    </button>
+                  </div>
+                  <ErrorMsg field="password" />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Confirmar</label>
+                  <div className="relative group">
+                    <input 
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      className={`w-full pl-4 pr-10 py-3.5 rounded-xl bg-slate-50 border outline-none text-sm text-slate-900 transition-all autofill:shadow-[inset_0_0_0px_1000px_#f8fafc] ${errors.confirmPassword ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-100 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
+                      onChange={(e) => updateField('confirmPassword', e.target.value)}
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-cyan-500 transition-colors p-1"
+                    >
+                      <EyeIcon visible={showConfirmPassword} />
+                    </button>
+                  </div>
+                  <ErrorMsg field="confirmPassword" />
+                </div>
+
+              </div>
+
+              {/* Requisitos */}
+              <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+                <div className="grid grid-cols-2 gap-y-1.5 gap-x-2">
+                  {requirements.map((req, idx) => (
+                    <div key={idx} className="flex items-center gap-1.5">
+                      <div className={`w-1 h-1 rounded-full transition-all ${req.met ? 'bg-cyan-500' : 'bg-slate-300'}`} />
+                      <span className={`text-[9px] font-bold ${req.met ? 'text-slate-900' : 'text-slate-400'}`}>
+                        {req.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Termos */}
+              <div className="py-1">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input 
+                    type="checkbox"
+                    className={`w-4 h-4 border-2 rounded ${errors.aceite ? 'border-red-300' : 'border-slate-200'}`}
+                    onChange={(e) => updateField('aceite', e.target.checked)}
+                  />
+                  <span className="text-[10px] font-bold text-slate-500">
+                    Aceito os Termos e Política.
+                  </span>
+                </label>
+                <ErrorMsg field="aceite" />
+              </div>
+
+              <button 
+                type="submit"
+                disabled={isLoading}
+                className={`w-full py-4 text-white text-xs font-black rounded-xl transition-all
+                  ${isLoading ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-indigo-600 to-cyan-500 shadow-lg shadow-cyan-500/20 hover:scale-[1.02]'}`}
+              >
+                {isLoading ? "PROCESSANDO..." : "CRIAR MINHA MESA"}
+              </button>
+
+            </form>
+          )}
+
+          {!showSuccess && (
+            <p className="mt-6 text-center text-xs text-slate-500 font-medium">
+              Já tem conta? <Link href="/login" className="text-cyan-600 font-bold hover:underline">Entrar</Link>
+            </p>
+          )}
 
         </div>
       </div>
