@@ -14,8 +14,8 @@ export default function AssinaturaPage() {
     {
       name: "Plano Mensal",
       price: "39",
-      displayPrice: "39", // Valor que aparece no destaque
-      totalValue: "39",   // Valor real enviado para o checkout
+      displayPrice: "39",
+      totalValue: "39",
       period: "/mês",
       description: "Flexibilidade total para organizar seus estudos mês a mês.",
       features: [
@@ -33,7 +33,7 @@ export default function AssinaturaPage() {
       name: "Plano Anual",
       price: "24",
       displayPrice: "24",
-      totalValue: "288", // O checkout cobrará o valor total anual
+      totalValue: "288",
       period: "/mês",
       subtext: "Cobrado anualmente (R$ 288)",
       description: "O melhor custo-benefício para quem busca a aprovação.",
@@ -52,7 +52,7 @@ export default function AssinaturaPage() {
       name: "Plano Trimestral",
       price: "32",
       displayPrice: "32",
-      totalValue: "96", // O checkout cobrará o valor total trimestral
+      totalValue: "96",
       period: "/mês",
       subtext: "Cobrado a cada 3 meses (R$ 96)",
       description: "Ideal para o planejamento de médio prazo.",
@@ -114,13 +114,15 @@ export default function AssinaturaPage() {
                   {plan.subtext}
                 </p>
               ) : (
-                <div className="h-[26px] mb-8" /> /* Mantém o alinhamento visual */
+                <div className="h-[26px] mb-8" />
               )}
 
               <ul className="space-y-4 mb-10">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-3 text-sm font-medium text-left">
-                    <div className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${plan.highlight ? 'bg-cyan-500 text-slate-900' : 'bg-cyan-100 text-cyan-600'}`}>
+                    <div className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${
+                      plan.highlight ? 'bg-cyan-500 text-slate-900' : 'bg-cyan-100 text-cyan-600'
+                    }`}>
                       <CheckIcon />
                     </div>
                     {feature}
@@ -129,29 +131,38 @@ export default function AssinaturaPage() {
               </ul>
             </div>
 
-            {/* CORREÇÃO PRINCIPAL: Passando parâmetros via Query String */}
-            <Link 
-              href={`/pagamento?plano=${encodeURIComponent(plan.name)}&valor=${plan.totalValue}&subtext=${encodeURIComponent(plan.subtext || 'Pagamento mensal')}`} 
-              className="block mt-6"
-            >
-              <button className={`w-full py-4 rounded-2xl font-black text-sm transition-all ${
-                plan.highlight 
-                ? 'bg-cyan-500 hover:bg-cyan-400 text-slate-900 shadow-lg shadow-cyan-500/30' 
-                : 'bg-slate-900 text-white hover:bg-slate-800 shadow-lg'
-              }`}>
+            {/* 🔥 AQUI FOI AJUSTADO */}
+            <div className="block mt-6">
+              <button
+                onClick={() => {
+                  // define o step antes de navegar
+                  document.cookie = "step=PAGAMENTO; path=/"
+
+                  // redireciona mantendo sua lógica original
+                  window.location.href = `/pagamento?plano=${encodeURIComponent(plan.name)}&valor=${plan.totalValue}&subtext=${encodeURIComponent(plan.subtext || 'Pagamento mensal')}`
+                }}
+                className={`w-full py-4 rounded-2xl font-black text-sm transition-all ${
+                  plan.highlight 
+                    ? 'bg-cyan-500 hover:bg-cyan-400 text-slate-900 shadow-lg shadow-cyan-500/30' 
+                    : 'bg-slate-900 text-white hover:bg-slate-800 shadow-lg'
+                }`}
+              >
                 {plan.button}
               </button>
-            </Link>
+            </div>
+
           </div>
         ))}
       </div>
 
       <div className="mt-20 text-center">
-        <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] mb-6">Assinatura Segura • Cancele a qualquer momento</p>
+        <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] mb-6">
+          Assinatura Segura • Cancele a qualquer momento
+        </p>
         <div className="flex flex-wrap justify-center gap-10 opacity-30 font-black text-lg italic">
-              <span>PIX</span>
-              <span>STRIPE</span>
-              <span>SSL SECURE</span>
+          <span>PIX</span>
+          <span>STRIPE</span>
+          <span>SSL SECURE</span>
         </div>
       </div>
     </div>

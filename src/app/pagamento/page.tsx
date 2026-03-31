@@ -29,6 +29,10 @@ function PaymentContent() {
   };
 
   const irParaCadastro = () => {
+    // 🔥 atualiza o fluxo
+    document.cookie = "step=CADASTRO; path=/"
+
+    // 🔁 mantém sua navegação original
     router.push('/cadastro');
   };
 
