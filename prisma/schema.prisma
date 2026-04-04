@@ -84,6 +84,7 @@ model concurso {
   id_concurso Int      @id @default(autoincrement())
   nome        String   @db.VarChar(255)
   id_orgao    Int
+  sigla       String?  @db.VarChar(50)
   orgao       orgao    @relation(fields: [id_orgao], references: [id_orgao], onDelete: NoAction, onUpdate: NoAction)
   edital      edital[]
 
