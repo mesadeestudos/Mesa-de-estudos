@@ -37,19 +37,20 @@ model sessao {
 }
 
 model usuario {
-  id_usuario                  BigInt                 @id @default(autoincrement())
-  nome_completo               String                 @db.VarChar(150)
-  nome_usuario                String?                @unique @db.VarChar(30)
-  email                       String                 @unique @db.VarChar(150)
+  id_usuario                  BigInt                     @id @default(autoincrement())
+  nome_completo               String                     @db.VarChar(150)
+  nome_usuario                String?                    @unique @db.VarChar(30)
+  email                       String                     @unique @db.VarChar(150)
   foto_url                    String?
-  ativo                       Boolean?               @default(true)
-  primeiro_acesso             Boolean?               @default(true)
-  data_criacao                DateTime?              @default(now()) @db.Timestamptz(6)
-  email_verificado            Boolean?               @default(false)
+  ativo                       Boolean?                   @default(true)
+  primeiro_acesso             Boolean?                   @default(true)
+  data_criacao                DateTime?                  @default(now()) @db.Timestamptz(6)
+  email_verificado            Boolean?                   @default(false)
   email_verificacao_token     String?
-  email_verificacao_expira_em DateTime?              @db.Timestamp(6)
+  email_verificacao_expira_em DateTime?                  @db.Timestamp(6)
   credencial                  credencial?
   sessao                      sessao[]
+  disciplina_nivel_usuario    disciplina_nivel_usuario[]
   disciplina_progresso        disciplina_progresso[]
   plano_estudo                plano_estudo[]
   sessao_estudo               sessao_estudo[]
@@ -91,16 +92,17 @@ model concurso {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model disciplina {
-  id_disciplina        Int                    @id @default(autoincrement())
-  id_cargo             Int?
-  nome                 String                 @db.VarChar(100)
-  peso                 Decimal?               @default(1.0) @db.Decimal(4, 2)
-  qtd_questoes         Int?
-  cargo                cargo?                 @relation(fields: [id_cargo], references: [id_cargo], onDelete: Cascade, onUpdate: NoAction)
-  topico               topico[]
-  ciclo_disciplina     ciclo_disciplina[]
-  disciplina_progresso disciplina_progresso[]
-  sessao_estudo        sessao_estudo[]
+  id_disciplina            Int                        @id @default(autoincrement())
+  id_cargo                 Int?
+  nome                     String                     @db.VarChar(100)
+  peso                     Decimal?                   @default(1.0) @db.Decimal(4, 2)
+  qtd_questoes             Int?
+  cargo                    cargo?                     @relation(fields: [id_cargo], references: [id_cargo], onDelete: Cascade, onUpdate: NoAction)
+  topico                   topico[]
+  ciclo_disciplina         ciclo_disciplina[]
+  disciplina_nivel_usuario disciplina_nivel_usuario[]
+  disciplina_progresso     disciplina_progresso[]
+  sessao_estudo            sessao_estudo[]
 
   @@unique([id_cargo, nome])
   @@index([id_cargo], map: "idx_disciplina_cargo")
@@ -113,6 +115,8 @@ model edital {
   ano         Int
   id_banca    Int?
   ativo       Boolean?  @default(true)
+  status      String?   @db.VarChar(20)
+  data_prova  DateTime? @db.Date
   cargo       cargo[]
   banca       banca?    @relation(fields: [id_banca], references: [id_banca], onDelete: NoAction, onUpdate: NoAction)
   concurso    concurso? @relation(fields: [id_concurso], references: [id_concurso], onDelete: Cascade, onUpdate: NoAction)
@@ -243,5 +247,19 @@ model topico_progresso {
   usuario             usuario   @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([id_usuario, id_topico])
+  @@schema("planejamento")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model disciplina_nivel_usuario {
+  id_nivel         BigInt     @id @default(autoincrement())
+  id_usuario       BigInt
+  id_disciplina    Int
+  nivel            String     @db.VarChar(10)
+  data_atualizacao DateTime?  @default(now()) @db.Timestamptz(6)
+  disciplina       disciplina @relation(fields: [id_disciplina], references: [id_disciplina], onDelete: Cascade, onUpdate: NoAction)
+  usuario          usuario    @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([id_usuario, id_disciplina])
   @@schema("planejamento")
 }
