@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation'; // Adicione esta importação
 
@@ -11,7 +11,65 @@ export default function PlanejamentoEditais() {
   const [etapa, setEtapa] = useState(1);
   const [niveisDificuldade, setNiveisDificuldade] = useState<Record<string, string>>({});
   const [busca, setBusca] = useState(''); // Novo estado para pesquisa
+  // Estado que vai armazenar os editais vindos da API
+  const [editais, setEditais] = useState<any[]>([])
   const router = useRouter(); // Inicializa o roteador
+
+  /**
+  * Busca os editais da API quando a página carregar
+  */
+  useEffect(() => {
+
+    async function fetchEditais() {
+
+      try {
+
+        // Faz requisição para sua API
+        const response = await fetch('/api/concursos')
+
+        // Converte para JSON
+        const data = await response.json()
+
+        console.log('DADOS DA API:', data) // 👈 importante pra debug
+
+        // Adaptando dados da API para o formato do frontend
+        const editaisFormatados = data.map((concurso: any) => ({
+          id: concurso.id,
+
+          nome: concurso.nome, // sigla
+
+          descricao: concurso.descricao || '',
+
+          // 👇 GARANTINDO valores válidos
+          data: concurso.data
+          ? concurso.data.split('T')[0].split('-').reverse().join('/')
+          : 'A definir',
+
+          cargo: concurso.cargo || 'Não informado',
+          
+          banca: concurso.banca || '',
+
+          /**
+          * 📌 STATUS REAL
+          */
+          status: concurso.status || 'Previsto',
+
+          disciplinas: [] // importante pro próximo passo
+        }))
+        
+        console.log('FORMATADO:', editaisFormatados)
+        // Atualiza estado
+        setEditais(editaisFormatados)
+
+      } catch (error) {
+
+      }
+
+    }
+
+    fetchEditais()
+
+  }, [])
   
   // ... seus outros estados (horasDiarias, editalSelecionado, etc)
 
@@ -31,19 +89,17 @@ export default function PlanejamentoEditais() {
     router.push('/dashboard');
   };
 
-  // Lista de editais disponíveis
-  const editais = [
-    { id: 'pcsp', nome: 'PC-SP 2026', data: '20/05/2026', cargo: 'Investigador', status: 'Aberto', disciplinas: ['D. Constitucional', 'D. Administrativo', 'Português', 'Informática'] },
-    { id: 'prf', nome: 'PRF 2026', data: '15/08/2026', cargo: 'Policial Rodoviário', status: 'Previsto', disciplinas: ['Física', 'Raciocínio Lógico', 'D. Penal', 'Geopolítica'] },
-    { id: 'pf', nome: 'PF 2026', data: '10/09/2026', cargo: 'Agente', status: 'Previsto', disciplinas: ['Contabilidade', 'Informática', 'D. Penal', 'Redação'] },
-    { id: 'depen', nome: 'DEPEN', data: '05/12/2026', cargo: 'Policial Penal', status: 'Aberto', disciplinas: ['Execução Penal', 'D. Humanos', 'Português', 'D. Penal'] },
-    { id: 'agepen', nome: 'AGEPEN-MG', data: '12/10/2026', cargo: 'Policial Penal', status: 'Previsto', disciplinas: ['D. Penal', 'D. Administrativo', 'Português', 'Informática'] },
-  ];
-
   // Filtra editais pelo nome conforme o termo de busca
-  const editaisFiltrados = useMemo(() => 
-    editais.filter(e => e.nome.toLowerCase().includes(busca.toLowerCase())),
-  [busca]);
+  const editaisFiltrados = useMemo(() => {
+
+    // Se não tem busca, retorna tudo
+    if (!busca) return editais
+
+    return editais.filter(e =>
+      e.nome?.toLowerCase().includes(busca.toLowerCase())
+    )
+
+  }, [busca, editais])
 
   // Função auxiliar para definir as cores dos botões de nível de dificuldade
   const getButtonClass = (disciplina: string, nivel: string) => {
@@ -111,20 +167,64 @@ export default function PlanejamentoEditais() {
             />
           </div>
           
-          <div className="flex flex-row gap-6 w-full">
+          <div className="flex flex-row gap-6 w-full flex-wrap">
             {editaisFiltrados.slice(0, 5).map((edital) => (
               <div 
                 key={edital.id} 
-                onClick={() => {setEditalSelecionado(edital); setEtapa(2);}} 
-                className={`cursor-pointer bg-white p-6 rounded-[32px] border-2 transition-all flex-1 aspect-square flex flex-col justify-between ${editalSelecionado?.id === edital.id ? 'border-cyan-500 shadow-xl' : 'border-slate-100 hover:border-slate-200'}`}
+                onClick={async () => {
+                try {
+                  /**
+                   * 🔍 Busca detalhes do concurso pelo ID
+                   */
+                  const response = await fetch(`/api/concursos/${edital.id}`)
+
+                  const data = await response.json()
+
+                  console.log('DETALHE DO CONCURSO:', data)
+
+                  /**
+                   * 🎯 Extrai disciplinas da estrutura:
+                   * concurso → edital → cargo → disciplina
+                   */
+                  const disciplinas = data.edital?.[0]?.cargo?.flatMap((cargo: any) =>
+                    cargo.disciplina.map((d: any) => d.nome)
+                  ) || []
+
+                  /**
+                   * Atualiza edital selecionado com disciplinas reais
+                   */
+                  setEditalSelecionado({
+                    ...edital,
+                    disciplinas
+                  })
+
+                  /**
+                   * Vai para etapa 2 (tela de dificuldade)
+                   */
+                  setEtapa(2)
+
+                } catch (error) {
+
+                  console.error('Erro ao buscar disciplinas:', error)
+
+                }
+              }} 
+                className={`cursor-pointer bg-white p-6 rounded-[32px] border-2 transition-all flex flex-col justify-between ${editalSelecionado?.id === edital.id ? 'border-cyan-500 shadow-xl' : 'border-slate-100 hover:border-slate-200'}`}
               >
                 <div className="flex justify-between items-start">
-                  <span className={`text-[8px] font-black uppercase px-3 py-1 rounded-full ${edital.status === 'Aberto' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>{edital.status}</span>
+                  <span className={`text-[8px] font-black uppercase px-3 py-1 rounded-full ${edital.status === 'ABERTO' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>{edital.status}</span>
                   <div className="text-2xl">📄</div>
                 </div>
                 <div>
+                  {/* NOME */}
                   <h4 className="text-md font-black text-slate-800 italic uppercase tracking-tighter">{edital.nome}</h4>
+                  {/* 📅 DATA */}
                   <p className="text-[10px] font-black text-cyan-600 bg-cyan-50 px-2 py-0.5 rounded-md inline-block mt-2">{edital.data}</p>
+                  {/* 🏢 BANCA */}
+                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">{edital.banca}</p>
+                  {/*  DESCRIÇÃO */}
+                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1 leading-tight">{edital.descricao}</p>
+                  {/* 🎯 CARGO */}
                   <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">{edital.cargo}</p>
                 </div>
               </div>
@@ -138,7 +238,7 @@ export default function PlanejamentoEditais() {
             <div className="relative z-10">
               <h3 className="text-3xl font-black italic uppercase text-white mb-10">Nível de Domínio: <span className="text-cyan-400">{editalSelecionado.nome}</span></h3>
               <div className="grid grid-cols-2 gap-4 mb-12">
-                {editalSelecionado.disciplinas.map((disc: string) => (
+                {editalSelecionado.disciplinas?.map((disc: string) => (
                   <div key={disc} className="bg-white/5 border border-white/10 p-6 rounded-2xl flex items-center justify-between">
                     <span className="text-sm font-bold uppercase">{disc}</span>
                     <div className="flex gap-2">
