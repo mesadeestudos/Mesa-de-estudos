@@ -3,7 +3,7 @@ import Link from 'next/link';
 
 export default function HomePage() {
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-linear-to-br from-cyan-50/50 via-white to-indigo-50/50 font-sans text-slate-900 selection:bg-cyan-100">
+    <div className="min-h-screen flex flex-col bg-linear-to-br from-cyan-50/50 via-white to-indigo-50/50 font-sans text-slate-900 selection:bg-cyan-100">
 
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-cyan-300 rounded-full blur-[120px] opacity-15" />
@@ -39,7 +39,7 @@ export default function HomePage() {
         </div>
       </nav>
 
-      <main className="flex-1 relative z-10 overflow-hidden">
+      <main className="flex-1 relative z-10">
         <div className="h-full max-w-7xl mx-auto px-6 py-6 grid lg:grid-cols-2 gap-8 items-center">
 
           <div className="space-y-5">
@@ -73,7 +73,7 @@ export default function HomePage() {
           <div className="flex justify-center items-center h-full">
             <div
               className="relative w-full overflow-hidden bg-white rounded-3xl border border-slate-100 shadow-sm"
-              style={{ maxHeight: 'calc(100vh - 14rem)' }}
+              style={{ maxHeight: 'calc(100vh - 15.5rem)' }}
             >
               <img
                 src="/imagem_home.png"
