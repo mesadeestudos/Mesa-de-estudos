@@ -1,311 +1,260 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { deleteCookie } from 'cookies-next';
+import {
+  Bell, Settings, User, LayoutDashboard, BookOpen, RefreshCw,
+  LineChart, Calendar, LogOut, Clock, Target,
+  TrendingUp, ChevronRight, Info, CheckCircle2
+} from 'lucide-react';
 
-export default function DashboardQuantumV23() {
-  const [isRunning, setIsRunning] = useState(false);
-  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
-  const [feedbackText, setFeedbackText] = useState('');
-  const [enviado, setEnviado] = useState(false);
-  const [seconds, setSeconds] = useState(0);
-  const [disciplinas, setDisciplinas] = useState<any[]>([]);
-  const [idDiscAtiva, setIdDiscAtiva] = useState<number | null>(null);
-  const [idTopicoAtivo, setIdTopicoAtivo] = useState<number | null>(null);
+export default function PainelEstudante() {
+  const router = useRouter();
+  const [temCiclo, setTemCiclo] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [abaAtiva, setAbaAtiva] = useState('Dashboard');
 
-  const TEMPO_META_TOPICO = 1800;
-
-  // Função para enviar feedback corrigida
-  const handleSendFeedback = () => {
-    if (feedbackText.trim() === '') return;
-    setEnviado(true);
-    setTimeout(() => {
-      setEnviado(false);
-      setIsFeedbackOpen(false);
-      setFeedbackText('');
-    }, 2500);
+  const handleLogout = () => {
+    deleteCookie('authorization');
+    router.push('/login');
   };
 
+  // Correção de Hydration: Garante que o cliente só renderize após a montagem
   useEffect(() => {
-    const dadosSalvos = localStorage.getItem('meu_planejamento');
-    if (dadosSalvos) {
-      try {
-        const planejamento = JSON.parse(dadosSalvos);
-        const { edital, niveisDificuldade, horasDiarias } = planejamento;
-
-        const listaMapeada = edital.disciplinas.map((nomeDisc: string, index: number) => {
-          const dificuldade = niveisDificuldade[nomeDisc] || 'Médio';
-          const peso = dificuldade === 'Alto' ? 3 : (dificuldade === 'Médio' ? 2 : 1);
-          const corSugerida = dificuldade === 'Alto' ? '#EF4444' : (dificuldade === 'Baixo' ? '#10B981' : '#0284C7');
-
-          return {
-            id: index + 1,
-            nome: nomeDisc,
-            dificuldade,
-            prioridade: peso,
-            cor: corSugerida,
-            metaHoras: (horasDiarias * 3600 * 7) / edital.disciplinas.length,
-            topicos: [
-              { id: (index + 1) * 100 + 1, nome: `Teoria de ${nomeDisc}`, tempoSec: 0, status: 'pendente' },
-              { id: (index + 1) * 100 + 2, nome: `Questões de Fixação`, tempoSec: 0, status: 'pendente' },
-              { id: (index + 1) * 100 + 3, nome: `Revisão de Ciclo`, tempoSec: 0, status: 'pendente' }
-            ]
-          };
-        });
-
-        const listaOrdenada = listaMapeada.sort((a: any, b: any) => b.prioridade - a.prioridade);
-        setDisciplinas(listaOrdenada);
-
-        if (listaOrdenada.length > 0) {
-          setIdDiscAtiva(listaOrdenada[0].id);
-          setIdTopicoAtivo(listaOrdenada[0].topicos[0].id);
-        }
-      } catch (e) { console.error(e); }
-    }
+    setMounted(true);
   }, []);
 
-  const formatarTempo = (s: number) => {
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    const sec = s % 60;
-    return `${h}h ${m}m ${sec}s`;
+  if (!mounted) {
+    return <div className="min-h-screen w-full bg-[#F0F2F5]" />;
+  }
+
+  const navegarPara = (tela: string) => {
+    setAbaAtiva(tela);
   };
 
-  const moverParaRevisao = useCallback((idTop: number) => {
-    setDisciplinas(prev => prev.map(d => ({
-      ...d,
-      topicos: d.topicos.map((t: any) => t.id === idTop ? { ...t, status: t.status === 'revisar' ? 'concluido' : 'revisar' } : t)
-    })));
-  }, []);
-
-  useEffect(() => {
-    let interval: any = null;
-    if (isRunning && idTopicoAtivo) {
-      interval = setInterval(() => {
-        setSeconds(prev => {
-          if (prev + 1 >= TEMPO_META_TOPICO) {
-            setIsRunning(false);
-            moverParaRevisao(idTopicoAtivo);
-            return 0;
-          }
-          return prev + 1;
-        });
-        setDisciplinas(prev => prev.map(d => ({
-          ...d,
-          topicos: d.topicos.map((t: any) => t.id === idTopicoAtivo ? { ...t, tempoSec: t.tempoSec + 1, status: 'estudando' } : t)
-        })));
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isRunning, idTopicoAtivo, moverParaRevisao]);
-
-  const discAtual = disciplinas.find(d => d.id === idDiscAtiva);
-  const topicoAtivo = discAtual?.topicos.find((t: any) => t.id === idTopicoAtivo);
-  const todosOsTopicos = disciplinas.flatMap(d => d.topicos.map((t: any) => ({ ...t, discId: d.id, nomeMateria: d.nome, corMateria: d.cor })));
-  const radarRevisao = todosOsTopicos.filter(t => t.status === 'revisar');
-  const proximoSugerido = todosOsTopicos.find(t => t.status === 'pendente') || { nome: "Concluido", nomeMateria: "Parabéns", discId: null, id: null };
-  const porcentagemSaude = todosOsTopicos.length > 0 ? Math.round((todosOsTopicos.filter(t => t.status !== 'pendente').length / todosOsTopicos.length) * 100) : 0;
+  const concluirPassoCiclo = () => {
+    router.push('/ciclos');
+  };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B] font-sans">
-      {!isRunning && (
-        <header className="h-20 bg-[#082040] fixed top-0 w-full z-50 px-10 flex items-center justify-between shadow-lg">
-          <div className="flex items-center gap-5">
-            <img src="/logo_azul.png" alt="Logo" className="h-40 w-auto" />
-            <h1 className="text-[11px] font-black uppercase tracking-[0.4em] text-white">Dashboard <span className="text-cyan-400">Inteligente</span></h1>
+    <div className="min-h-screen w-full flex bg-[#F0F2F5] text-[#475569] font-sans">
+      
+      {/* Sidebar Lateral */}
+      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col flex-shrink-0 h-screen sticky top-0">
+        <div className="p-0 flex flex-col items-center flex-grow overflow-y-auto min-h-0">
+          <div className="w-40 h-40 flex items-center justify-center mb-0 flex-shrink-0">
+            <img src="/logo_azul.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
-          <div className="flex items-center gap-8">
-            <Link href="/editais" className="flex items-center gap-3 group border-r border-white/10 pr-6">
-              <div className="h-9 w-9 rounded-xl bg-white/5 flex items-center justify-center text-base border border-white/10 group-hover:bg-cyan-500/20 transition-all">📝</div>
-              <div className="flex flex-col"><span className="text-[10px] font-black text-white uppercase tracking-widest">Editais</span><span className="text-[7px] font-bold text-slate-400 uppercase tracking-tight">Gestão</span></div>
-            </Link>
-            <Link href="/radar" className="flex items-center gap-3 group">
-              <div className="h-9 w-9 rounded-xl bg-white/5 flex items-center justify-center text-base border border-white/10 group-hover:bg-emerald-500/20 transition-all">📊</div>
-              <div className="flex flex-col"><span className="text-[10px] font-black text-white uppercase tracking-widest">Radar</span><span className="text-[7px] font-bold text-slate-400 uppercase tracking-tight">Desempenho</span></div>
-            </Link>
-            <div className="flex items-center gap-3 px-4 py-2 bg-white/5 rounded-full border border-white/10">
-              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Sincronizado</span>
+
+          <nav className="space-y-1 w-full px-2">
+            <MenuItem icon={<LayoutDashboard size={18} />} label="Dashboard" active={abaAtiva === 'Dashboard'} onClick={() => navegarPara('Dashboard')} />
+            <MenuItem icon={<BookOpen size={18} />} label="Minha Mesa" active={abaAtiva === 'Minha Mesa'} onClick={() => navegarPara('Minha Mesa')} />
+            <MenuItem icon={<RefreshCw size={18} />} label="Ciclos de estudo" active={abaAtiva === 'Ciclos'} onClick={() => router.push('/ciclos')} />
+            <MenuItem icon={<LineChart size={18} />} label="Desempenho" active={abaAtiva === 'Desempenho'} onClick={() => navegarPara('Desempenho')} />
+            <MenuItem icon={<Calendar size={18} />} label="Revisões" active={abaAtiva === 'Revisões'} onClick={() => navegarPara('Revisões')} />
+            <MenuItem icon={<Settings size={18} />} label="Configurações" active={abaAtiva === 'Config'} onClick={() => navegarPara('Config')} />
+            <MenuItem icon={<User size={18} />} label="Perfil de usuario" active={abaAtiva === 'Perfil'} onClick={() => navegarPara('Perfil')} />
+          </nav>
+        </div>
+
+        <div className="p-4 border-t border-slate-100 flex-shrink-0 bg-white">
+          <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all w-full font-bold text-sm group">
+            <div className="p-1.5 rounded-lg bg-slate-50 group-hover:bg-red-100 transition-colors">
+              <LogOut size={18} />
+            </div>
+            <span>Sair</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Conteúdo Principal */}
+      <main className="flex-1 flex flex-col min-w-0 p-4 lg:p-6 overflow-y-auto bg-[#F0F2F5]">
+        
+        <header className="flex justify-between items-center mb-6 flex-shrink-0">
+          <h1 className="text-xl font-bold text-sky-500/80">Painel do Estudante</h1>
+          <div className="flex items-center gap-4">
+            <div className="flex gap-4 border-r pr-6 border-slate-200">
+              <HeaderIcon icon={<Bell size={18} />} label="Notificações" />
+              <HeaderIcon icon={<Settings size={18} />} label="Ajustes" onClick={() => navegarPara('Config')} />
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-right hidden sm:block">
+                <p className="text-sm font-bold text-slate-800 leading-tight">Olá, João!</p>
+                <div className="flex items-center gap-1 justify-end">
+                   <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                   <span className="text-[10px] text-slate-400 font-medium italic">Ativo</span>
+                </div>
+              </div>
+              <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-sky-400 to-sky-100 shadow-sm border border-white cursor-pointer" onClick={() => navegarPara('Perfil')}>
+                <img src="https://github.com/shadcn.png" alt="User" className="w-9 h-9 rounded-full border-2 border-white object-cover" />
+              </div>
             </div>
           </div>
         </header>
-      )}
 
-      <main className={`transition-all duration-700 ${isRunning ? 'pt-0' : 'pt-32 pb-20 px-10 max-w-[1900px] mx-auto'}`}>
-        {!isRunning && (
-          <div className="grid grid-cols-12 gap-8 mb-10">
-            <div className="col-span-12 lg:col-span-9 bg-gradient-to-br from-[#082040] to-[#164F73] p-8 rounded-[40px] text-white flex justify-between items-center shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 blur-[80px] rounded-full translate-x-1/2 -translate-y-1/2" />
-              <div className="relative z-10">
-                <p className="text-cyan-400 text-[10px] font-black uppercase tracking-widest mb-2">Sugestão Prioritária</p>
-                <h3 className="text-3xl font-black italic tracking-tighter uppercase">{proximoSugerido?.nomeMateria}: <span className="text-cyan-200">{proximoSugerido?.nome}</span></h3>
-              </div>
-              <button onClick={() => { if (proximoSugerido.discId) { setIdDiscAtiva(proximoSugerido.discId); setIdTopicoAtivo(proximoSugerido.id); setSeconds(0); setIsRunning(true); } }} className="relative z-10 bg-cyan-500 hover:bg-cyan-400 text-[#082040] px-10 py-5 rounded-2xl font-black uppercase text-[11px] tracking-widest active:scale-95 transition-all">Começar Agora</button>
-            </div>
-            <div className="col-span-12 lg:col-span-3 bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm flex flex-col justify-center">
-              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-4">Saúde do Edital</p>
-              <span className="text-5xl font-black italic text-slate-900 tracking-tighter mb-3">{porcentagemSaude}%</span>
-              <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-cyan-500 transition-all duration-1000" style={{ width: `${porcentagemSaude}%` }} /></div>
-            </div>
-          </div>
-        )}
-
-        {/* LISTAGEM E FOCO CENTRAL */}
-{!isRunning && (
-  <div className="grid grid-cols-12 gap-8 items-start">
-    {/* COLUNA ESQUERDA: LISTAGEM */}
-    <div className="col-span-12 lg:col-span-3 space-y-6">
-      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] ml-2">Ciclo de Prioridades</h3>
-      {disciplinas.map((disc) => (
-        <div key={disc.id} className={`bg-white rounded-[24px] border transition-all duration-500 ${idDiscAtiva === disc.id ? 'border-slate-200 shadow-xl scale-[1.02]' : 'border-transparent opacity-60'}`}>
-          <button onClick={() => setIdDiscAtiva(disc.id)} className="w-full p-6 text-left">
-            <div className="flex items-center gap-4">
-              <div className="w-1.5 h-7 rounded-full" style={{ background: disc.cor }} />
-              <div className="flex flex-col">
-                <span className="text-sm font-black uppercase text-slate-800 tracking-tight">{disc.nome}</span>
-                <span className="text-[9px] text-cyan-600 font-bold uppercase">Total: {formatarTempo(disc.topicos.reduce((acc: any, t: any) => acc + t.tempoSec, 0))}</span>
-              </div>
-            </div>
-          </button>
-          {idDiscAtiva === disc.id && (
-            <div className="px-5 pb-5 space-y-2">
-              {disc.topicos.map((t: any) => (
-                <div key={t.id} onClick={() => setIdTopicoAtivo(t.id)} className={`p-4 rounded-2xl border transition-all cursor-pointer ${idTopicoAtivo === t.id ? 'bg-slate-50 border-slate-200 shadow-inner' : 'bg-transparent border-transparent'}`}>
-                  <div className="flex justify-between items-start mb-4">
-                    <p className="text-[11px] font-bold text-slate-600 leading-tight w-2/3">{t.nome}</p>
-                    <span className="text-[8px] font-black text-slate-400 tabular-nums">{formatarTempo(t.tempoSec)}</span>
-                  </div>
-                  <button onClick={(e) => { e.stopPropagation(); moverParaRevisao(t.id); }} className={`w-full py-2 rounded-xl text-[8px] font-black uppercase border transition-all ${t.status === 'revisar' || t.status === 'concluido' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-white text-slate-400'}`}>
-                    {t.status === 'revisar' || t.status === 'concluido' ? '✓ Concluído' : 'Marcar Concluído'}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-
-    {/* COLUNA CENTRAL: FOCO (COM LUZ E MÉTRICAS) */}
-    <div className="col-span-12 lg:col-span-6 sticky top-32 text-center">
-      <div className="bg-white border border-white rounded-[56px] p-16 flex flex-col items-center shadow-2xl shadow-slate-200/60 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1.5" style={{ background: discAtual?.cor || '#0284C7' }} />
-        
-        <h2 className="text-4xl font-black text-slate-900 italic tracking-tighter mb-2 uppercase">{discAtual?.nome || 'Selecione'}</h2>
-        <p className="text-cyan-600 font-bold text-[10px] uppercase tracking-[0.5em] mb-12">{topicoAtivo?.nome || 'Tópico'}</p>
-        
-        {/* Container do Tempo com a Luz de Fundo */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-cyan-400/10 blur-[60px] rounded-full animate-pulse" />
-          <div className="relative text-[10rem] font-medium text-slate-900 leading-none mb-16 tracking-tighter tabular-nums">
-            {new Date(seconds * 1000).toISOString().substr(11, 8)}
-          </div>
-        </div>
-
-        <button onClick={() => { setIsRunning(true); setSeconds(0) }} className="bg-cyan-50 text-cyan-600 border border-cyan-200 px-16 py-6 rounded-full font-black text-[12px] uppercase tracking-[0.5em] hover:bg-cyan-600 hover:text-white transition-all active:scale-95 shadow-sm">
-          Iniciar Foco
-        </button>
-      </div>
-
-      {/* OS DOIS NOVOS OBJETOS DE MÉTRICAS */}
-      <div className="mt-8 grid grid-cols-2 gap-4">
-        <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm text-left">
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Total Hoje</span>
-          <p className="text-xl font-black text-slate-800 tracking-tight">04h 22m</p>
-        </div>
-        <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm text-left">
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Média Semanal</span>
-          <p className="text-xl font-black text-slate-800 tracking-tight">05h 10m</p>
-        </div>
-      </div>
-    </div>
-
-    {/* COLUNA DIREITA: REVISÕES */}
-    <div className="col-span-12 lg:col-span-3 flex flex-col gap-6">
-      <div className="bg-slate-50 rounded-[40px] p-8 border border-slate-200 min-h-[400px]">
-        <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.4em] mb-8">Fila de revisões</h3>
-        <div className="space-y-4">
-          {radarRevisao.map((item: any, i) => (
-            <div key={i} className="bg-white p-6 rounded-[28px] border border-slate-200 relative overflow-hidden shadow-sm">
-              <div className="absolute top-0 left-0 h-full w-1" style={{ background: item.corMateria }} />
-              <span className="text-[8px] font-black text-slate-400 uppercase mb-1 block">{item.nomeMateria}</span>
-              <p className="text-[14px] font-bold italic text-slate-800 leading-tight mb-4">{item.nome}</p>
-              <button onClick={() => { setIdDiscAtiva(item.discId); setIdTopicoAtivo(item.id); setSeconds(0); setIsRunning(true); }} className="w-full py-2 bg-cyan-50 border border-cyan-100 rounded-lg text-[7px] font-black uppercase text-cyan-600">Iniciar Revisão</button>
-            </div>
-          ))}
-        </div>
-        <div className="pt-8 border-t border-slate-200 mt-8">
-          <button onClick={() => setIsFeedbackOpen(true)} className="w-full bg-white p-5 rounded-[28px] border-2 border-dashed border-slate-200 hover:border-cyan-400 transition-all text-left">
+        {/* Alerta Condicional Superior */}
+        {!temCiclo && (
+          <div className="bg-white border border-slate-200 rounded-xl p-3 mb-6 flex items-center justify-between shadow-sm border-l-4 border-l-sky-500 flex-shrink-0 animate-in fade-in slide-in-from-top-4 duration-500">
             <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-cyan-100 flex items-center justify-center text-sm">💡</div>
-              <div><h4 className="text-[10px] font-black text-slate-800 uppercase tracking-tight">Sugestões MVP</h4><p className="text-[9px] text-slate-400 font-medium">Envie sua ideia agora</p></div>
+              <Info size={16} className="text-sky-500" />
+              <p className="text-xs text-slate-600 font-medium">Crie seu plano de estudos para desbloquear as funções.</p>
             </div>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-
-        {/* MODAL DE SUGESTÕES CORRIGIDO */}
-        {isFeedbackOpen && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
-            <div className="absolute inset-0 bg-[#082040]/80 backdrop-blur-md" onClick={() => !enviado && setIsFeedbackOpen(false)} />
-            <div className="relative bg-white w-full max-w-lg rounded-[48px] p-12 shadow-2xl overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-2 bg-cyan-500" />
-              {!enviado ? (
-                <>
-                  <div className="flex justify-between items-start mb-8">
-                    <div>
-                      <h3 className="text-2xl font-black text-slate-900 italic uppercase">Sugestões <span className="text-cyan-600">MVP</span></h3>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Sua ideia é fundamental</p>
-                    </div>
-                    <button onClick={() => setIsFeedbackOpen(false)} className="text-slate-300 hover:text-slate-500 transition-colors">✕</button>
-                  </div>
-                  <textarea
-                    value={feedbackText}
-                    onChange={(e) => setFeedbackText(e.target.value)}
-                    placeholder="O que podemos melhorar?"
-                    className="w-full h-40 bg-slate-50 border border-slate-200 rounded-3xl p-6 text-sm text-slate-700 focus:outline-none focus:border-cyan-500 transition-all resize-none mb-6"
-                  />
-                  <button
-                    onClick={handleSendFeedback}
-                    className="w-full bg-[#082040] text-white py-6 rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-[#164F73] transition-all"
-                  >
-                    Enviar Sugestão
-                  </button>
-                </>
-              ) : (
-                <div className="py-12 text-center animate-pulse">
-                  <div className="text-6xl mb-4">🚀</div>
-                  <h3 className="text-2xl font-black italic text-slate-900 uppercase">Sugestão Enviada!</h3>
-                  <p className="text-slate-400 text-sm mt-2">Obrigado por colaborar.</p>
-                </div>
-              )}
-            </div>
+            <button onClick={concluirPassoCiclo} className="bg-[#3b82f6] hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all shadow-sm active:scale-95">
+              Criar agora
+            </button>
           </div>
         )}
 
-       {/* MODO IMERSÃO */}
-        {isRunning && (
-          <div className="fixed inset-0 bg-[#0F172A] z-[100] flex flex-col items-center justify-center p-12 overflow-hidden">
-             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(6,182,212,0.1)_0%,_transparent_70%)]" />
-             <div className="relative mb-12 text-center">
-                <h2 className="text-6xl lg:text-8xl font-black text-white italic tracking-tighter mb-4">{discAtual?.nome}</h2>
-                <p className="text-cyan-400 font-bold text-2xl italic uppercase tracking-[0.5em]">{topicoAtivo?.nome}</p>
-             </div>
-             <div className="relative">
-               <div className="absolute inset-0 bg-cyan-500/20 blur-[100px] animate-pulse" />
-               <div className="relative text-[22vw] font-medium text-white leading-none tracking-tighter mb-20 tabular-nums">
-                  {new Date(seconds * 1000).toISOString().substr(11, 8)}
+        <div className="grid grid-cols-12 gap-6 pb-8">
+          <div className="col-span-12 lg:col-span-9 flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
+                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                  <span className="text-3xl leading-none">👋</span> Bem-vindo de volta, João!
+                </h2>
+                <p className="text-slate-400 text-xs italic ml-1">
+                  {temCiclo ? "Seu desempenho atualizado hoje." : "Seu painel ainda está se preparando para mostrar seus resultados."}
+                </p>
+            </div>
+
+            {/* Banner Central - Textos Originais */}
+            <div className="bg-white rounded-2xl py-10 px-8 shadow-sm border border-slate-100 text-center flex flex-col items-center justify-center transition-all duration-700">
+               <div className="mb-6">
+                 <h3 className="text-xl font-bold text-slate-800 mb-2">Para começar, crie o seu ciclo de estudos.</h3>
+                 <p className="text-slate-400 text-sm italic">É rápido, fácil e personalizado para o seu edital.</p>
                </div>
-             </div>
-             <button onClick={() => setIsRunning(false)} className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-32 py-10 rounded-full font-black text-[13px] uppercase tracking-[0.8em] transition-all hover:bg-rose-600/50 hover:border-rose-500">
-                Pausar Sessão
-             </button>
+
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 w-full max-w-2xl">
+                 <FeatureItem icon={<Clock size={20} />} title="Organize seu tempo" description="Defina quantas horas por dia você pode estudar." />
+                 <FeatureItem icon={<Target size={20} />} title="Foque no que importa" description="Disciplinas e pesos automáticos baseados no edital." />
+                 <FeatureItem icon={<TrendingUp size={20} />} title="Acompanhe sua evolução" description="Dashboard, metas e revisões inteligentes." />
+               </div>
+
+               <button 
+                onClick={concluirPassoCiclo} 
+                className={`px-8 py-3 rounded-xl font-bold text-base shadow-md transition-all flex items-center gap-2 mb-3 transform hover:scale-105 active:scale-95 ${temCiclo ? 'bg-emerald-500 text-white shadow-emerald-100' : 'bg-[#3b82f6] text-white shadow-blue-200'}`}
+               >
+                 {temCiclo ? <><CheckCircle2 size={18}/> Ciclo Criado!</> : <>Criar meu ciclo de estudos <ChevronRight size={18}/></>}
+               </button>
+               <button className="text-sky-600 font-semibold text-xs hover:underline">Explorar primeiro</button>
+            </div>
+
+            <h3 className="font-bold text-base mt-4 text-slate-800">O que você encontra aqui</h3>
+            
+            {/* Aumentei o gap de 4 para 6 e garanti o w-full */}
+<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 w-full">
+  <VisualCard 
+    title="Tempo de estudo" 
+    type="bars" 
+    info="Acompanhe suas horas semanais e mantenha a consciência." 
+    active={true} 
+  />
+  <VisualCard 
+    title="Desempenho" 
+    type="donut" 
+    info="Visualize sua taxa de acerto por matéria estudada." 
+    active={true} 
+  />
+  <VisualCard 
+    title="Revisões" 
+    type="calendar" 
+    info="Não perca o tempo certo de revisar cada conteúdo." 
+    active={true} 
+  />
+  <VisualCard 
+    title="Minha Mesa" 
+    type="list" 
+    info="Seus materiais e anotações organizados em um só lugar." 
+    active={true} 
+  />
+</div>
+</div>
+
+          {/* Barra de Progresso Lateral - Textos Originais */}
+          <div className="hidden lg:flex col-span-3">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col w-full h-fit sticky top-6">
+               <h3 className="font-bold text-slate-800 mb-1 text-sm">Seu progresso de ativação</h3>
+               <p className="text-slate-400 mb-6 text-xs italic">Complete os passos para aproveitar tudo que a Mesa de Estudos oferece.</p>
+               <div className="space-y-5">
+                  <CheckStep label="Conta criada" done />
+                  <CheckStep label="Criar ciclo" active={!temCiclo} done={temCiclo} onClick={concluirPassoCiclo} />
+                  <CheckStep label="Primeiro estudo" />
+                  <CheckStep label="Primeira revisão" />
+               </div>
+               <div className="mt-8 pt-6 border-t border-slate-50">
+                  <div className="w-full h-1.5 bg-slate-100 rounded-full mb-2 overflow-hidden">
+                    <div className={`h-full bg-emerald-400 transition-all duration-1000 ${temCiclo ? 'w-[50%]' : 'w-[20%]'}`} />
+                  </div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    {temCiclo ? "50% concluído" : "20% concluído"}
+                  </span>
+               </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+/* COMPONENTES DE SUPORTE */
+
+function MenuItem({ icon, label, active, onClick }: any) {
+  return (
+    <div onClick={onClick} className={`flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition-all group ${active ? 'text-sky-600 bg-sky-50 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}>
+      <div className={`p-1.5 rounded-lg flex-shrink-0 transition-all ${active ? 'bg-sky-100' : 'bg-slate-50 group-hover:bg-white group-hover:text-sky-500'}`}>{icon}</div>
+      <span className="text-[13px] truncate">{label}</span>
+    </div>
+  );
+}
+
+function HeaderIcon({ icon, label, onClick }: any) {
+  return (
+    <button onClick={onClick} className="flex flex-col items-center gap-0.5 group flex-shrink-0">
+      <div className="text-slate-400 group-hover:text-sky-500 transition-colors">{icon}</div>
+      <span className="text-[8px] lg:text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{label}</span>
+    </button>
+  );
+}
+
+function FeatureItem({ icon, title, description }: any) {
+  return (
+    <div className="flex flex-col items-center p-3 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 text-center">
+      <div className="text-sky-500 mb-2">{icon}</div>
+      <h4 className="text-[11px] lg:text-[12px] font-bold text-slate-700 leading-tight">{title}</h4>
+      <p className="text-[10px] text-slate-400 italic mt-1 leading-tight">{description}</p>
+    </div>
+  );
+}
+
+function CheckStep({ label, done = false, active = false, onClick }: any) {
+  return (
+    <div className={`flex items-center gap-3 ${onClick && !done ? 'cursor-pointer hover:opacity-80' : ''}`} onClick={onClick}>
+      {done ? <div className="bg-emerald-100 text-emerald-500 rounded-full p-0.5"><CheckCircle2 size={14} /></div> : <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 transition-colors ${active ? 'border-sky-500 bg-sky-50 shadow-[0_0_8px_rgba(59,130,246,0.3)]' : 'border-slate-200'}`} />}
+      <span className={`text-[11px] font-bold transition-colors ${done || active ? 'text-slate-700' : 'text-slate-400'}`}>{label}</span>
+    </div>
+  );
+}
+
+function VisualCard({ title, type, info, active }: any) {
+  return (
+    <div className="bg-white border border-slate-100 rounded-xl p-4 flex flex-col shadow-sm h-full transition-all duration-500">
+      <h4 className="text-[10px] lg:text-[11px] font-bold text-slate-700 mb-3 truncate uppercase tracking-wider">{title}</h4>
+      <div className={`flex-1 min-h-[60px] flex items-center justify-center transition-all duration-1000 mb-4 ${active ? 'opacity-100 scale-110' : 'opacity-10 grayscale'}`}>
+        {type === 'bars' && (
+          <div className="flex items-end gap-1.5 h-10">
+            {[40, 70, 50, 90, 60].map((h, i) => <div key={i} className={`w-2 rounded-t-sm ${active ? 'bg-sky-400' : 'bg-slate-500'}`} style={{ height: `${h}%` }} />)}
           </div>
         )}
-      </main>
+        {type === 'donut' && <div className={`w-8 h-8 border-[5px] rounded-full border-r-transparent animate-spin-slow ${active ? 'border-orange-400' : 'border-slate-500'}`} />}
+        {type === 'calendar' && <div className="grid grid-cols-3 gap-1">{[...Array(6)].map((_, i) => <div key={i} className={`w-2.5 h-2.5 rounded-[2px] ${active ? 'bg-emerald-400' : 'bg-slate-500'}`} />)}</div>}
+        {type === 'list' && <div className="flex flex-col gap-1.5 w-10"><div className={`h-1.5 w-full rounded-full ${active ? 'bg-sky-400' : 'bg-slate-500'}`} /><div className={`h-1.5 w-2/3 rounded-full ${active ? 'bg-sky-300' : 'bg-slate-500'}`} /></div>}
+      </div>
+      <p className="text-slate-400 text-[9px] italic leading-snug mb-4 line-clamp-2">{info}</p>
+      <div className={`flex items-center gap-1.5 font-bold text-[9px] uppercase tracking-tighter p-2 rounded-lg border transition-all ${active ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-sky-50 text-sky-600 border-sky-100'}`}>
+        <Info size={10} className="flex-shrink-0" /> 
+        {active ? "Dados atualizados" : "Disponível após ciclo"}
+      </div>
     </div>
   );
 }

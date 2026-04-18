@@ -75,11 +75,7 @@ export default function LoginPage() {
         sameSite: "lax",
       });
 
-      if (data.primeiroAcesso === true) {
-        router.push('/editais');
-      } else {
-        router.push('/dashhboard');
-      }
+      router.push('/dashboard');
 
     } catch (error: any) {
       setErrorMsg(error.message);
