@@ -195,22 +195,23 @@ export default function CadastroPage() {
   );
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4 relative overflow-hidden">
-      
-      <div className="absolute top-[-10%] right-[-10%] w-[400px] h-[400px] bg-lime-50 rounded-full blur-[100px] opacity-50 pointer-events-none" />
-      <div className="absolute bottom-[-10%] left-[-10%] w-[400px] h-[400px] bg-cyan-50 rounded-full blur-[100px] opacity-50 pointer-events-none" />
+    <div className="min-h-screen bg-linear-to-br from-cyan-50/50 via-white to-indigo-50/50 flex items-center justify-center p-4 relative overflow-hidden">
+
+
+      <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-cyan-300 rounded-full blur-[120px] opacity-15 pointer-events-none" />
+      <div className="absolute bottom-[-10%] left-[-10%] w-[400px] h-[400px] bg-indigo-300 rounded-full blur-[100px] opacity-15 pointer-events-none" />
 
       <div className="w-full max-w-md z-10">
 
-        <div className="text-center mb-4 sm:mb-6">
+        <div className="text-center mb-5">
           <Link href="../">
-            <img src="/logo_azul.png" alt="Logo" className="h-36 sm:h-48 w-auto mx-auto mb-2" />
+            <img src="/logo_azul.png" alt="Logo" className="h-20 sm:h-24 w-auto mx-auto mb-5 sm:mb-7" />
           </Link>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tighter">Crie sua conta</h2>
-          <p className="text-slate-500 font-medium text-xs">Preencha os dados para começar</p>
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tighter">Crie sua mesa de estudos</h2>
+          <p className="text-slate-400 font-medium text-xs mt-1">Preencha os dados para começar</p>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-2xl p-6 md:p-8 rounded-[32px] border border-slate-100 shadow-2xl shadow-slate-100/50 transition-all">
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-100 shadow-xl transition-all">
 
           {showSuccess ? (
             <div className="flex flex-col items-center justify-center py-10 text-center animate-in fade-in zoom-in duration-300">
@@ -219,7 +220,7 @@ export default function CadastroPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                 </svg>
               </div>
-              <h3 className="text-xl font-black text-slate-900">Conta criada!</h3>
+              <h3 className="text-xl font-black text-slate-900">Sua mesa está pronta!</h3>
               <p className="text-slate-500 text-sm mt-2">Redirecionando você para o login...</p>
             </div>
           ) : (
@@ -230,8 +231,8 @@ export default function CadastroPage() {
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nome Completo</label>
                 <input 
                   type="text"
-                  placeholder="Como quer ser chamado?"
-                  className={`w-full px-4 py-3.5 rounded-xl bg-slate-50 border outline-none text-sm text-slate-900 transition-all autofill:shadow-[inset_0_0_0px_1000px_#f8fafc] ${errors.nome ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-100 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
+                  placeholder="Seu nome completo"
+                  className={`w-full px-4 py-3.5 rounded-xl bg-white border outline-none text-sm text-slate-900 transition-all autofill:shadow-[inset_0_0_0px_1000px_#ffffff] ${errors.nome ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-200 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
                   onChange={(e) => updateField('nome', e.target.value)}
                   onBlur={() => validateField('nome', formData.nome)}
                 />
@@ -244,7 +245,7 @@ export default function CadastroPage() {
                 <input 
                   type="email"
                   placeholder="exemplo@email.com"
-                  className={`w-full px-4 py-3.5 rounded-xl bg-slate-50 border outline-none text-sm text-slate-900 transition-all autofill:shadow-[inset_0_0_0px_1000px_#f8fafc] ${errors.email ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-100 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
+                  className={`w-full px-4 py-3.5 rounded-xl bg-white border outline-none text-sm text-slate-900 transition-all autofill:shadow-[inset_0_0_0px_1000px_#ffffff] ${errors.email ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-200 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
                   onChange={(e) => updateField('email', e.target.value)}
                   onBlur={() => validateField('email', formData.email)}
                 />
@@ -260,7 +261,7 @@ export default function CadastroPage() {
                     <input 
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
-                      className={`w-full pl-4 pr-10 py-3.5 rounded-xl bg-slate-50 border outline-none text-sm text-slate-900 transition-all autofill:shadow-[inset_0_0_0px_1000px_#f8fafc] ${errors.password ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-100 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
+                      className={`w-full pl-4 pr-10 py-3.5 rounded-xl bg-white border outline-none text-sm text-slate-900 transition-all autofill:shadow-[inset_0_0_0px_1000px_#ffffff] ${errors.password ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-200 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
                       onChange={(e) => updateField('senha', e.target.value)}
                       onBlur={() => validateField('senha', formData.senha)}
                     />
@@ -281,7 +282,7 @@ export default function CadastroPage() {
                     <input 
                       type={showConfirmPassword ? "text" : "password"}
                       placeholder="••••••••"
-                      className={`w-full pl-4 pr-10 py-3.5 rounded-xl bg-slate-50 border outline-none text-sm text-slate-900 transition-all autofill:shadow-[inset_0_0_0px_1000px_#f8fafc] ${errors.confirmPassword ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-100 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
+                      className={`w-full pl-4 pr-10 py-3.5 rounded-xl bg-white border outline-none text-sm text-slate-900 transition-all autofill:shadow-[inset_0_0_0px_1000px_#ffffff] ${errors.confirmPassword ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-200 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
                       onChange={(e) => updateField('confirmPassword', e.target.value)}
                       onBlur={() => validateField('confirmPassword', formData.confirmPassword)}
                     />
@@ -299,7 +300,7 @@ export default function CadastroPage() {
               </div>
 
               {/* Requisitos */}
-              <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                 <div className="grid grid-cols-2 gap-y-1.5 gap-x-2">
                   {requirements.map((req, idx) => (
                     <div key={idx} className="flex items-center gap-1.5">
@@ -344,9 +345,9 @@ export default function CadastroPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className={`w-full py-4 text-white text-xs font-black rounded-xl transition-all
+                className={`w-full py-4 text-white text-xs font-black rounded-xl transition-all tracking-wider uppercase
                   ${isLoading ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-indigo-600 to-cyan-500 shadow-lg shadow-cyan-500/20 hover:scale-[1.02]'}`}
+                  : 'bg-linear-to-r from-cyan-500 to-indigo-600 shadow-lg shadow-cyan-500/20 hover:scale-[1.02] hover:shadow-xl hover:shadow-cyan-400/40 active:scale-[0.98]'}`}
               >
                 {isLoading ? "PROCESSANDO..." : "CRIAR MINHA MESA"}
               </button>
@@ -356,7 +357,7 @@ export default function CadastroPage() {
 
           {!showSuccess && (
             <p className="mt-6 text-center text-xs text-slate-500 font-medium">
-              Já tem conta? <Link href="/login" className="text-cyan-600 font-bold hover:underline">Entrar</Link>
+              Já tem uma mesa? <Link href="/login" className="text-cyan-600 font-bold hover:underline">Entrar</Link>
             </p>
           )}
 

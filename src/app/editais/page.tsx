@@ -52,7 +52,7 @@ export default function PlanejamentoEditais() {
           /**
           * 📌 STATUS REAL
           */
-          status: concurso.status || 'Previsto',
+       status: concurso.status ? concurso.status.toUpperCase() : 'PREVISTO',
 
           disciplinas: [] // importante pro próximo passo
         }))

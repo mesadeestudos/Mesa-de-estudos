@@ -89,22 +89,23 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
+    <div className="h-screen bg-linear-to-br from-cyan-50/50 via-white to-indigo-50/50 flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
 
-      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-cyan-50 rounded-full blur-[120px] opacity-60" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-indigo-50 rounded-full blur-[100px] opacity-60" />
+
+      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-cyan-300 rounded-full blur-[120px] opacity-15" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-indigo-300 rounded-full blur-[100px] opacity-15" />
 
       <div className="w-full max-w-md z-10">
-        <div className="text-center mb-6 sm:mb-10">
+        <div className="text-center mb-8">
           <Link href="/">
-            <img src="/logo_azul.png" alt="Mesa de Estudos" className="h-36 sm:h-48 w-auto mx-auto mb-4 sm:mb-6 hover:scale-105 transition-all duration-300" />
+            <img src="/logo_azul.png" alt="Mesa de Estudos" className="h-20 sm:h-24 w-auto mx-auto mb-6 sm:mb-8 hover:scale-105 transition-all duration-300" />
           </Link>
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tighter">Bem Vindo</h2>
-          <p className="text-slate-500 mt-2 font-medium">Acesse sua área de alta performance</p>
+          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tighter">Bem-vindo</h2>
+          <p className="text-slate-400 mt-1 text-sm font-medium">Entre na sua mesa de estudos</p>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-2xl p-5 sm:p-8 rounded-[32px] border border-slate-100 shadow-[0_32px_64px_-15px_rgba(0,0,0,0.05)]">
-          <form onSubmit={handleLogin} noValidate className="space-y-6">
+        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-100 shadow-xl">
+          <form onSubmit={handleLogin} noValidate className="space-y-5">
 
             <div>
               <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">E-mail</label>
@@ -114,8 +115,8 @@ export default function LoginPage() {
                 onChange={(e) => { setEmail(e.target.value); setEmailError(''); setErrorMsg(''); }}
                 onBlur={() => setEmailError(validateEmail(email))}
                 placeholder="exemplo@email.com"
-                className={`w-full px-5 py-4 rounded-2xl bg-slate-50 border focus:bg-white outline-none transition-all font-medium text-slate-900 autofill:shadow-[inset_0_0_0px_1000px_#f8fafc]
-                  ${emailError ? 'border-red-300 focus:border-red-400' : 'border-slate-100 focus:border-cyan-500'}`}
+                className={`w-full px-5 py-3.5 rounded-2xl bg-white border outline-none transition-all font-medium text-slate-900 autofill:shadow-[inset_0_0_0px_1000px_#ffffff]
+                  ${emailError ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-cyan-500'}`}
               />
               {emailError && (
                 <p className="mt-2 ml-1 text-xs font-semibold text-red-500 flex items-center gap-1">
@@ -130,7 +131,7 @@ export default function LoginPage() {
             <div>
               <div className="flex justify-between mb-2 ml-1">
                 <label className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Senha</label>
-                <Link href="/recuperar-senha" className="text-xs font-bold text-cyan-600 hover:text-indigo-600 transition">Esqueceu?</Link>
+                <Link href="/recuperar-senha" className="text-xs font-bold text-cyan-600 hover:text-indigo-600 transition">Esqueceu a senha?</Link>
               </div>
 
               <div className="relative group">
@@ -140,8 +141,8 @@ export default function LoginPage() {
                   onChange={(e) => { setSenha(e.target.value); setSenhaError(''); setErrorMsg(''); }}
                   onBlur={() => setSenhaError(validateSenha(senha))}
                   placeholder="••••••••"
-                  className={`w-full pl-4 pr-10 py-4 rounded-2xl bg-slate-50 border focus:bg-white outline-none transition-all text-slate-900 autofill:shadow-[inset_0_0_0px_1000px_#f8fafc]
-                    ${senhaError ? 'border-red-300 focus:border-red-400' : 'border-slate-100 focus:border-cyan-500'}`}
+                  className={`w-full pl-4 pr-10 py-3.5 rounded-2xl bg-white border outline-none transition-all text-slate-900 autofill:shadow-[inset_0_0_0px_1000px_#ffffff]
+                    ${senhaError ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-cyan-500'}`}
                 />
                 <button
                   type="button"
@@ -183,16 +184,16 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className={`w-full py-4 sm:py-5 text-white font-black rounded-2xl shadow-xl transition-all duration-300 flex items-center justify-center
-                ${isLoading ? 'bg-slate-400 animate-pulse' : 'bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-700 hover:scale-[1.02] shadow-cyan-200'}`}
+              className={`w-full py-4 text-white font-black rounded-2xl shadow-xl transition-all duration-300 flex items-center justify-center tracking-wider uppercase
+                ${isLoading ? 'bg-slate-400 animate-pulse' : 'bg-linear-to-r from-cyan-500 to-indigo-600 hover:scale-[1.02] hover:shadow-xl hover:shadow-cyan-400/40 active:scale-[0.98] shadow-lg shadow-cyan-200'}`}
             >
-              {isLoading ? "AUTENTICANDO..." : "ENTRAR NO SISTEMA"}
+              {isLoading ? "AUTENTICANDO..." : "ACESSAR MINHA MESA"}
             </button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-slate-50 text-center">
+          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
             <p className="text-sm text-slate-500 font-medium">
-              Ainda não tem acesso?{' '}
+              Ainda não tem uma mesa?{' '}
               <Link href="/assinatura" className="text-indigo-600 font-bold hover:underline decoration-2 underline-offset-4">
                 Criar conta
               </Link>

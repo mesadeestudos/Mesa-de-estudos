@@ -96,28 +96,30 @@ export default function RedefinirSenhaPage() {
 
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4 sm:p-6 relative overflow-hidden text-left">
-      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-indigo-50 rounded-full blur-[100px] opacity-60" />
+    <div className="min-h-screen bg-linear-to-br from-cyan-50/50 via-white to-indigo-50/50 flex items-center justify-center p-4 relative overflow-hidden text-left">
+
+      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-cyan-300 rounded-full blur-[120px] opacity-15" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-indigo-300 rounded-full blur-[100px] opacity-15" />
 
       <div className="w-full max-w-md z-10">
-        <div className="text-center mb-6 sm:mb-10">
+        <div className="text-center mb-5">
           <Link href="/">
-            <img src="/logo_azul.png" alt="Logo" className="h-36 sm:h-48 w-auto mx-auto mb-4 sm:mb-6" />
+            <img src="/logo_azul.png" alt="Logo" className="h-20 sm:h-24 w-auto mx-auto mb-5 sm:mb-7" />
           </Link>
           <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tighter">
             Nova Senha
           </h2>
-          <p className="text-slate-500 mt-2 font-medium italic text-sm">
-            Crie uma senha mestre para sua segurança.
+          <p className="text-slate-400 mt-1 text-sm font-medium">
+            Defina sua nova senha de acesso.
           </p>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-2xl p-5 sm:p-8 rounded-[32px] border border-slate-100 shadow-xl">
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-100 shadow-xl">
           {!sucesso ? (
             <form
               onSubmit={handleReset}
               noValidate
-              className="space-y-6 animate-in slide-in-from-right-4 duration-500"
+              className="space-y-4 animate-in slide-in-from-right-4 duration-500"
             >
 
               {/* Campo: Nova Senha */}
@@ -136,7 +138,7 @@ export default function RedefinirSenhaPage() {
                         senha: e.target.value
                       })
                     }
-                    className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-100 focus:border-cyan-500 outline-none font-medium transition-all pr-12 group-hover:bg-white"
+                    className="w-full px-5 py-3.5 rounded-2xl bg-white border border-slate-200 focus:border-cyan-500 outline-none font-medium transition-all pr-12"
                     placeholder="••••••••"
                   />
 
@@ -181,10 +183,10 @@ export default function RedefinirSenhaPage() {
                         confirmar: e.target.value
                       })
                     }
-                    className={`w-full px-5 py-4 rounded-2xl bg-slate-50 border outline-none font-medium transition-all pr-12 group-hover:bg-white
+                    className={`w-full px-5 py-3.5 rounded-2xl bg-white border outline-none font-medium transition-all pr-12
                       ${novaSenha.confirmar && !regras.match
                         ? 'border-rose-300'
-                        : 'border-slate-100 focus:border-cyan-500'
+                        : 'border-slate-200 focus:border-cyan-500'
                       }`}
                     placeholder="••••••••"
                   />
@@ -229,10 +231,10 @@ export default function RedefinirSenhaPage() {
               <button
                 type="submit"
                 disabled={isLoading || !formValido}
-                className={`w-full py-4 sm:py-5 text-white font-black rounded-2xl shadow-xl transition-all duration-300
+                className={`w-full py-4 text-white font-black rounded-2xl shadow-xl transition-all duration-300 tracking-wider uppercase
                   ${isLoading || !formValido
                     ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-700 hover:scale-[1.02]'
+                    : 'bg-linear-to-r from-cyan-500 to-indigo-600 hover:scale-[1.02] hover:shadow-xl hover:shadow-cyan-400/40 active:scale-[0.98] shadow-lg shadow-cyan-200'
                   }`}
               >
                 {isLoading ? "SALVANDO..." : "ATUALIZAR SENHA"}
@@ -255,9 +257,9 @@ export default function RedefinirSenhaPage() {
 
               <Link
                 href="/login"
-                className="block w-full py-5 bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-700 text-white font-black rounded-2xl text-center"
+                className="block w-full py-5 bg-linear-to-r from-cyan-500 to-indigo-600 text-white font-black rounded-2xl text-center shadow-lg shadow-cyan-200 hover:shadow-xl hover:shadow-cyan-400/40 hover:scale-[1.02] active:scale-[0.98] transition-all"
               >
-                ACESSAR MINHA CONTA
+                ACESSAR MINHA MESA
               </Link>
             </div>
           )}
