@@ -109,7 +109,7 @@ export async function loginService(
     await findUserByEmail(body.email)
 
   if (!user) {
-    throw new Error("Usuário e Senha Inválidos")
+    throw new Error("E-mail ou senha incorretos. Verifique seus dados e tente novamente.")
   }
 
   const userSafe = user
@@ -123,7 +123,7 @@ export async function loginService(
     await bcrypt.compare(body.senha, userSafe.senha)
 
   if (!senhaValida) {
-    throw new Error("Usuário e Senha Inválidos")
+    throw new Error("E-mail ou senha incorretos. Verifique seus dados e tente novamente.")
   }
 
   // 3. gera token JWT

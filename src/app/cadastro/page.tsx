@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from "next/navigation";
 
@@ -20,6 +20,7 @@ export default function CadastroPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false); // Estado para mensagem de sucesso
   
+  const [apiError, setApiError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -36,6 +37,36 @@ export default function CadastroPage() {
         return newErrors;
       });
     }
+    if (apiError) setApiError('');
+  };
+
+  const validateField = (field: string, value: any) => {
+    const errorKey = field === 'senha' ? 'password' : field;
+    let error = '';
+
+    if (field === 'nome') {
+      if (!value || value.trim() === '') error = "Informe seu nome.";
+      else if (value.trim().split(' ').length < 2 || value.length < 3) error = "Insira nome e sobrenome.";
+    }
+    if (field === 'email') {
+      if (!value.trim()) error = "Informe seu e-mail.";
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) error = "Digite um e-mail válido.";
+    }
+    if (field === 'senha') {
+      if (!value) error = "Crie uma senha para sua conta.";
+      else if (!isPasswordStrong) error = "Sua senha não atende aos requisitos acima.";
+    }
+    if (field === 'confirmPassword') {
+      if (!value) error = "Confirme sua senha antes de continuar.";
+      else if (formData.senha !== value) error = "As senhas não coincidem.";
+    }
+
+    setErrors(prev => {
+      if (error) return { ...prev, [errorKey]: error };
+      const next = { ...prev };
+      delete next[errorKey];
+      return next;
+    });
   };
 
   const passwordValidations = {
@@ -49,14 +80,14 @@ export default function CadastroPage() {
   const isPasswordStrong = Object.values(passwordValidations).every(v => v === true);
 
   const requirements = [
-    { label: "8+ chars", met: passwordValidations.minChars },
+    { label: "8+ caracteres", met: passwordValidations.minChars },
     { label: "Maiúscula", met: passwordValidations.upper },
     { label: "Minúscula", met: passwordValidations.lower },
     { label: "Número", met: passwordValidations.number },
     { label: "Especial", met: passwordValidations.special },
   ];
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleRegister = async (e: { preventDefault(): void }) => {
     e.preventDefault();
     setIsLoading(true);
     
@@ -64,35 +95,35 @@ export default function CadastroPage() {
 
     // VALIDAÇÃO DO NOME (RESTAURADA E REFORÇADA)
     if (!formData.nome || formData.nome.trim() === '') {
-      newErrors.nome = "O nome é obrigatório.";
+      newErrors.nome = "Informe seu nome.";
     } else if (formData.nome.trim().split(' ').length < 2 || formData.nome.length < 3) {
-      newErrors.nome = "Digite seu nome completo.";
+      newErrors.nome = "Insira nome e sobrenome.";
     }
 
     // Validação do email
     if (!formData.email.trim()) {
-      newErrors.email = "E-mail obrigatório.";
-    } else if (!formData.email.includes('@')) {
-      newErrors.email = "E-mail inválido.";
+      newErrors.email = "Informe seu e-mail.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Digite um e-mail válido.";
     }
 
     // Validação da senha
     if (!formData.senha) {
-      newErrors.password = "Senha obrigatória.";
+      newErrors.password = "Crie uma senha para sua conta.";
     } else if (!isPasswordStrong) {
-      newErrors.password = "Senha muito fraca.";
+      newErrors.password = "Sua senha não atende aos requisitos acima.";
     }
     
     // Confirmação da senha
     if (!formData.confirmPassword) {
-      newErrors.confirmPassword = "Confirme a senha.";
+      newErrors.confirmPassword = "Confirme sua senha antes de continuar.";
     } else if (formData.senha !== formData.confirmPassword) {
-      newErrors.confirmPassword = "Não coincidem.";
+      newErrors.confirmPassword = "As senhas não coincidem.";
     }
 
     // Termos
     if (!formData.aceite) {
-      newErrors.aceite = "Aceite os termos.";
+      newErrors.aceite = "Aceite os Termos e Política para prosseguir.";
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -117,7 +148,7 @@ export default function CadastroPage() {
       if (!response.ok) {
         // Verifica se o erro é de email já existente
         if (data.message?.toLowerCase().includes("email") || response.status === 409) {
-          setErrors(prev => ({ ...prev, email: "Este e-mail já está cadastrado." }));
+          setErrors(prev => ({ ...prev, email: "Este e-mail já possui cadastro. Tente fazer login." }));
           throw new Error("E-mail duplicado");
         }
         throw new Error(data.message || "Erro ao realizar cadastro");
@@ -131,7 +162,7 @@ export default function CadastroPage() {
 
     } catch (error: any) {
       if (error.message !== "E-mail duplicado") {
-        alert(error.message);
+        setApiError(error.message);
       }
     } finally {
       setIsLoading(false);
@@ -140,8 +171,11 @@ export default function CadastroPage() {
 
   const ErrorMsg = ({ field }: { field: string }) => (
     errors[field] ? (
-      <p className="text-[10px] font-bold text-red-500 mt-1 ml-1 flex items-center gap-1">
-        <span className="w-1 h-1 bg-red-500 rounded-full" /> {errors[field]}
+      <p className="mt-2 ml-1 text-xs font-semibold text-red-500 flex items-center gap-1">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4 shrink-0">
+          <path fillRule="evenodd" d="M6.701 2.25c.577-1 2.02-1 2.598 0l5.196 9a1.5 1.5 0 01-1.299 2.25H2.804a1.5 1.5 0 01-1.3-2.25l5.197-9zM8 4.5a.75.75 0 01.75.75v2.5a.75.75 0 01-1.5 0v-2.5A.75.75 0 018 4.5zm0 7a.75.75 0 100-1.5.75.75 0 000 1.5z" clipRule="evenodd" />
+        </svg>
+        {errors[field]}
       </p>
     ) : null
   );
@@ -168,11 +202,11 @@ export default function CadastroPage() {
 
       <div className="w-full max-w-md z-10">
 
-        <div className="text-center mb-6">
+        <div className="text-center mb-4 sm:mb-6">
           <Link href="../">
-            <img src="/logo_azul.png" alt="Logo" className="h-40 w-auto mx-auto mb-2" />
+            <img src="/logo_azul.png" alt="Logo" className="h-36 sm:h-48 w-auto mx-auto mb-2" />
           </Link>
-          <h2 className="text-2xl font-black text-slate-900 tracking-tighter">Crie sua conta</h2>
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tighter">Crie sua conta</h2>
           <p className="text-slate-500 font-medium text-xs">Preencha os dados para começar</p>
         </div>
 
@@ -189,7 +223,7 @@ export default function CadastroPage() {
               <p className="text-slate-500 text-sm mt-2">Redirecionando você para o login...</p>
             </div>
           ) : (
-            <form onSubmit={handleRegister} className="flex flex-col gap-3">
+            <form onSubmit={handleRegister} noValidate className="flex flex-col gap-3">
 
               {/* Nome */}
               <div>
@@ -199,6 +233,7 @@ export default function CadastroPage() {
                   placeholder="Como quer ser chamado?"
                   className={`w-full px-4 py-3.5 rounded-xl bg-slate-50 border outline-none text-sm text-slate-900 transition-all autofill:shadow-[inset_0_0_0px_1000px_#f8fafc] ${errors.nome ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-100 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
                   onChange={(e) => updateField('nome', e.target.value)}
+                  onBlur={() => validateField('nome', formData.nome)}
                 />
                 <ErrorMsg field="nome" />
               </div>
@@ -211,6 +246,7 @@ export default function CadastroPage() {
                   placeholder="exemplo@email.com"
                   className={`w-full px-4 py-3.5 rounded-xl bg-slate-50 border outline-none text-sm text-slate-900 transition-all autofill:shadow-[inset_0_0_0px_1000px_#f8fafc] ${errors.email ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-100 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
                   onChange={(e) => updateField('email', e.target.value)}
+                  onBlur={() => validateField('email', formData.email)}
                 />
                 <ErrorMsg field="email" />
               </div>
@@ -226,6 +262,7 @@ export default function CadastroPage() {
                       placeholder="••••••••"
                       className={`w-full pl-4 pr-10 py-3.5 rounded-xl bg-slate-50 border outline-none text-sm text-slate-900 transition-all autofill:shadow-[inset_0_0_0px_1000px_#f8fafc] ${errors.password ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-100 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
                       onChange={(e) => updateField('senha', e.target.value)}
+                      onBlur={() => validateField('senha', formData.senha)}
                     />
                     <button 
                       type="button"
@@ -246,6 +283,7 @@ export default function CadastroPage() {
                       placeholder="••••••••"
                       className={`w-full pl-4 pr-10 py-3.5 rounded-xl bg-slate-50 border outline-none text-sm text-slate-900 transition-all autofill:shadow-[inset_0_0_0px_1000px_#f8fafc] ${errors.confirmPassword ? 'border-red-300 ring-2 ring-red-500/5 bg-red-50/30' : 'border-slate-100 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10'}`}
                       onChange={(e) => updateField('confirmPassword', e.target.value)}
+                      onBlur={() => validateField('confirmPassword', formData.confirmPassword)}
                     />
                     <button 
                       type="button"
@@ -283,13 +321,27 @@ export default function CadastroPage() {
                     onChange={(e) => updateField('aceite', e.target.checked)}
                   />
                   <span className="text-[10px] font-bold text-slate-500">
-                    Aceito os Termos e Política.
+                    Li e aceito os Termos de Uso e a Política de Privacidade.
                   </span>
                 </label>
                 <ErrorMsg field="aceite" />
               </div>
 
-              <button 
+              {apiError && (
+                <div role="alert" className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-red-50 border border-red-100">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-red-500 shrink-0 mt-0.5">
+                    <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-sm font-semibold text-red-600 flex-1">{apiError}</p>
+                  <button type="button" onClick={() => setApiError('')} className="text-red-300 hover:text-red-500 transition-colors shrink-0" aria-label="Fechar">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                      <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+
+              <button
                 type="submit"
                 disabled={isLoading}
                 className={`w-full py-4 text-white text-xs font-black rounded-xl transition-all
