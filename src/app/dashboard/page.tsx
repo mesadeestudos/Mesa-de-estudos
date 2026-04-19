@@ -33,11 +33,12 @@ interface CicloResumo {
 
 export default function PainelEstudante() {
   const router = useRouter();
-  const [temCiclo, setTemCiclo]       = useState(false);
-  const [ciclo, setCiclo]             = useState<CicloResumo | null>(null);
-  const [mounted, setMounted]         = useState(false);
-  const [abaAtiva, setAbaAtiva]       = useState('Dashboard');
-  const [nomeUsuario, setNomeUsuario] = useState('');
+  const [temCiclo, setTemCiclo]         = useState(false);
+  const [ciclo, setCiclo]               = useState<CicloResumo | null>(null);
+  const [mounted, setMounted]           = useState(false);
+  const [carregandoCiclo, setCarregandoCiclo] = useState(true);
+  const [abaAtiva, setAbaAtiva]         = useState('Dashboard');
+  const [nomeUsuario, setNomeUsuario]   = useState('');
 
   const handleLogout = () => { deleteCookie('authorization'); router.push('/login'); };
 
@@ -62,7 +63,8 @@ export default function PainelEstudante() {
           });
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setCarregandoCiclo(false));
   }, []);
 
   if (!mounted) return <div className="min-h-screen w-full bg-[#F0F2F5]" />;
@@ -118,15 +120,37 @@ export default function PainelEstudante() {
                   <span className="text-[10px] text-slate-400 font-medium italic">Ativo</span>
                 </div>
               </div>
-              <div className="p-0.5 rounded-full bg-gradient-to-tr from-sky-400 to-sky-100 shadow-sm border border-white cursor-pointer" onClick={() => setAbaAtiva('Perfil')}>
+              <div className="p-0.5 rounded-full bg-linear-to-tr from-sky-400 to-sky-100 shadow-sm border border-white cursor-pointer" onClick={() => setAbaAtiva('Perfil')}>
                 <img src="https://github.com/shadcn.png" alt="User" className="w-9 h-9 rounded-full border-2 border-white object-cover" />
               </div>
             </div>
           </div>
         </header>
 
+        {/* ── Skeleton enquanto carrega ── */}
+        {carregandoCiclo && (
+          <div className="grid grid-cols-12 gap-6 pb-8 animate-pulse">
+            <div className="col-span-12 lg:col-span-9 flex flex-col gap-5">
+              <div className="h-10 w-64 bg-slate-200 rounded-xl" />
+              <div className="h-44 bg-slate-200 rounded-2xl" />
+              <div className="grid grid-cols-3 gap-4">
+                <div className="h-24 bg-slate-200 rounded-2xl" />
+                <div className="h-24 bg-slate-200 rounded-2xl" />
+                <div className="h-24 bg-slate-200 rounded-2xl" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="h-32 bg-slate-200 rounded-2xl" />
+                <div className="h-32 bg-slate-200 rounded-2xl" />
+              </div>
+            </div>
+            <div className="col-span-12 lg:col-span-3">
+              <div className="h-72 bg-slate-200 rounded-2xl" />
+            </div>
+          </div>
+        )}
+
         {/* Alerta — só sem ciclo */}
-        {!temCiclo && (
+        {!carregandoCiclo && !temCiclo && (
           <div className="bg-white border border-slate-200 rounded-xl p-3 mb-6 flex items-center justify-between shadow-sm border-l-4 border-l-sky-500 shrink-0 animate-in fade-in slide-in-from-top-4 duration-500">
             <div className="flex items-center gap-3">
               <Info size={16} className="text-sky-500" />
@@ -138,7 +162,7 @@ export default function PainelEstudante() {
           </div>
         )}
 
-        <div className="grid grid-cols-12 gap-6 pb-8">
+        {!carregandoCiclo && <div className="grid grid-cols-12 gap-6 pb-8">
 
           {/* ── Coluna principal ── */}
           <div className="col-span-12 lg:col-span-9 flex flex-col gap-5">
@@ -185,7 +209,7 @@ export default function PainelEstudante() {
                     </div>
                     <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-sky-400 to-blue-500 rounded-full transition-all duration-700"
+                        className="h-full bg-linear-to-r from-sky-400 to-blue-500 rounded-full transition-all duration-700"
                         style={{ width: `${progresso}%` }}
                       />
                     </div>
@@ -279,7 +303,8 @@ export default function PainelEstudante() {
             </div>
           </div>
 
-        </div>
+        </div>}
+
       </main>
     </div>
   );
