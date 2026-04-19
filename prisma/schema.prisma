@@ -98,6 +98,8 @@ model disciplina {
   nome                     String                     @db.VarChar(100)
   peso                     Decimal?                   @default(1.0) @db.Decimal(4, 2)
   qtd_questoes             Int?
+  tipo                     String                     @default("B") @db.Char(1)
+  categoria_cognitiva      String                     @default("M") @db.Char(1)
   cargo                    cargo?                     @relation(fields: [id_cargo], references: [id_cargo], onDelete: Cascade, onUpdate: NoAction)
   topico                   topico[]
   ciclo_disciplina         ciclo_disciplina[]
@@ -158,7 +160,6 @@ model ciclo_disciplina {
   ciclo_estudo        ciclo_estudo @relation(fields: [id_ciclo], references: [id_ciclo], onDelete: Cascade, onUpdate: NoAction)
   disciplina          disciplina   @relation(fields: [id_disciplina], references: [id_disciplina], onDelete: NoAction, onUpdate: NoAction)
 
-  @@unique([id_ciclo, id_disciplina])
   @@unique([id_ciclo, ordem])
   @@index([id_ciclo, ordem], map: "idx_ciclo_disciplina_ordem")
   @@schema("planejamento")
