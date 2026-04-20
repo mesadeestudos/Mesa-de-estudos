@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const disciplinaInputSchema = z.object({
   id:          z.number().int().positive(),
-  dificuldade: z.enum(['Baixo', 'Médio', 'Alto']).optional(),
+  dificuldade: z.enum(['Baixo', 'Médio', 'Alto']).default('Médio'),
 });
 
 export const criarCicloSchema = z.object({

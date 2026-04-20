@@ -1,17 +1,18 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { deleteCookie } from 'cookies-next';
 import {
   Bell, Settings, User, LayoutDashboard, BookOpen, RefreshCw,
-  LineChart, Calendar, LogOut, Search, ChevronDown, Check,
+  LineChart, Calendar, LogOut, Search, ChevronDown, ChevronRight, Check,
   Lock, Zap, SlidersHorizontal, Info, CheckCircle2, Menu, AlertCircle,
-  Pencil, BookMarked, Clock, BarChart3,
+  Pencil,
 } from 'lucide-react';
 
 interface Edital      { id: number; nome: string; banca: string; status: string; data: string; }
-interface Disciplina  { id: number; nome: string; peso: number | null; qtd_questoes: number | null; }
+interface Disciplina  { id: number; nome: string; tipo: string; peso: number | null; qtd_questoes: number | null; }
 interface Cargo       { id: number; nome: string; disciplinas: Disciplina[]; }
 
 interface HojeSlot {
@@ -50,30 +51,52 @@ interface CicloAtivo {
   disciplinas:  DiscCiclo[];
 }
 
+interface ConcursoApi {
+  id: number;
+  nome: string;
+  banca?: string | null;
+  status?: string | null;
+  data?: string | null;
+}
+
+interface DisciplinaApi {
+  id_disciplina?: number;
+  id?: number;
+  nome: string;
+  tipo?: string | null;
+  peso?: number | null;
+  qtd_questoes?: number | null;
+}
+
+interface CargoApi {
+  id_cargo?: number;
+  id?: number;
+  nome: string;
+  disciplina?: DisciplinaApi[];
+}
+
+interface ConcursoDetalheApi {
+  edital?: Array<{
+    cargo?: CargoApi[];
+  }>;
+}
+
 const STEPS = [
   { num: 1, label: 'Carga horária' },
   { num: 2, label: 'Edital e cargo' },
   { num: 3, label: 'Montar ciclo' },
 ];
 
-function getNomeUsuario(): string {
-  try {
-    const cookie = document.cookie.split('; ').find(r => r.startsWith('authorization='));
-    if (!cookie) return '';
-    const token  = cookie.split('=')[1];
-    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    const json   = decodeURIComponent(atob(base64).split('').map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join(''));
-    const payload = JSON.parse(json);
-    return (payload.nome as string).split(' ').slice(0, 2).join(' ');
-  } catch {
-    return '';
-  }
-}
+const getTipoDisciplinaLabel = (tipo?: string | null) => {
+  const normalizado = tipo?.toUpperCase();
+  if (normalizado === 'B' || normalizado === 'BASICA' || normalizado === 'BÁSICA') return 'Básica';
+  if (normalizado === 'E' || normalizado === 'ESPECIFICA' || normalizado === 'ESPECÍFICA') return 'Específica';
+  return null;
+};
 
 export default function CiclosEstudo() {
   const router = useRouter();
   const [mounted, setMounted]             = useState(false);
-  const [nomeUsuario, setNomeUsuario]     = useState('');
   const [etapa, setEtapa]                 = useState(1);
   const [direcao, setDirecao]             = useState<'frente' | 'atras'>('frente');
   const [sidebarAberta, setSidebarAberta] = useState(false);
@@ -108,6 +131,12 @@ export default function CiclosEstudo() {
   const maxDisciplinas       = useMemo(() => horasDiarias * 2,          [horasDiarias]);
   const minutosPerDisciplina = 60;
   const disciplinas = useMemo(() => cargoSelecionado?.disciplinas ?? [], [cargoSelecionado]);
+  const disciplinasOrdenadas = useMemo(() =>
+    [...disciplinas].sort((a, b) => {
+      if (a.tipo !== b.tipo) return a.tipo === 'B' ? -1 : 1;
+      return a.nome.localeCompare(b.nome);
+    }),
+  [disciplinas]);
 
   const todasDificuldadesDefinidas = useMemo(
     () => disciplinasSelecionadas.every(id => Boolean(dificuldades[id])),
@@ -128,10 +157,9 @@ export default function CiclosEstudo() {
 
   useEffect(() => {
     setMounted(true);
-    setNomeUsuario(getNomeUsuario());
   }, []);
   useEffect(() => { if (mounted) fetchCicloAtivo(); }, [mounted]);
-  useEffect(() => { if (etapa === 2 && editais.length === 0) fetchEditais(); }, [etapa]);
+  useEffect(() => { if (etapa === 2 && editais.length === 0) fetchEditais(); }, [etapa, editais.length]);
   useEffect(() => { if (editalSelecionado) fetchCargos(editalSelecionado.id); }, [editalSelecionado]);
 
   const fetchCicloAtivo = async () => {
@@ -159,8 +187,8 @@ export default function CiclosEstudo() {
     setLoadingEditais(true);
     try {
       const res  = await fetch('/api/concursos');
-      const data = await res.json();
-      setEditais(data.map((c: any) => ({
+      const data = await res.json() as ConcursoApi[];
+      setEditais(data.map((c) => ({
         id: c.id, nome: c.nome, banca: c.banca || '',
         status: c.status ? c.status.toUpperCase() : 'PREVISTO',
         data: c.data ? c.data.split('T')[0].split('-').reverse().join('/') : 'A definir',
@@ -173,14 +201,28 @@ export default function CiclosEstudo() {
     setCargoSelecionado(null); setDisciplinasSelecionadas([]); setDificuldades({});
     try {
       const res  = await fetch(`/api/concursos/${id}`);
-      const data = await res.json();
-      const lista: Cargo[] = data.edital?.[0]?.cargo?.map((c: any) => ({
-        id: c.id_cargo ?? c.id, nome: c.nome,
-        disciplinas: c.disciplina?.map((d: any) => ({
-          id: d.id_disciplina ?? d.id, nome: d.nome,
-          peso: d.peso ?? null, qtd_questoes: d.qtd_questoes ?? null,
-        })) ?? [],
-      })) ?? [];
+      const data = await res.json() as ConcursoDetalheApi;
+      const lista: Cargo[] = data.edital?.[0]?.cargo?.flatMap((c) => {
+        const idCargo = c.id_cargo ?? c.id;
+        if (!idCargo) return [];
+
+        return [{
+          id: idCargo,
+          nome: c.nome,
+          disciplinas: c.disciplina?.flatMap((d) => {
+            const idDisciplina = d.id_disciplina ?? d.id;
+            if (!idDisciplina) return [];
+
+            return [{
+              id: idDisciplina,
+              nome: d.nome,
+              tipo: d.tipo ?? 'B',
+              peso: d.peso ?? null,
+              qtd_questoes: d.qtd_questoes ?? null,
+            }];
+          }) ?? [],
+        }];
+      }) ?? [];
       setCargos(lista);
     } catch (e) { console.error(e); } finally { setLoadingCargos(false); }
   };
@@ -227,8 +269,8 @@ export default function CiclosEstudo() {
       setModoCiclo('automatico'); setDisciplinasSelecionadas([]); setDificuldades({});
       setEstado('loading');
       await fetchCicloAtivo();
-    } catch (err: any) {
-      setErroSalvar(err.message ?? 'Erro ao salvar ciclo.');
+    } catch (err: unknown) {
+      setErroSalvar(err instanceof Error ? err.message : 'Erro ao salvar ciclo.');
     } finally {
       setSalvando(false);
     }
@@ -257,14 +299,14 @@ export default function CiclosEstudo() {
     { icon: <LineChart size={18} />,       label: 'Desempenho',       active: false, href: '/dashboard' },
     { icon: <Calendar size={18} />,        label: 'Revisões',         active: false, href: '/dashboard' },
     { icon: <Settings size={18} />,        label: 'Configurações',    active: false, href: '/dashboard' },
-    { icon: <User size={18} />,            label: 'Perfil de usuario', active: false, href: '/dashboard' },
+    { icon: <User size={18} />,            label: 'Perfil',            active: false, href: '/dashboard' },
   ];
 
-  if (!mounted) return <div className="min-h-screen w-full bg-[#F0F2F5]" />;
+  if (!mounted) return <div className="min-h-screen w-full bg-slate-50" />;
 
   /* ═══════════════════════════════════════════════════════ RENDER */
   return (
-    <div className="min-h-screen w-full flex bg-[#F0F2F5] text-[#475569] font-sans">
+    <div className="h-screen w-full flex bg-slate-50 text-[#475569] font-sans overflow-hidden">
 
       {/* ── Modal de confirmação de edição ── */}
       {confirmandoEdicao && (
@@ -286,7 +328,7 @@ export default function CiclosEstudo() {
               </button>
               <button
                 onClick={handleEditar} disabled={encerrando}
-                className="flex-1 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-60"
+                className="flex-1 px-4 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-60"
               >
                 {encerrando
                   ? <><RefreshCw size={13} className="animate-spin" /> Aguarde...</>
@@ -306,8 +348,8 @@ export default function CiclosEstudo() {
       {/* ── Sidebar ── */}
       <aside className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 h-screen transition-transform duration-300 lg:translate-x-0 ${sidebarAberta ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex flex-col items-center grow overflow-y-auto min-h-0">
-          <div className="w-40 h-40 flex items-center justify-center shrink-0">
-            <img src="/logo_azul.png" alt="Logo" className="w-full h-full object-contain" />
+          <div className="flex items-center justify-center py-6 px-4 shrink-0">
+            <Image src="/logo_azul.png" alt="Logo" width={160} height={96} className="h-24 w-auto" priority />
           </div>
           <nav className="space-y-1 w-full px-2">
             {navItems.map(item => (
@@ -339,7 +381,7 @@ export default function CiclosEstudo() {
             >
               <Menu size={20} />
             </button>
-            <h1 className="text-xl font-bold text-sky-500/80">Ciclos de Estudo</h1>
+            <h1 className="text-lg font-bold text-slate-700">Ciclos de Estudo</h1>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex gap-4 border-r pr-6 border-slate-200">
@@ -347,15 +389,10 @@ export default function CiclosEstudo() {
               <HeaderIcon icon={<Settings size={18} />} label="Ajustes" />
             </div>
             <div className="flex items-center gap-3">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-bold text-slate-800 leading-tight">Olá, {nomeUsuario}!</p>
-                <div className="flex items-center gap-1 justify-end">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-[10px] text-slate-400 font-medium italic">Ativo</span>
-                </div>
-              </div>
               <div className="p-0.5 rounded-full bg-linear-to-tr from-sky-400 to-sky-100 shadow-sm border border-white cursor-pointer">
-                <img src="https://github.com/shadcn.png" alt="User" className="w-9 h-9 rounded-full border-2 border-white object-cover" />
+                <div className="w-9 h-9 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center">
+                  <User size={20} className="text-slate-400" />
+                </div>
               </div>
             </div>
           </div>
@@ -363,7 +400,7 @@ export default function CiclosEstudo() {
 
         {/* ── Conteúdo principal ── */}
         <div className="flex justify-center flex-1">
-          <div className="flex gap-6 w-full max-w-5xl items-start">
+          <div className="flex gap-6 w-full max-w-7xl items-start">
 
             {/* ── LOADING ── */}
             {estado === 'loading' && (
@@ -378,21 +415,21 @@ export default function CiclosEstudo() {
             {/* ── VISUALIZAÇÃO ── */}
             {estado === 'visualizacao' && cicloAtivo && (
               <>
-                <div className="flex-1 min-w-0 flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-400">
+                <div className="flex-1 min-w-0 animate-in fade-in slide-in-from-bottom-2 duration-400">
 
-                  {/* Card principal */}
-                  <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                    <div className="flex items-start justify-between gap-4 mb-5">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <span className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-[10px] font-black uppercase tracking-wide">
+                  {/* Grade principal */}
+                  <div className="grid grid-cols-12 items-start gap-4">
+
+                    {/* ── Cabeçalho ── */}
+                    <div className="col-span-12 xl:col-span-8 rounded-lg border border-slate-100 bg-white px-6 py-4 shadow-sm flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                      <div className="min-w-0 max-w-2xl">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-[11px] font-black uppercase tracking-wide">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
                             Ciclo Ativo
                           </span>
-                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide ${
-                            cicloAtivo.metodo === 'PERSONALIZADO' ? 'bg-violet-50 text-violet-700' : 'bg-sky-50 text-sky-700'
-                          }`}>
-                            {cicloAtivo.metodo === 'PERSONALIZADO' ? 'Personalizado' : 'Automático'}
+                          <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[11px] font-black uppercase tracking-wide">
+                            {cicloAtivo.totalSlots} sessões
                           </span>
                         </div>
                         <h2 className="text-xl font-bold text-slate-800 truncate">{cicloAtivo.cargoNome}</h2>
@@ -401,186 +438,228 @@ export default function CiclosEstudo() {
                             {[cicloAtivo.concursoNome, cicloAtivo.bancaSigla].filter(Boolean).join(' · ')}
                           </p>
                         )}
-                      </div>
-                      <button
-                        onClick={() => setConfirmandoEdicao(true)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-slate-200 text-slate-500 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-all text-xs font-bold shrink-0"
-                      >
-                        <Pencil size={13} /> Editar
-                      </button>
-                    </div>
-
-                    {/* Posição na fila */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Posição na fila</span>
-                        <span className="text-[10px] font-black text-slate-600">{cicloAtivo.posicaoAtual} / {cicloAtivo.totalSlots}</span>
-                      </div>
-                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-sky-400 to-blue-500 rounded-full transition-all duration-700"
-                          style={{ width: `${(cicloAtivo.posicaoAtual / cicloAtivo.totalSlots) * 100}%` }}
-                        />
-                      </div>
-                      <div className="flex items-center gap-3 pt-0.5 text-[10px] text-slate-400">
-                        <span>{cicloAtivo.discsPorDia} sessões/turno</span>
-                        <span className="text-slate-200">·</span>
-                        <span>{cicloAtivo.totalSlots} sessões no ciclo</span>
-                        <span className="text-slate-200">·</span>
-                        <span>60 min/sessão</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Próximas na fila — leitura apenas */}
-                  <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="w-2 h-2 rounded-full bg-sky-400" />
-                      <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider">Próximas na fila</h3>
-                      <span className="ml-auto text-[10px] font-bold text-slate-400">
-                        meta {cicloAtivo.horasPorDia} sessões/dia
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      {cicloAtivo.hojeSlots.map((s, i) => {
-                        const nivelCores: Record<string, string> = { ALTO: 'bg-red-100 text-red-600', MEDIO: 'bg-amber-100 text-amber-600', BAIXO: 'bg-emerald-100 text-emerald-600' };
-                        const nivelLabel: Record<string, string> = { ALTO: 'Alto', MEDIO: 'Médio', BAIXO: 'Baixo' };
-                        const catLabel:   Record<string, string> = { R: 'Raciocínio', M: 'Memorização' };
-                        const catCor:     Record<string, string> = { R: 'bg-violet-50 text-violet-600', M: 'bg-amber-50 text-amber-600' };
-                        const posNaFila = ((cicloAtivo.posicaoAtual - 1 + i) % cicloAtivo.totalSlots) + 1;
-                        const eProxima  = i === 0;
-                        return (
-                          <div
-                            key={i}
-                            className={`flex items-center gap-3 p-3 rounded-xl border ${
-                              eProxima ? 'bg-sky-50/60 border-sky-100' : 'bg-slate-50/40 border-slate-100'
-                            }`}
-                          >
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
-                              eProxima ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-400'
-                            }`}>
-                              {i + 1}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className={`text-sm font-bold truncate ${eProxima ? 'text-slate-800' : 'text-slate-400'}`}>{s.nome}</p>
-                              <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${catCor[s.categoria] ?? 'bg-slate-100 text-slate-500'}`}>
-                                {catLabel[s.categoria] ?? s.categoria}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              {s.nivel && (
-                                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${nivelCores[s.nivel] ?? 'bg-slate-100 text-slate-500'}`}>
-                                  {nivelLabel[s.nivel] ?? s.nivel}
-                                </span>
-                              )}
-                              <span className="text-[9px] text-slate-400 tabular-nums">#{posNaFila}</span>
-                              <span className="text-[9px] font-bold text-slate-400">60min</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <p className="text-[9px] text-slate-400 mt-3 text-center">
-                      A execução das sessões fica em <strong className="text-slate-500">Minha Mesa</strong>
-                    </p>
-                  </div>
-
-                  {/* Fila do ciclo */}
-                  <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider">Fila do Ciclo</h3>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          {cicloAtivo.disciplinas.length} disciplinas · {cicloAtivo.totalSlots} sessões
+                        <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+                          Acompanhe seu ciclo e siga a próxima sessão sem perder o ritmo.
                         </p>
                       </div>
+                      <div className="flex flex-col sm:flex-row lg:flex-col gap-2 shrink-0">
+                        <button
+                          onClick={() => setConfirmandoEdicao(true)}
+                          aria-label="Editar ciclo"
+                          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border-2 border-slate-200 text-slate-600 hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50 transition-all text-sm font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2"
+                        >
+                          <Pencil size={13} /> Editar ciclo
+                        </button>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      {cicloAtivo.disciplinas.map((d) => {
-                        const pct       = Math.round((d.frequencia / cicloAtivo.totalSlots) * 100);
-                        const nivelCores: Record<string, string> = { ALTO: 'text-red-500', MEDIO: 'text-amber-500', BAIXO: 'text-emerald-500' };
-                        const nivelLabel: Record<string, string> = { ALTO: 'Alto', MEDIO: 'Médio', BAIXO: 'Baixo' };
-                        const tipoCor:    Record<string, string> = { E: 'bg-sky-50 text-sky-600', B: 'bg-slate-100 text-slate-500' };
-                        const tipoLabel:  Record<string, string> = { E: 'Específica', B: 'Básica' };
-                        return (
-                          <div key={d.idDisciplina} className="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1.5">
-                                <p className="text-xs font-bold text-slate-700 truncate">{d.nome}</p>
-                                <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${tipoCor[d.tipo] ?? 'bg-slate-100 text-slate-500'}`}>
-                                  {tipoLabel[d.tipo] ?? d.tipo}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                  <div className="h-full bg-sky-400 rounded-full" style={{ width: `${pct}%` }} />
-                                </div>
-                                <span className="text-[9px] text-slate-400 w-6 text-right shrink-0">{pct}%</span>
-                              </div>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <p className="text-sm font-black text-slate-700">{d.frequencia}×</p>
-                              {d.nivel && (
-                                <p className={`text-[9px] font-black ${nivelCores[d.nivel] ?? 'text-slate-400'}`}>
-                                  {nivelLabel[d.nivel] ?? d.nivel}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
 
-                </div>
-
-                {/* Painel lateral direito — visualização */}
-                <div className="hidden lg:flex w-72 shrink-0 flex-col gap-4 sticky top-6">
-                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                    <p className="text-[9px] font-black text-sky-500 uppercase tracking-widest mb-4">Sobre o ciclo</p>
-                    <div className="space-y-3">
-                      {[
-                        { icon: <BookMarked size={14} />, label: 'Sessões no ciclo', valor: String(cicloAtivo.totalSlots) },
-                        { icon: <Zap size={14} />,        label: 'Meta diária',       valor: `${cicloAtivo.horasPorDia} sessões` },
-                        { icon: <Clock size={14} />,      label: 'Por sessão',        valor: '60 min' },
-                        { icon: <RefreshCw size={14} />,  label: 'Posição na fila',   valor: `#${cicloAtivo.posicaoAtual}` },
-                      ].map(row => (
-                        <div key={row.label} className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-slate-400">{row.icon}<span className="text-xs text-slate-500">{row.label}</span></div>
-                          <span className="text-sm font-black text-sky-600">{row.valor}</span>
+                    {/* ── Resumo compacto ── */}
+                    <div className="col-span-12 xl:col-span-4 rounded-lg border border-slate-100 bg-white p-3.5 shadow-sm">
+                      <div className="mb-2.5 flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-black text-slate-700">Resumo do ciclo</p>
+                          <p className="text-[11px] font-semibold text-slate-500">Visão geral</p>
                         </div>
-                      ))}
-                    </div>
-                    <div className="mt-4 pt-4 border-t border-slate-100">
-                      <div className="flex justify-between text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                        <span>Progresso</span>
-                        <span>{Math.round((cicloAtivo.posicaoAtual / cicloAtivo.totalSlots) * 100)}%</span>
+                        {cicloAtivo.posicaoAtual / cicloAtivo.totalSlots >= 0.8 && (
+                          <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                            Reta final
+                          </span>
+                        )}
                       </div>
-                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-sky-400 to-blue-500 rounded-full transition-all"
-                          style={{ width: `${(cicloAtivo.posicaoAtual / cicloAtivo.totalSlots) * 100}%` }}
-                        />
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-md border border-slate-100 bg-slate-50 px-2.5 py-2 min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Sessões</p>
+                          <p className="text-base font-black leading-tight text-slate-800">{cicloAtivo.totalSlots}</p>
+                          <p className="text-[10px] font-semibold text-slate-500">no ciclo</p>
+                        </div>
+                        <div className="rounded-md border border-sky-100 bg-sky-50 px-2.5 py-2 min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-sky-700">Meta de hoje</p>
+                          <p className="text-base font-black leading-tight text-sky-700">{cicloAtivo.horasPorDia} sessões</p>
+                          <p className="text-[10px] font-semibold text-sky-700">{cicloAtivo.horasPorDia} horas hoje</p>
+                        </div>
                       </div>
                     </div>
+
+                    <div className="col-span-12 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.85fr)] xl:items-start">
+                      <div className="flex min-w-0 flex-col gap-4">
+
+                        {/* ── Sessão atual ── */}
+                        <div className="relative overflow-hidden rounded-lg border border-sky-100 bg-linear-to-br from-sky-50 via-white to-white p-5 shadow-sm">
+                          <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-sky-100/70" />
+                          {cicloAtivo.hojeSlots[0] && (() => {
+                            const s = cicloAtivo.hojeSlots[0];
+                            const proximaSessao = cicloAtivo.hojeSlots[1];
+                            const tipoLabel = getTipoDisciplinaLabel(s.tipo);
+                            const nivelCores: Record<string, string> = { ALTO: 'bg-red-100 text-red-700', MEDIO: 'bg-amber-100 text-amber-700', BAIXO: 'bg-emerald-100 text-emerald-700' };
+                            const nivelLabel: Record<string, string> = { ALTO: 'Alto', MEDIO: 'Médio', BAIXO: 'Baixo' };
+
+                            return (
+                              <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                                <div className="min-w-0">
+                                  <p className="mb-2 text-sm font-black uppercase tracking-wide text-sky-700">Sessão atual</p>
+                                  <h3 className="text-2xl font-black leading-tight text-slate-900">{s.nome}</h3>
+                                  <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-bold text-slate-600">
+                                    <span>Você está na sessão {cicloAtivo.posicaoAtual} de {cicloAtivo.totalSlots}</span>
+                                    <span className="text-slate-300">·</span>
+                                    <span>1h</span>
+                                    {tipoLabel && (
+                                      <>
+                                        <span className="text-slate-300">·</span>
+                                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">
+                                          {tipoLabel}
+                                        </span>
+                                      </>
+                                    )}
+                                    {s.nivel && (
+                                      <>
+                                        <span className="text-slate-300">·</span>
+                                        <span className={`rounded-full px-2 py-0.5 text-xs font-black uppercase ${nivelCores[s.nivel] ?? 'bg-slate-100 text-slate-600'}`}>
+                                          {nivelLabel[s.nivel] ?? s.nivel}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                  <p className="mt-3 text-sm font-semibold text-slate-500">
+                                    {proximaSessao
+                                      ? `Ao concluir, você avança para a disciplina: ${proximaSessao.nome}.`
+                                      : 'Depois desta sessão, o ciclo avança para a próxima disciplina.'}
+                                  </p>
+                                </div>
+                                <div className="shrink-0">
+                                  <button
+                                    onClick={() => router.push('/dashboard')}
+                                    aria-label="Estudar sessão atual na Minha Mesa"
+                                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-sky-500 px-6 py-3 text-sm font-black text-white shadow-md shadow-sky-100 transition-all hover:bg-sky-600 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2"
+                                  >
+                                    Estudar na Minha Mesa <ChevronRight size={15} />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+
+                        {/* ── Plano de hoje ── */}
+                        <div className="rounded-lg border border-slate-100 bg-white p-5 shadow-sm">
+                          <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                              <div className="mb-1 flex items-center gap-2">
+                                <span className="h-2 w-2 rounded-full bg-sky-500" />
+                                <p className="text-base font-black text-slate-800">Plano de hoje</p>
+                              </div>
+                              <p className="text-sm text-slate-500">
+                                Próximas sessões na ordem recomendada. Cada sessão dura 1h.
+                              </p>
+                            </div>
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                              Hoje: {cicloAtivo.horasPorDia} sessões
+                            </span>
+                          </div>
+
+                          <div className="space-y-0">
+                            {cicloAtivo.hojeSlots.map((s, i) => {
+                              const sessao = cicloAtivo.posicaoAtual + i > cicloAtivo.totalSlots
+                                ? ((cicloAtivo.posicaoAtual + i - 1) % cicloAtivo.totalSlots) + 1
+                                : cicloAtivo.posicaoAtual + i;
+                              const atual = i === 0;
+                              const etapaLabel = atual ? 'Agora' : i === 1 ? 'Próxima' : 'Depois';
+
+                              return (
+                                <div key={i} className="relative flex gap-3 pb-3 last:pb-0">
+                                  {i < cicloAtivo.hojeSlots.length - 1 && (
+                                    <div className="absolute left-3 top-7 h-[calc(100%-1.25rem)] w-px bg-slate-200" />
+                                  )}
+                                  <div className={`relative z-10 flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-black ${atual ? 'bg-sky-500 text-white shadow-sm shadow-sky-100' : 'bg-slate-100 text-slate-500'}`}>
+                                    {sessao}
+                                  </div>
+                                  <div className={`min-w-0 flex-1 rounded-lg border px-3 py-2 transition-colors ${atual ? 'border-sky-200 bg-sky-50 shadow-sm shadow-sky-50 ring-1 ring-sky-100' : 'border-transparent bg-white hover:border-slate-100 hover:bg-slate-50'}`}>
+                                    <div className="flex items-center gap-2">
+                                      <span className={`shrink-0 text-[11px] font-black uppercase tracking-wide ${atual ? 'text-sky-700' : 'text-slate-400'}`}>
+                                        {etapaLabel}
+                                      </span>
+                                      <p className="truncate text-sm font-bold text-slate-700">{s.nome}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <p className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
+                            Use a Minha Mesa para registrar cada sessão concluída.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex min-w-0 flex-col gap-4">
+                        {/* ── Distribuição ── */}
+                        <div className="rounded-lg border border-slate-100 bg-white p-5 shadow-sm">
+                          {(() => {
+                            const disciplinasOrdenadas = [...cicloAtivo.disciplinas].sort((a, b) => b.frequencia - a.frequencia);
+                            const gruposDistribuicao = Array.from(new Set(disciplinasOrdenadas.map(d => d.frequencia)))
+                              .map(frequencia => ({
+                                frequencia,
+                                disciplinas: disciplinasOrdenadas.filter(d => d.frequencia === frequencia),
+                              }));
+
+                            return (
+                              <>
+                                <p className="text-base font-black text-slate-800 mb-1">
+                                  Distribuição das disciplinas
+                                </p>
+                                <p className="mb-3 text-xs text-slate-500">
+                                  Este ciclo reúne {cicloAtivo.disciplinas.length} {cicloAtivo.disciplinas.length === 1 ? 'disciplina' : 'disciplinas'}, agrupadas por frequência no ciclo.
+                                </p>
+                                <div className="relative">
+                                  <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1">
+                                    {gruposDistribuicao.map(({ frequencia, disciplinas }) => (
+                                      <div key={frequencia} className="rounded-lg border border-slate-100 bg-slate-50/60 p-2">
+                                        <div className="mb-1.5 flex items-center justify-between gap-2 px-1">
+                                          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                                            {frequencia} {frequencia === 1 ? 'sessão' : 'sessões'} no ciclo
+                                          </p>
+                                          <span className="text-[11px] font-bold text-slate-400">
+                                            {disciplinas.length} {disciplinas.length === 1 ? 'disciplina' : 'disciplinas'}
+                                          </span>
+                                        </div>
+                                        <div className="space-y-1">
+                                          {disciplinas.map(d => {
+                                            const colorIndex = disciplinasOrdenadas.findIndex(item => item.idDisciplina === d.idDisciplina);
+                                            const color = WHEEL_COLORS[colorIndex % WHEEL_COLORS.length];
+                                            const eAtual = d.idDisciplina === cicloAtivo.hojeSlots[0]?.idDisciplina;
+
+                                            return (
+                                              <div key={d.idDisciplina} className={`rounded-md px-2.5 py-2 transition-colors ${eAtual ? 'bg-sky-50 ring-1 ring-sky-100' : 'bg-white/70 hover:bg-white'}`}>
+                                                <div className="flex items-center gap-2">
+                                                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                                                  <p className={`flex-1 text-sm font-bold truncate min-w-0 ${eAtual ? 'text-slate-900' : 'text-slate-700'}`}>{d.nome}</p>
+                                                  {eAtual && (
+                                                    <span className="shrink-0 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-700">
+                                                      atual
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  {cicloAtivo.disciplinas.length > 8 && (
+                                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-linear-to-t from-white to-white/0" />
+                                  )}
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+
                   </div>
 
-                  <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5">
-                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">Como funciona</p>
-                    <div className="space-y-2 text-xs text-slate-600 leading-relaxed">
-                      <p>📌 O ciclo é uma <strong>fila contínua</strong> de sessões de 1h.</p>
-                      <p>🎯 Sua meta é <strong>{cicloAtivo.horasPorDia} sessões/dia</strong>.</p>
-                      <p>▶ A execução e controle ficam em <strong>Minha Mesa</strong>.</p>
-                      <p>🔁 Ao concluir todas as sessões, a fila <strong>recomeça</strong>.</p>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setConfirmandoEdicao(true)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-slate-200 text-slate-500 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 rounded-xl font-bold text-sm transition-all"
-                  >
-                    <Pencil size={14} /> Editar ciclo
-                  </button>
                 </div>
               </>
             )}
@@ -606,19 +685,19 @@ export default function CiclosEstudo() {
                             >
                               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all ${
                                 concluida ? 'bg-emerald-500 text-white group-hover:bg-emerald-400 group-hover:scale-110' :
-                                atual     ? 'bg-[#3b82f6] text-white shadow-md shadow-blue-200' :
+                                atual     ? 'bg-sky-500 text-white shadow-md shadow-sky-200' :
                                             'bg-slate-100 text-slate-400'
                               }`}>
                                 {concluida ? <Check size={14} /> : step.num}
                               </div>
-                              <span className={`text-[9px] font-bold uppercase tracking-wider whitespace-nowrap ${
-                                atual     ? 'text-blue-600' :
+                              <span className={`text-[11px] font-bold uppercase tracking-wider whitespace-nowrap ${
+                                atual     ? 'text-sky-600' :
                                 concluida ? 'text-emerald-600 group-hover:text-emerald-500' : 'text-slate-400'
                               }`}>{step.label}</span>
                             </div>
                             {idx < 2 && (
                               <div className={`flex-1 h-0.5 mx-3 self-start mt-4 rounded-full transition-all duration-500 ${
-                                etapa > step.num ? 'bg-[#3b82f6]' : 'bg-slate-100'
+                                etapa > step.num ? 'bg-sky-500' : 'bg-slate-100'
                               }`} />
                             )}
                           </div>
@@ -637,41 +716,41 @@ export default function CiclosEstudo() {
                       <div className="max-w-xl">
                         <div className="flex items-center justify-between mb-3">
                           <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Horas por dia</label>
-                          <span className="text-2xl font-black text-[#3b82f6]">{horasDiarias}h</span>
+                          <span className="text-2xl font-black text-sky-500">{horasDiarias}h</span>
                         </div>
                         <input
                           type="range" min="1" max="12" step="1"
                           value={horasDiarias}
                           onChange={e => setHorasDiarias(Number(e.target.value))}
-                          className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-500 mb-3"
+                          className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-sky-500 mb-3"
                         />
 
                         <div className="flex justify-between gap-1 mb-8">
                           {[1, 2, 3, 4, 5, 6, 8, 10, 12].map(h => (
                             <button key={h} onClick={() => setHorasDiarias(h)}
-                              className={`flex-1 py-1.5 rounded-lg text-[9px] font-black transition-all ${
-                                horasDiarias === h ? 'bg-[#3b82f6] text-white shadow-sm' : 'bg-slate-100 text-slate-400 hover:bg-blue-50 hover:text-blue-500'
+                              className={`flex-1 py-1.5 rounded-lg text-[11px] font-black transition-all ${
+                                horasDiarias === h ? 'bg-sky-500 text-white shadow-sm' : 'bg-slate-100 text-slate-400 hover:bg-sky-50 hover:text-sky-500'
                               }`}
                             >{h}h</button>
                           ))}
                         </div>
 
                         <div className="grid grid-cols-3 gap-4 mb-6">
-                          <StatCard cor="blue"  label="Sessões/turno"    valor={String(discsPorDia)} />
-                          <StatCard cor="sky"   label="Sessões no ciclo" valor={String(maxDisciplinas)} />
-                          <StatCard cor="slate" label="Min/sessão"       valor="60min" />
+                          <StatCard cor="sky"   label="Sessões/turno"        valor={String(discsPorDia)} />
+                          <StatCard cor="sky"   label="Disciplinas no ciclo" valor={String(maxDisciplinas)} />
+                          <StatCard cor="slate" label="Min/sessão"           valor="60min" />
                         </div>
 
                         <div className="flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-xl p-3 mb-8">
                           <Info size={14} className="text-amber-500 mt-0.5 shrink-0" />
                           <p className="text-xs text-amber-700">
-                            Com <strong>{horasDiarias}h/dia</strong>, cada turno terá <strong>{discsPorDia} sessões</strong> de 60 min. O ciclo completo tem <strong>{maxDisciplinas} sessões</strong> na fila.
+                            Com <strong>{horasDiarias}h/dia</strong>, cada turno terá <strong>{discsPorDia} sessões</strong> de 60 min. O ciclo selecionará até <strong>{maxDisciplinas} disciplinas distintas</strong> — a frequência de cada uma varia conforme o score.
                           </p>
                         </div>
 
                         <button
                           onClick={() => irParaEtapa(2)}
-                          className="px-8 py-3 bg-[#3b82f6] hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 hover:scale-105 active:scale-95"
+                          className="px-8 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 hover:scale-105 active:scale-95"
                         >
                           Continuar <ChevronDown size={16} className="-rotate-90" />
                         </button>
@@ -691,7 +770,7 @@ export default function CiclosEstudo() {
                         <input
                           type="text" placeholder="Buscar edital..."
                           value={busca} onChange={e => setBusca(e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-400 transition-colors bg-slate-50"
+                          className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 text-sm outline-none focus:border-sky-400 transition-colors bg-slate-50"
                         />
                       </div>
 
@@ -708,25 +787,25 @@ export default function CiclosEstudo() {
                                 key={edital.id}
                                 onClick={() => setEditalSelecionado(editalSelecionado?.id === edital.id ? null : edital)}
                                 className={`flex items-center justify-between px-4 py-3.5 rounded-xl border-2 text-left transition-all ${
-                                  editalSelecionado?.id === edital.id ? 'border-blue-400 bg-blue-50' : 'border-slate-100 hover:border-slate-200 bg-white'
+                                  editalSelecionado?.id === edital.id ? 'border-sky-400 bg-sky-50' : 'border-slate-100 hover:border-slate-200 bg-white'
                                 }`}
                               >
                                 <div className="flex items-center gap-3">
                                   <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                                    editalSelecionado?.id === edital.id ? 'border-blue-500 bg-blue-500' : 'border-slate-300'
+                                    editalSelecionado?.id === edital.id ? 'border-sky-500 bg-sky-500' : 'border-slate-300'
                                   }`}>
                                     {editalSelecionado?.id === edital.id && <Check size={9} className="text-white" />}
                                   </div>
                                   <div>
                                     <p className="text-sm font-bold text-slate-800">{edital.nome}</p>
-                                    {edital.banca && <p className="text-[10px] text-slate-400 font-medium">{edital.banca}</p>}
+                                    {edital.banca && <p className="text-xs text-slate-500 font-medium">{edital.banca}</p>}
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
-                                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
                                     edital.status === 'ABERTO' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
                                   }`}>{edital.status}</span>
-                                  <span className="text-[10px] text-slate-400 hidden sm:block">{edital.data}</span>
+                                  <span className="text-xs text-slate-500 hidden sm:block">{edital.data}</span>
                                 </div>
                               </button>
                             ))
@@ -751,7 +830,7 @@ export default function CiclosEstudo() {
                                   const cargo = cargos.find(c => c.id === Number(e.target.value)) ?? null;
                                   setCargoSelecionado(cargo); setDisciplinasSelecionadas([]); setDificuldades({});
                                 }}
-                                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-blue-400 outline-none text-sm font-medium text-slate-800 bg-white appearance-none cursor-pointer transition-colors"
+                                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-sky-400 outline-none text-sm font-medium text-slate-800 bg-white appearance-none cursor-pointer transition-colors"
                               >
                                 <option value="">Selecione um cargo...</option>
                                 {cargos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
@@ -769,7 +848,7 @@ export default function CiclosEstudo() {
                         <button
                           onClick={() => irParaEtapa(3)} disabled={!podeContinuarEtapa2}
                           className={`px-8 py-3 rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 ${
-                            podeContinuarEtapa2 ? 'bg-[#3b82f6] hover:bg-blue-700 text-white hover:scale-105 active:scale-95' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                            podeContinuarEtapa2 ? 'bg-sky-500 hover:bg-sky-600 text-white hover:scale-105 active:scale-95' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                           }`}
                         >
                           Continuar <ChevronDown size={16} className="-rotate-90" />
@@ -784,7 +863,7 @@ export default function CiclosEstudo() {
                       <p className="text-[10px] font-black text-sky-500 uppercase tracking-[0.3em] mb-2">Etapa 3 de 3</p>
                       <h2 className="text-2xl font-bold text-slate-800 mb-1">Como montar seu ciclo?</h2>
                       <p className="text-sm text-slate-400 mb-6">
-                        <strong className="text-slate-600">{editalSelecionado?.nome}</strong> · <strong className="text-slate-600">{cargoSelecionado?.nome}</strong> · <strong className="text-blue-600">{horasDiarias}h/dia</strong>
+                        <strong className="text-slate-600">{editalSelecionado?.nome}</strong> · <strong className="text-slate-600">{cargoSelecionado?.nome}</strong> · <strong className="text-sky-600">{horasDiarias}h/dia</strong>
                       </p>
 
                       <div className="grid grid-cols-2 gap-3 max-w-lg mb-8">
@@ -793,15 +872,15 @@ export default function CiclosEstudo() {
                           { key: 'personalizado', icon: <SlidersHorizontal size={16} />, titulo: 'Personalizado', sub: 'Você escolhe e define o nível de dificuldade', tag: null },
                         ] as const).map(opt => (
                           <button key={opt.key} onClick={() => setModoCiclo(opt.key)}
-                            className={`p-4 rounded-xl border-2 text-left transition-all ${modoCiclo === opt.key ? 'border-blue-400 bg-blue-50' : 'border-slate-200 hover:border-slate-300 bg-white'}`}
+                            className={`p-4 rounded-xl border-2 text-left transition-all ${modoCiclo === opt.key ? 'border-sky-400 bg-sky-50' : 'border-slate-200 hover:border-slate-300 bg-white'}`}
                           >
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${modoCiclo === opt.key ? 'bg-blue-100' : 'bg-slate-100'}`}>
-                              <span className={modoCiclo === opt.key ? 'text-blue-500' : 'text-slate-400'}>{opt.icon}</span>
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${modoCiclo === opt.key ? 'bg-sky-100' : 'bg-slate-100'}`}>
+                              <span className={modoCiclo === opt.key ? 'text-sky-500' : 'text-slate-400'}>{opt.icon}</span>
                             </div>
-                            <p className={`text-sm font-bold mb-0.5 ${modoCiclo === opt.key ? 'text-blue-700' : 'text-slate-700'}`}>{opt.titulo}</p>
-                            <p className="text-[10px] text-slate-400 leading-snug mb-1">{opt.sub}</p>
+                            <p className={`text-sm font-bold mb-0.5 ${modoCiclo === opt.key ? 'text-sky-700' : 'text-slate-700'}`}>{opt.titulo}</p>
+                            <p className="text-xs text-slate-500 leading-snug mb-1">{opt.sub}</p>
                             {opt.tag && modoCiclo === opt.key && (
-                              <span className="text-[8px] font-black text-blue-500 uppercase tracking-wider">{opt.tag}</span>
+                              <span className="text-[10px] font-black text-sky-500 uppercase tracking-wider">{opt.tag}</span>
                             )}
                           </button>
                         ))}
@@ -813,22 +892,22 @@ export default function CiclosEstudo() {
                         </div>
                       ) : modoCiclo === 'automatico' ? (
                         <div>
-                          <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3 mb-4 max-w-2xl">
-                            <Zap size={14} className="text-blue-500 shrink-0" />
-                            <p className="text-xs text-blue-700">
-                              O sistema priorizará disciplinas <strong>específicas do edital</strong> e distribuirá o tempo <strong>proporcionalmente ao peso e dificuldade</strong> de cada uma.
+                          <div className="flex items-center gap-2 bg-sky-50 border border-sky-100 rounded-xl p-3 mb-4 max-w-2xl">
+                            <Zap size={14} className="text-sky-500 shrink-0" />
+                            <p className="text-xs text-sky-700">
+                              O sistema priorizará disciplinas <strong>específicas do edital</strong> e definirá a frequência de cada uma proporcionalmente ao <strong>score</strong> calculado com base em peso, quantidade de questões e tipo. A dificuldade será assumida como <strong>Médio</strong> para todas.
                             </p>
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-2xl">
-                            {disciplinas.map(disc => (
+                            {disciplinasOrdenadas.map(disc => (
                               <div key={disc.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-slate-100 bg-slate-50 opacity-60">
                                 <div className="flex items-center gap-2">
                                   <Lock size={12} className="text-slate-300 shrink-0" />
                                   <span className="text-sm font-medium text-slate-600">{disc.nome}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  {disc.peso && <span className="text-[9px] font-bold text-sky-500 bg-sky-50 px-2 py-0.5 rounded-full">Peso {disc.peso}</span>}
-                                  <span className="text-[10px] text-slate-400">{minutosPerDisciplina}min</span>
+                                  {disc.peso && <span className="text-[11px] font-bold text-sky-500 bg-sky-50 px-2 py-0.5 rounded-full">Peso {disc.peso}</span>}
+                                  <span className="text-xs text-slate-500">{minutosPerDisciplina}min</span>
                                 </div>
                               </div>
                             ))}
@@ -838,7 +917,7 @@ export default function CiclosEstudo() {
                         <div className="max-w-2xl">
                           <div className="flex items-center justify-between mb-2">
                             <p className="text-xs text-slate-500">
-                              Selecione até <strong className="text-blue-600">{maxDisciplinas} disciplinas</strong>
+                              Selecione até <strong className="text-sky-600">{maxDisciplinas} disciplinas</strong>
                             </p>
                             <span className={`text-xs font-bold px-3 py-1 rounded-full transition-colors ${
                               disciplinasSelecionadas.length === maxDisciplinas ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'
@@ -847,12 +926,12 @@ export default function CiclosEstudo() {
                             </span>
                           </div>
                           <div className="w-full h-1.5 bg-slate-100 rounded-full mb-4 overflow-hidden">
-                            <div className="h-full bg-blue-400 rounded-full transition-all duration-500"
+                            <div className="h-full bg-sky-400 rounded-full transition-all duration-500"
                               style={{ width: `${(disciplinasSelecionadas.length / maxDisciplinas) * 100}%` }} />
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {disciplinas.map(disc => {
+                            {disciplinasOrdenadas.map(disc => {
                               const selecionada = disciplinasSelecionadas.includes(disc.id);
                               const bloqueada   = !selecionada && disciplinasSelecionadas.length >= maxDisciplinas;
                               const dific       = dificuldades[disc.id];
@@ -862,15 +941,15 @@ export default function CiclosEstudo() {
                                 <div key={disc.id}
                                   onClick={() => !bloqueada && toggleDisciplina(disc.id)}
                                   className={`rounded-xl border-2 transition-all ${
-                                    selecionada ? semDific ? 'border-amber-300 bg-amber-50 cursor-pointer' : 'border-blue-400 bg-blue-50 cursor-pointer' :
+                                    selecionada ? semDific ? 'border-amber-300 bg-amber-50 cursor-pointer' : 'border-sky-400 bg-sky-50 cursor-pointer' :
                                     bloqueada   ? 'border-slate-100 bg-slate-50 opacity-40 cursor-not-allowed' :
-                                                  'border-slate-200 bg-white hover:border-blue-200 cursor-pointer'
+                                                  'border-slate-200 bg-white hover:border-sky-200 cursor-pointer'
                                   }`}
                                 >
                                   <div className="flex items-center justify-between px-4 py-3">
                                     <div className="flex items-center gap-2">
                                       <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 transition-all ${
-                                        selecionada ? semDific ? 'bg-amber-400' : 'bg-blue-500' :
+                                        selecionada ? semDific ? 'bg-amber-400' : 'bg-sky-500' :
                                         bloqueada   ? 'bg-slate-200' : 'border-2 border-slate-300'
                                       }`}>
                                         {selecionada && !semDific && <Check size={9} className="text-white" />}
@@ -878,23 +957,23 @@ export default function CiclosEstudo() {
                                         {bloqueada   && <Lock size={8} className="text-slate-400" />}
                                       </div>
                                       <span className={`text-sm font-semibold ${
-                                        selecionada ? semDific ? 'text-amber-700' : 'text-blue-800' :
+                                        selecionada ? semDific ? 'text-amber-700' : 'text-sky-800' :
                                         bloqueada   ? 'text-slate-400' : 'text-slate-700'
                                       }`}>{disc.nome}</span>
                                     </div>
-                                    {disc.peso && <span className="text-[9px] font-bold text-sky-500 bg-sky-50 px-2 py-0.5 rounded-full shrink-0">Peso {disc.peso}</span>}
+                                    {disc.peso && <span className="text-[11px] font-bold text-sky-500 bg-sky-50 px-2 py-0.5 rounded-full shrink-0">Peso {disc.peso}</span>}
                                   </div>
 
                                   {selecionada && (
                                     <div className="px-4 pb-3 animate-in fade-in slide-in-from-top-1 duration-200">
-                                      <p className={`text-[9px] font-black uppercase tracking-widest mb-1.5 ${semDific ? 'text-amber-500' : 'text-slate-400'}`}>
+                                      <p className={`text-[11px] font-black uppercase tracking-widest mb-1.5 ${semDific ? 'text-amber-500' : 'text-slate-400'}`}>
                                         {semDific ? '⚠ Defina seu nível:' : 'Meu nível:'}
                                       </p>
                                       <div className="flex gap-1.5">
                                         {(['Baixo', 'Médio', 'Alto'] as const).map(nivel => (
                                           <button key={nivel}
                                             onClick={e => { e.stopPropagation(); setDificuldades(prev => ({ ...prev, [disc.id]: nivel })); }}
-                                            className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase border transition-all ${
+                                            className={`px-3 py-1 rounded-lg text-[11px] font-black uppercase border transition-all ${
                                               dific === nivel
                                                 ? nivel === 'Baixo' ? 'bg-emerald-500 border-emerald-500 text-white'
                                                   : nivel === 'Médio' ? 'bg-amber-400 border-amber-400 text-white'
@@ -931,14 +1010,14 @@ export default function CiclosEstudo() {
 
                       {/* Preview */}
                       <div className="mt-8 bg-slate-50 border border-slate-200 rounded-xl p-4">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Confirmação do ciclo</p>
+                        <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Confirmação do ciclo</p>
                         <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                          <div><span className="text-[9px] text-slate-400 uppercase font-bold">Edital</span><p className="text-xs font-bold text-slate-700 truncate">{editalSelecionado?.nome}</p></div>
-                          <div><span className="text-[9px] text-slate-400 uppercase font-bold">Cargo</span><p className="text-xs font-bold text-slate-700 truncate">{cargoSelecionado?.nome}</p></div>
-                          <div><span className="text-[9px] text-slate-400 uppercase font-bold">Horas/dia</span><p className="text-xs font-black text-blue-600">{horasDiarias}h</p></div>
-                          <div><span className="text-[9px] text-slate-400 uppercase font-bold">Disciplinas/dia</span><p className="text-xs font-black text-blue-600">{discsPorDia}</p></div>
-                          <div><span className="text-[9px] text-slate-400 uppercase font-bold">Modo</span><p className="text-xs font-black text-slate-700 capitalize">{modoCiclo}</p></div>
-                          <div><span className="text-[9px] text-slate-400 uppercase font-bold">Min/disciplina</span><p className="text-xs font-black text-blue-600">{minutosPerDisciplina}min</p></div>
+                          <div><span className="text-[11px] text-slate-400 uppercase font-bold">Edital</span><p className="text-xs font-bold text-slate-700 truncate">{editalSelecionado?.nome}</p></div>
+                          <div><span className="text-[11px] text-slate-400 uppercase font-bold">Cargo</span><p className="text-xs font-bold text-slate-700 truncate">{cargoSelecionado?.nome}</p></div>
+                          <div><span className="text-[11px] text-slate-400 uppercase font-bold">Horas/dia</span><p className="text-xs font-black text-sky-600">{horasDiarias}h</p></div>
+                          <div><span className="text-[11px] text-slate-400 uppercase font-bold">Disciplinas/dia</span><p className="text-xs font-black text-sky-600">{discsPorDia}</p></div>
+                          <div><span className="text-[11px] text-slate-400 uppercase font-bold">Modo</span><p className="text-xs font-black text-slate-700 capitalize">{modoCiclo}</p></div>
+                          <div><span className="text-[11px] text-slate-400 uppercase font-bold">Min/disciplina</span><p className="text-xs font-black text-sky-600">{minutosPerDisciplina}min</p></div>
                         </div>
                       </div>
 
@@ -975,7 +1054,7 @@ export default function CiclosEstudo() {
                   {etapa === 1 && (
                     <>
                       <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                        <p className="text-[9px] font-black text-sky-500 uppercase tracking-widest mb-3">Por que ciclos funcionam?</p>
+                        <p className="text-[11px] font-black text-sky-500 uppercase tracking-widest mb-3">Por que ciclos funcionam?</p>
                         <div className="space-y-3">
                           {[
                             { e: '🧠', t: 'Memória ativa', d: 'Alternar disciplinas evita a fadiga cognitiva e melhora a retenção.' },
@@ -990,11 +1069,11 @@ export default function CiclosEstudo() {
                         </div>
                       </div>
                       <div className="bg-sky-50 border border-sky-100 rounded-2xl p-5">
-                        <p className="text-[9px] font-black text-sky-500 uppercase tracking-widest mb-3">Seu ciclo estimado</p>
+                        <p className="text-[11px] font-black text-sky-500 uppercase tracking-widest mb-3">Seu ciclo estimado</p>
                         {[
-                          { l: 'Sessões/turno',    v: discsPorDia },
-                          { l: 'Sessões no ciclo', v: maxDisciplinas },
-                          { l: 'Min por sessão',   v: '60min' },
+                          { l: 'Sessões/turno',          v: discsPorDia },
+                          { l: 'Disciplinas no ciclo', v: maxDisciplinas },
+                          { l: 'Min por sessão',        v: '60min' },
                         ].map(row => (
                           <div key={row.l} className="flex justify-between items-center mb-2 last:mb-0">
                             <span className="text-xs text-slate-500">{row.l}</span>
@@ -1009,7 +1088,7 @@ export default function CiclosEstudo() {
                     <>
                       {!editalSelecionado ? (
                         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                          <p className="text-[9px] font-black text-sky-500 uppercase tracking-widest mb-3">Dicas de seleção</p>
+                          <p className="text-[11px] font-black text-sky-500 uppercase tracking-widest mb-3">Dicas de seleção</p>
                           <div className="space-y-3">
                             {[
                               { e: '🎯', t: 'Estudo ativo', d: 'Escolha o edital que você está ativamente estudando agora.' },
@@ -1025,23 +1104,23 @@ export default function CiclosEstudo() {
                         </div>
                       ) : (
                         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                          <p className="text-[9px] font-black text-sky-500 uppercase tracking-widest mb-3">Edital selecionado</p>
+                          <p className="text-[11px] font-black text-sky-500 uppercase tracking-widest mb-3">Edital selecionado</p>
                           <div className="flex items-center justify-between mb-3">
-                            <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
+                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
                               editalSelecionado.status === 'ABERTO' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
                             }`}>{editalSelecionado.status}</span>
-                            <span className="text-[10px] text-slate-400">{editalSelecionado.data}</span>
+                            <span className="text-xs text-slate-500">{editalSelecionado.data}</span>
                           </div>
                           <p className="text-sm font-black text-slate-800 mb-1">{editalSelecionado.nome}</p>
-                          {editalSelecionado.banca && <p className="text-[10px] text-slate-400 font-medium mb-3">{editalSelecionado.banca}</p>}
+                          {editalSelecionado.banca && <p className="text-xs text-slate-500 font-medium mb-3">{editalSelecionado.banca}</p>}
                           {cargoSelecionado && (
                             <>
                               <div className="border-t border-slate-100 pt-3 mt-1">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Cargo</p>
+                                <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">Cargo</p>
                                 <p className="text-xs font-bold text-slate-700">{cargoSelecionado.nome}</p>
                               </div>
                               <div className="border-t border-slate-100 pt-3 mt-3">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Disciplinas disponíveis</p>
+                                <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">Disciplinas disponíveis</p>
                                 <p className="text-xl font-black text-sky-600">{cargoSelecionado.disciplinas.length}</p>
                               </div>
                             </>
@@ -1049,7 +1128,7 @@ export default function CiclosEstudo() {
                         </div>
                       )}
                       <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Etapa 1 — resumo</p>
+                        <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">Etapa 1 — resumo</p>
                         {[{ l: 'Horas/dia', v: `${horasDiarias}h` }, { l: 'Disciplinas/dia', v: String(discsPorDia) }].map(r => (
                           <div key={r.l} className="flex justify-between items-center mb-1 last:mb-0">
                             <span className="text-xs text-slate-500">{r.l}</span>
@@ -1063,17 +1142,17 @@ export default function CiclosEstudo() {
                   {etapa === 3 && (
                     <>
                       <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                        <p className="text-[9px] font-black text-sky-500 uppercase tracking-widest mb-4">Resumo do ciclo</p>
+                        <p className="text-[11px] font-black text-sky-500 uppercase tracking-widest mb-4">Resumo do ciclo</p>
                         <div className="space-y-3">
-                          <div><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Edital</p><p className="text-xs font-bold text-slate-700 leading-snug">{editalSelecionado?.nome}</p></div>
-                          <div><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Cargo</p><p className="text-xs font-bold text-slate-700">{cargoSelecionado?.nome}</p></div>
+                          <div><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Edital</p><p className="text-xs font-bold text-slate-700 leading-snug">{editalSelecionado?.nome}</p></div>
+                          <div><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Cargo</p><p className="text-xs font-bold text-slate-700">{cargoSelecionado?.nome}</p></div>
                           <div className="flex gap-3">
-                            <div className="flex-1"><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Sessões/turno</p><p className="text-sm font-black text-sky-600">{discsPorDia}</p></div>
-                            <div className="flex-1"><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">No ciclo</p><p className="text-sm font-black text-sky-600">{maxDisciplinas}</p></div>
+                            <div className="flex-1"><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Sessões/turno</p><p className="text-sm font-black text-sky-600">{discsPorDia}</p></div>
+                            <div className="flex-1"><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">No ciclo</p><p className="text-sm font-black text-sky-600">{maxDisciplinas}</p></div>
                           </div>
                           <div>
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Modo</p>
-                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${modoCiclo === 'automatico' ? 'bg-blue-100 text-blue-600' : 'bg-violet-100 text-violet-600'}`}>
+                            <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Modo</p>
+                            <span className={`text-[11px] font-black uppercase px-2 py-0.5 rounded-full ${modoCiclo === 'automatico' ? 'bg-sky-100 text-sky-600' : 'bg-violet-100 text-violet-600'}`}>
                               {modoCiclo === 'automatico' ? 'Automático' : 'Personalizado'}
                             </span>
                           </div>
@@ -1082,7 +1161,7 @@ export default function CiclosEstudo() {
 
                       {modoCiclo === 'personalizado' && disciplinasSelecionadas.length > 0 && (
                         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                          <p className="text-[9px] font-black text-sky-500 uppercase tracking-widest mb-3">Disciplinas no ciclo</p>
+                          <p className="text-[11px] font-black text-sky-500 uppercase tracking-widest mb-3">Disciplinas no ciclo</p>
                           <div className="space-y-2">
                             {disciplinasSelecionadas.map(id => {
                               const disc = disciplinas.find(d => d.id === id);
@@ -1092,21 +1171,21 @@ export default function CiclosEstudo() {
                                   <p className="text-xs font-medium text-slate-700 truncate flex-1 mr-2">{disc.nome}</p>
                                   <div className="flex items-center gap-1.5 shrink-0">
                                     {dific ? (
-                                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${
+                                      <span className={`text-xs font-black uppercase px-1.5 py-0.5 rounded-full ${
                                         dific === 'Baixo' ? 'bg-emerald-100 text-emerald-600' :
                                         dific === 'Médio' ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'
                                       }`}>{dific}</span>
                                     ) : (
-                                      <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-500">Pendente</span>
+                                      <span className="text-xs font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-500">Pendente</span>
                                     )}
-                                    <span className="text-[9px] text-slate-400">{minutosPerDisciplina}min</span>
+                                    <span className="text-[11px] text-slate-400">{minutosPerDisciplina}min</span>
                                   </div>
                                 </div>
                               ) : null;
                             })}
                           </div>
                           <div className="border-t border-slate-100 mt-3 pt-3 flex justify-between">
-                            <span className="text-[9px] font-black text-slate-400 uppercase">Total</span>
+                            <span className="text-[11px] font-black text-slate-400 uppercase">Total</span>
                             <span className="text-xs font-black text-sky-600">{horasDiarias}h/dia</span>
                           </div>
                         </div>
@@ -1124,36 +1203,45 @@ export default function CiclosEstudo() {
   );
 }
 
+/* ── Paleta e roda do ciclo ── */
+
+const WHEEL_COLORS = ['#0ea5e9','#10b981','#8b5cf6','#f59e0b','#f43f5e','#06b6d4','#f97316','#84cc16','#6366f1','#ec4899'];
+
 /* ── Componentes de suporte ── */
 
 function MenuItem({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
   return (
-    <div onClick={onClick} className={`flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition-all group ${active ? 'text-sky-600 bg-sky-50 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}>
-      <div className={`p-1.5 rounded-lg shrink-0 transition-all ${active ? 'bg-sky-100' : 'bg-slate-50 group-hover:bg-white group-hover:text-sky-500'}`}>{icon}</div>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className={`flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition-all group w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-2 ${active ? 'text-sky-600 bg-sky-50 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}
+    >
+      <div className={`shrink-0 transition-all ${active ? 'p-1.5 rounded-lg bg-sky-100' : 'group-hover:text-sky-500'}`}>{icon}</div>
       <span className="text-[13px] truncate">{label}</span>
-    </div>
+    </button>
   );
 }
 
 function HeaderIcon({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) {
   return (
-    <button onClick={onClick} className="flex flex-col items-center gap-0.5 group shrink-0">
+    <button onClick={onClick} aria-label={label} className="flex flex-col items-center gap-0.5 group shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-2 rounded-md">
       <div className="text-slate-400 group-hover:text-sky-500 transition-colors">{icon}</div>
-      <span className="text-[8px] lg:text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{label}</span>
+      <span className="text-[10px] lg:text-xs font-bold text-slate-500 uppercase tracking-tighter">{label}</span>
     </button>
   );
 }
 
-function StatCard({ cor, label, valor }: { cor: 'blue' | 'sky' | 'slate'; label: string; valor: string }) {
+function StatCard({ cor, label, valor }: { cor: 'sky' | 'slate'; label: string; valor: string }) {
   const s = {
-    blue:  { wrap: 'bg-blue-50 border-blue-100',   label: 'text-blue-400',  valor: 'text-blue-600' },
     sky:   { wrap: 'bg-sky-50 border-sky-100',     label: 'text-sky-400',   valor: 'text-sky-600' },
     slate: { wrap: 'bg-slate-50 border-slate-200', label: 'text-slate-400', valor: 'text-slate-700' },
   }[cor];
   return (
     <div className={`rounded-xl p-4 text-center border ${s.wrap}`}>
-      <p className={`text-[9px] font-black uppercase tracking-widest mb-1 ${s.label}`}>{label}</p>
+      <p className={`text-[11px] font-black uppercase tracking-widest mb-1 ${s.label}`}>{label}</p>
       <p className={`text-2xl font-black ${s.valor}`}>{valor}</p>
     </div>
   );
 }
+

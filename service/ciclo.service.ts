@@ -11,31 +11,86 @@ interface DisciplinaAlgo {
   id:                  number;
   nome:                string;
   peso:                number;
-  tipo:                string; // 'B' | 'E'
-  categoria_cognitiva: string; // 'R' | 'M'
-  dificuldade?:        string; // 'Baixo' | 'Médio' | 'Alto'
+  tipo:                string;
+  categoria_cognitiva: string;
+  dificuldade:         string;
+  qtd_questoes:        number;
 }
 
-// Passo 10 — garante distância mínima entre repetições da mesma disciplina
+// ─────────────────────────────────────────────────────────────
+// Score de importância da disciplina
+//
+// score = (1 + I_norm) × tipo_fator × dific_fator × desempenho
+//
+// I      = peso × qtd_questoes  (contribuição total no edital)
+// I_norm = I / I_max            (normalizado entre 0 e 1)
+// tipo_fator : B=1.0, E=1.5
+// dific_fator: Baixo=1, Médio=2, Alto=3
+//
+// Future: passar desempenho (0–1) calculado a partir de dados de
+//         performance do usuário para tornar o ciclo adaptativo.
+// ─────────────────────────────────────────────────────────────
+
+export function calcularScore(
+  d:          Pick<DisciplinaAlgo, 'tipo' | 'dificuldade'>,
+  iNorm:      number,
+  desempenho: number = 1.0,
+): number {
+  const tipoFator:  Record<string, number> = { E: 1.5, B: 1.0 };
+  const dificFator: Record<string, number> = { Baixo: 1, Médio: 2, Alto: 3 };
+  return (1 + iNorm) * (tipoFator[d.tipo] ?? 1.0) * (dificFator[d.dificuldade] ?? 2) * desempenho;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Frequência de cada disciplina no ciclo
+//
+// Proporcional a √score — comprime a escala evitando monopolização.
+// Mínimo de 1 aparição por disciplina.
+//
+// Future: chamar novamente com scores atualizados por desempenho
+//         para reajustar a fila sem recriar o ciclo do zero.
+// ─────────────────────────────────────────────────────────────
+
+export function calcularFrequencias(
+  disciplinas: DisciplinaAlgo[],
+  scores:      Map<number, number>,
+): Map<number, number> {
+  // Âncora absoluta: score mínimo possível = 1 (básica, Baixo, sem dados de edital) → freq 1
+  // score 4 → freq 2, score 9 → freq 3 — independente do grupo
+  return new Map(disciplinas.map(d => [
+    d.id,
+    Math.max(1, Math.round(Math.sqrt(scores.get(d.id)!))),
+  ]));
+}
+
+// ─────────────────────────────────────────────────────────────
+// Garante distância mínima entre repetições da mesma disciplina
+// minGap = 2 × horasDiarias → não repete na mesma meta diária
+//          nem na meta imediatamente seguinte
+// ─────────────────────────────────────────────────────────────
+
 function repararEspacamento(
-  ciclo: DisciplinaAlgo[],
-  freqs: Map<number, number>,
+  ciclo:  DisciplinaAlgo[],
+  freqs:  Map<number, number>,
+  minGap: number,
 ): DisciplinaAlgo[] {
   const result = [...ciclo];
   const N      = result.length;
 
   for (let i = 1; i < N; i++) {
-    const distMin = Math.floor(N / (freqs.get(result[i].id) ?? 1));
-    let conflito  = false;
+    const distMin = Math.max(
+      Math.floor(N / (freqs.get(result[i].id) ?? 1)),
+      minGap,
+    );
+    let conflito = false;
     for (let j = Math.max(0, i - distMin + 1); j < i; j++) {
       if (result[j].id === result[i].id) { conflito = true; break; }
     }
     if (!conflito) continue;
 
-    // Trocar com o primeiro candidato suficientemente distante
     for (let k = i + 1; k < Math.min(N, i + distMin * 2); k++) {
       if (result[k].id === result[i].id) continue;
-      const distK = Math.floor(N / (freqs.get(result[k].id) ?? 1));
+      const distK = Math.max(Math.floor(N / (freqs.get(result[k].id) ?? 1)), minGap);
       let candOK  = true;
       for (let j = Math.max(0, i - distK + 1); j < i; j++) {
         if (result[j].id === result[k].id) { candOK = false; break; }
@@ -50,15 +105,15 @@ function repararEspacamento(
 // ─────────────────────────────────────────────────────────────
 // Algoritmo de geração do ciclo inteligente
 //
-// Princípio: o ciclo é uma FILA CONTÍNUA de sessões de 1h.
-//            O dia é apenas um recorte sequencial dessa fila.
+// Princípio: fila contínua de sessões de 1h (ciclo dinâmico).
 //
 // Passos:
-//  1. totalSlots = horas × 2 sessões
-//  2. Selecionar top N disciplinas: tipo E prioridade (60%), restante tipo B por peso
-//  3. Frequência uniforme: floor(slots/n), resto nas primeiras disciplinas
-//  4. Construir fila com round-robin interno por categoria
-//  5. Intercalar categorias cognitivas (R ↔ M)
+//  1. Selecionar até horasDiarias×2 disciplinas distintas
+//     (tipo E prioridade — 60%; restante tipo B por peso)
+//  2. Calcular score por disciplina
+//  3. Frequência proporcional a √score (totalSlots dinâmico)
+//  4. Round-robin por categoria cognitiva + intercalação R ↔ M
+//  5. Reparar espaçamento: gap mínimo = 2 × horasDiarias
 // ─────────────────────────────────────────────────────────────
 
 export function gerarCiclo(
@@ -68,34 +123,25 @@ export function gerarCiclo(
 
   if (disciplinas.length === 0) return [];
 
-  // ── Base científica ──────────────────────────────────────────
-  // Carga cognitiva (Sweller, 1988): WM satura com >4 contextos/dia
-  // Ritmo ultradiano (Lavie, 1982): sessões de 1h respeitam picos de foco
-  // → disciplinas/dia = min(horas_por_dia, 4)
-  // → tamanho do ciclo = horas_por_dia × 2 sessões
-  // ─────────────────────────────────────────────────────────────
-  const slots = horasDiarias * 2; // total de sessões no ciclo
-
-  // Passo 1 — até `slots` disciplinas distintas (cada uma aparece ao menos 1×)
-  const n = Math.min(disciplinas.length, Math.max(1, slots));
-
-  // Passo 2 — seleção: tipo E tem prioridade (até 60% de n), restante preenchido por tipo B
-  // Dentro de cada grupo ordena por peso descendente
-  const porPeso      = (a: DisciplinaAlgo, b: DisciplinaAlgo) => (b.peso ?? 1) - (a.peso ?? 1);
-  const especificas  = disciplinas.filter(d => d.tipo === 'E').sort(porPeso);
-  const basicas      = disciplinas.filter(d => d.tipo !== 'E').sort(porPeso);
-  const maxE         = Math.ceil(n * 0.6);
+  // Passo 1 — seleção de disciplinas distintas
+  const n           = Math.min(disciplinas.length, Math.max(1, horasDiarias * 2));
+  const porPeso     = (a: DisciplinaAlgo, b: DisciplinaAlgo) => (b.peso ?? 1) - (a.peso ?? 1);
+  const especificas = disciplinas.filter(d => d.tipo === 'E').sort(porPeso);
+  const basicas     = disciplinas.filter(d => d.tipo !== 'E').sort(porPeso);
+  const maxE        = Math.ceil(n * 0.6);
   const selecionadas = [...especificas.slice(0, maxE), ...basicas].slice(0, n);
 
-  // Passo 3 — frequência uniforme: cada disciplina recebe floor(slots/n) sessões
-  // O restante é distribuído uma a uma pelas primeiras disciplinas
-  const base  = Math.floor(slots / selecionadas.length);
-  const resto = slots - base * selecionadas.length;
-  const freqs = new Map<number, number>(
-    selecionadas.map((d, i) => [d.id, base + (i < resto ? 1 : 0)]),
+  // Passo 2 — score por disciplina
+  const Is     = selecionadas.map(d => (d.peso ?? 1) * (d.qtd_questoes ?? 0));
+  const Imax   = Math.max(...Is, 1);
+  const scores = new Map(
+    selecionadas.map((d, i) => [d.id, calcularScore(d, Is[i] / Imax)]),
   );
 
-  // Passo 4 — separar por categoria cognitiva e construir filas via round-robin
+  // Passo 3 — frequência proporcional a √score (ciclo dinâmico)
+  const freqs = calcularFrequencias(selecionadas, scores);
+
+  // Passo 4 — round-robin por categoria cognitiva e intercalação R ↔ M
   const R = selecionadas.filter(d => d.categoria_cognitiva === 'R');
   const M = selecionadas.filter(d => d.categoria_cognitiva === 'M');
 
@@ -113,7 +159,6 @@ export function gerarCiclo(
   const filaR = buildRoundRobin(R);
   const filaM = buildRoundRobin(M);
 
-  // Passo 5 — intercalar R e M
   const cicloBase: DisciplinaAlgo[] = [];
   let ri = 0, mi = 0;
   while (ri < filaR.length || mi < filaM.length) {
@@ -121,8 +166,8 @@ export function gerarCiclo(
     if (mi < filaM.length) cicloBase.push(filaM[mi++]);
   }
 
-  // Passo 10 — reparar espaçamento mínimo entre repetições
-  const ciclo = repararEspacamento(cicloBase, freqs);
+  // Passo 5 — espaçamento mínimo = 2 × horasDiarias entre repetições
+  const ciclo = repararEspacamento(cicloBase, freqs, horasDiarias * 2);
 
   return ciclo.map((d, idx) => ({
     id:              d.id,
@@ -140,7 +185,6 @@ export async function criarCicloService(body: unknown, idUsuario: bigint) {
 
   const input = criarCicloSchema.parse(body);
 
-  // Buscar dados completos das disciplinas (tipo, categoria_cognitiva, peso, qtd_questoes)
   const idsDisciplinas = input.disciplinas.map(d => d.id);
   const discsBanco = await prisma.disciplina.findMany({
     where: { id_disciplina: { in: idsDisciplinas } },
@@ -154,15 +198,18 @@ export async function criarCicloService(body: unknown, idUsuario: bigint) {
     peso:                Number(d.peso ?? 1),
     tipo:                d.tipo,
     categoria_cognitiva: d.categoria_cognitiva,
-    dificuldade:         dificMap.get(d.id_disciplina),
+    dificuldade:         dificMap.get(d.id_disciplina) ?? 'Médio',
+    qtd_questoes:        d.qtd_questoes ? Number(d.qtd_questoes) : 0,
   }));
 
   const distribuicao = gerarCiclo(disciplinasAlgo, input.horasDiarias);
 
-  // Para personalizado, upsert somente das disciplinas que entraram no ciclo
   const idsNoCiclo = new Set(distribuicao.map(d => d.id));
-  const discParaUpsert = input.disciplinas
-    .filter(d => idsNoCiclo.has(d.id) && d.dificuldade);
+
+  // Persiste nível de dificuldade apenas no modo personalizado (avaliação explícita do usuário)
+  const discParaUpsert = input.modo === 'personalizado'
+    ? input.disciplinas.filter(d => idsNoCiclo.has(d.id))
+    : [];
 
   const ciclo = await salvarCiclo({
     idUsuario,
@@ -193,10 +240,9 @@ export async function buscarCicloService(idUsuario: bigint) {
   const horasPorDia  = Number(ciclo.plano_estudo.horas_por_dia);
   const discsPorDia  = Math.min(horasPorDia, 4);
   const posicaoAtual = Math.max(1, ciclo.ciclo_execucao?.posicao_atual ?? 1);
-  const slots        = ciclo.ciclo_disciplina; // já ordenados por ordem asc
+  const slots        = ciclo.ciclo_disciplina;
   const totalSlots   = slots.length;
 
-  // Ciclo corrompido (sem disciplinas) — desativar e ignorar
   if (totalSlots === 0) {
     await prisma.ciclo_estudo.update({
       where: { id_ciclo: ciclo.id_ciclo },
@@ -205,14 +251,12 @@ export async function buscarCicloService(idUsuario: bigint) {
     return null;
   }
 
-  // Disciplinas únicas para buscar nível
   const idsUnicos = [...new Set(slots.map(s => s.id_disciplina))];
   const niveis    = await prisma.disciplina_nivel_usuario.findMany({
     where: { id_usuario: idUsuario, id_disciplina: { in: idsUnicos } },
   });
   const nivelMap = new Map(niveis.map(n => [n.id_disciplina, n.nivel]));
 
-  // Mostra horasPorDia sessões a partir de posicaoAtual — meta diária sem cap rígido
   const hojeSlots = Array.from({ length: horasPorDia }, (_, i) =>
     slots[(posicaoAtual - 1 + i) % totalSlots],
   ).map((s, i) => ({
@@ -225,11 +269,9 @@ export async function buscarCicloService(idUsuario: bigint) {
     minutosAlocados: Math.round(Number(s.horas_planejadas) * 60),
   }));
 
-  // Frequência de cada disciplina no ciclo
   const freqMap = new Map<number, number>();
   for (const s of slots) freqMap.set(s.id_disciplina, (freqMap.get(s.id_disciplina) ?? 0) + 1);
 
-  // Disciplinas únicas com metadados
   const discMap = new Map<number, (typeof slots)[0]>();
   for (const s of slots) if (!discMap.has(s.id_disciplina)) discMap.set(s.id_disciplina, s);
 
@@ -264,7 +306,7 @@ export async function buscarCicloService(idUsuario: bigint) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Service — avançar posição do ciclo (concluir dia)
+// Service — avançar posição do ciclo (1 sessão por vez)
 // ─────────────────────────────────────────────────────────────
 
 export async function avancarCicloService(idUsuario: bigint) {
@@ -273,9 +315,7 @@ export async function avancarCicloService(idUsuario: bigint) {
 
   const totalSlots   = ciclo.ciclo_disciplina.length;
   const posicaoAtual = ciclo.ciclo_execucao?.posicao_atual ?? 1;
-
-  // Avança 1 posição — o usuário conclui sessão a sessão
-  const novaPosicao = (posicaoAtual % totalSlots) + 1;
+  const novaPosicao  = (posicaoAtual % totalSlots) + 1;
 
   await prisma.ciclo_execucao.update({
     where: { id_ciclo: ciclo.id_ciclo },

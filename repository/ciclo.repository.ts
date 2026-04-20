@@ -12,7 +12,8 @@ interface SalvarCicloInput {
 
 export async function salvarCiclo(input: SalvarCicloInput) {
 
-  return await prisma.$transaction(async (tx) => {
+  // Passos 1–4 em transação (integridade do ciclo)
+  const { idCiclo, idPlano } = await prisma.$transaction(async (tx) => {
 
     // 1. Plano de estudo
     const plano = await tx.plano_estudo.create({
@@ -26,10 +27,7 @@ export async function salvarCiclo(input: SalvarCicloInput) {
 
     // 2. Ciclo de estudo
     const ciclo = await tx.ciclo_estudo.create({
-      data: {
-        id_plano: plano.id_plano,
-        ativo:    true,
-      },
+      data: { id_plano: plano.id_plano, ativo: true },
     });
 
     // 3. Posição de execução inicial
@@ -41,37 +39,41 @@ export async function salvarCiclo(input: SalvarCicloInput) {
       },
     });
 
-    // 4. Disciplinas do ciclo com tempo calculado
-    for (const d of input.distribuicao) {
-      await tx.ciclo_disciplina.create({
-        data: {
-          id_ciclo:         ciclo.id_ciclo,
-          id_disciplina:    d.id,
-          ordem:            d.ordem,
-          horas_planejadas: Number((d.minutosAlocados / 60).toFixed(2)),
-        },
-      });
-    }
-
-    // 5. Nível de dificuldade por disciplina (upsert — pode já existir)
-    const nivelMap: Record<string, string> = { Alto: 'ALTO', Médio: 'MEDIO', Baixo: 'BAIXO' };
-    for (const d of input.disciplinas) {
-      if (!d.dificuldade) continue;
-      const nivel = nivelMap[d.dificuldade] ?? d.dificuldade.toUpperCase();
-      await tx.disciplina_nivel_usuario.upsert({
-        where: {
-          id_usuario_id_disciplina: {
-            id_usuario:    input.idUsuario,
-            id_disciplina: d.id,
-          },
-        },
-        update:  { nivel, data_atualizacao: new Date() },
-        create:  { id_usuario: input.idUsuario, id_disciplina: d.id, nivel },
-      });
-    }
+    // 4. Slots do ciclo em lote (uma única query)
+    await tx.ciclo_disciplina.createMany({
+      data: input.distribuicao.map(d => ({
+        id_ciclo:         ciclo.id_ciclo,
+        id_disciplina:    d.id,
+        ordem:            d.ordem,
+        horas_planejadas: Number((d.minutosAlocados / 60).toFixed(2)),
+      })),
+    });
 
     return { idCiclo: ciclo.id_ciclo, idPlano: plano.id_plano };
   });
+
+  // 5. Níveis de dificuldade fora da transação — são preferências do usuário,
+  //    não afetam a integridade do ciclo e podem ser refeitos sem problema.
+  if (input.disciplinas.length > 0) {
+    const nivelMap: Record<string, string> = { Alto: 'ALTO', Médio: 'MEDIO', Baixo: 'BAIXO' };
+    await Promise.all(
+      input.disciplinas.map(d => {
+        const nivel = nivelMap[d.dificuldade] ?? d.dificuldade.toUpperCase();
+        return prisma.disciplina_nivel_usuario.upsert({
+          where: {
+            id_usuario_id_disciplina: {
+              id_usuario:    input.idUsuario,
+              id_disciplina: d.id,
+            },
+          },
+          update: { nivel, data_atualizacao: new Date() },
+          create: { id_usuario: input.idUsuario, id_disciplina: d.id, nivel },
+        });
+      }),
+    );
+  }
+
+  return { idCiclo, idPlano };
 }
 
 export async function buscarCicloAtivo(idUsuario: bigint) {
