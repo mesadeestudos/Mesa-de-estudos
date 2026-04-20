@@ -84,7 +84,8 @@ interface ConcursoDetalheApi {
 const STEPS = [
   { num: 1, label: 'Carga horária' },
   { num: 2, label: 'Edital e cargo' },
-  { num: 3, label: 'Montar ciclo' },
+  { num: 3, label: 'Método' },
+  { num: 4, label: 'Organização' },
 ];
 
 const getTipoDisciplinaLabel = (tipo?: string | null) => {
@@ -92,6 +93,18 @@ const getTipoDisciplinaLabel = (tipo?: string | null) => {
   if (normalizado === 'B' || normalizado === 'BASICA' || normalizado === 'BÁSICA') return 'Básica';
   if (normalizado === 'E' || normalizado === 'ESPECIFICA' || normalizado === 'ESPECÍFICA') return 'Específica';
   return null;
+};
+
+const getRitmoLabel = (ritmo: 'focado' | 'equilibrado' | 'variado') => ({
+  focado: 'Focado',
+  equilibrado: 'Equilibrado',
+  variado: 'Variado',
+})[ritmo];
+
+const getRitmoRecomendado = (horas: number): 'focado' | 'equilibrado' | 'variado' => {
+  if (horas <= 3) return 'variado';
+  if (horas >= 8) return 'focado';
+  return 'equilibrado';
 };
 
 export default function CiclosEstudo() {
@@ -109,6 +122,8 @@ export default function CiclosEstudo() {
 
   // Etapa 1
   const [horasDiarias, setHorasDiarias] = useState(2);
+  const [ritmo, setRitmo]               = useState<'focado' | 'equilibrado' | 'variado'>(() => getRitmoRecomendado(2));
+  const [ritmoManual, setRitmoManual]   = useState(false);
 
   // Etapa 2
   const [editais, setEditais]                         = useState<Edital[]>([]);
@@ -123,6 +138,7 @@ export default function CiclosEstudo() {
   const [modoCiclo, setModoCiclo]                             = useState<'automatico' | 'personalizado'>('automatico');
   const [disciplinasSelecionadas, setDisciplinasSelecionadas] = useState<number[]>([]);
   const [dificuldades, setDificuldades]                       = useState<Record<number, string>>({});
+  const [buscaDisciplina, setBuscaDisciplina]                 = useState('');
   const [salvando, setSalvando]                               = useState(false);
   const [erroSalvar, setErroSalvar]                           = useState<string | null>(null);
 
@@ -139,6 +155,56 @@ export default function CiclosEstudo() {
       return a.nome.localeCompare(b.nome);
     }),
   [disciplinas]);
+  const disciplinasPersonalizadasFiltradas = useMemo(
+    () => buscaDisciplina
+      ? disciplinasOrdenadas.filter(disc => disc.nome.toLowerCase().includes(buscaDisciplina.toLowerCase()))
+      : disciplinasOrdenadas,
+    [buscaDisciplina, disciplinasOrdenadas]
+  );
+  const resumoTiposDisciplinas = useMemo(() => {
+    const especificas = disciplinas.filter(disc => getTipoDisciplinaLabel(disc.tipo) === 'Específica').length;
+    const basicas = disciplinas.length - especificas;
+    return { especificas, basicas };
+  }, [disciplinas]);
+  const resumoTiposSelecionadas = useMemo(() => {
+    const selecionadas = disciplinas.filter(disc => disciplinasSelecionadas.includes(disc.id));
+    const especificas = selecionadas.filter(disc => getTipoDisciplinaLabel(disc.tipo) === 'Específica').length;
+    const basicas = selecionadas.length - especificas;
+    return { especificas, basicas };
+  }, [disciplinas, disciplinasSelecionadas]);
+  const disciplinasAutomatico = useMemo(() => {
+    if (disciplinas.length === 0) return { selecionadas: [] as Disciplina[], foraDociclo: [] as Disciplina[] };
+    const n       = Math.min(disciplinas.length, Math.max(1, horasDiariasLimitadas * 2));
+    const allIs   = disciplinas.map(d => (d.peso ?? 1) * (d.qtd_questoes ?? 0));
+    const allImax = Math.max(...allIs, 1);
+    // dificFator = 2 (Médio) é constante no automático — não afeta ordenação relativa
+    const scoreMap    = new Map(disciplinas.map((d, i) =>
+      [d.id, (1 + allIs[i] / allImax) * (d.tipo === 'E' ? 1.5 : 1.0)]));
+    const porScore    = (a: Disciplina, b: Disciplina) =>
+      (scoreMap.get(b.id) ?? 0) - (scoreMap.get(a.id) ?? 0);
+    const especificas  = disciplinas.filter(d => d.tipo === 'E').sort(porScore);
+    const basicas      = disciplinas.filter(d => d.tipo !== 'E').sort(porScore);
+    const maxE         = Math.ceil(n * 0.6);
+    const selecionadas = [...especificas.slice(0, maxE), ...basicas].slice(0, n);
+    const idsNoCiclo   = new Set(selecionadas.map(d => d.id));
+    const foraDociclo  = disciplinas.filter(d => !idsNoCiclo.has(d.id));
+    return { selecionadas, foraDociclo };
+  }, [disciplinas, horasDiariasLimitadas]);
+  const disciplinasSelecionadasDetalhadas = useMemo(
+    () => disciplinasSelecionadas
+      .map(id => disciplinas.find(disc => disc.id === id))
+      .filter((disc): disc is Disciplina => Boolean(disc)),
+    [disciplinas, disciplinasSelecionadas]
+  );
+  const dificuldadesPendentesCount = useMemo(
+    () => disciplinasSelecionadas.filter(id => !dificuldades[id]).length,
+    [disciplinasSelecionadas, dificuldades]
+  );
+  const disciplinasSelecionadasPreview = useMemo(
+    () => disciplinasSelecionadasDetalhadas.slice(0, 5),
+    [disciplinasSelecionadasDetalhadas]
+  );
+  const disciplinasSelecionadasRestantes = Math.max(0, disciplinasSelecionadasDetalhadas.length - disciplinasSelecionadasPreview.length);
 
   const todasDificuldadesDefinidas = useMemo(
     () => disciplinasSelecionadas.every(id => Boolean(dificuldades[id])),
@@ -162,6 +228,7 @@ export default function CiclosEstudo() {
   }, []);
   useEffect(() => { if (mounted) fetchCicloAtivo(); }, [mounted]);
   useEffect(() => { if (etapa === 2 && editais.length === 0) fetchEditais(); }, [etapa, editais.length]);
+  useEffect(() => { if (!ritmoManual) setRitmo(getRitmoRecomendado(horasDiarias)); }, [horasDiarias, ritmoManual]);
   useEffect(() => { if (editalSelecionado) fetchCargos(editalSelecionado.id); }, [editalSelecionado]);
 
   const fetchCicloAtivo = async () => {
@@ -238,10 +305,16 @@ export default function CiclosEstudo() {
     }
   };
 
-  const editaisFiltrados = useMemo(() => {
-    const f = busca ? editais.filter(e => e.nome.toLowerCase().includes(busca.toLowerCase())) : editais;
-    return f.slice(0, 5);
-  }, [busca, editais]);
+  const editaisFiltradosBase = useMemo(
+    () => busca
+      ? editais.filter(e => {
+        const termo = busca.toLowerCase();
+        return e.nome.toLowerCase().includes(termo) || e.banca.toLowerCase().includes(termo);
+      })
+      : editais,
+    [busca, editais]
+  );
+  const editaisFiltrados = useMemo(() => editaisFiltradosBase.slice(0, 5), [editaisFiltradosBase]);
 
   const handleLogout = () => { deleteCookie('authorization'); router.push('/login'); };
 
@@ -254,6 +327,7 @@ export default function CiclosEstudo() {
         horasDiarias: horasDiariasLimitadas,
         idCargo: cargoSelecionado.id,
         modo:    modoCiclo,
+        ritmo,
         disciplinas: modoCiclo === 'personalizado'
           ? disciplinasSelecionadas.map(id => ({ id, dificuldade: dificuldades[id] }))
           : disciplinas.map(d => ({ id: d.id })), // algoritmo seleciona as melhores
@@ -267,7 +341,7 @@ export default function CiclosEstudo() {
 
       // Resetar form e ir para visualização
       setEtapa(1); setDirecao('frente');
-      setHorasDiarias(4); setEditalSelecionado(null); setCargoSelecionado(null);
+      setHorasDiarias(2); setRitmo(getRitmoRecomendado(2)); setRitmoManual(false); setEditalSelecionado(null); setCargoSelecionado(null);
       setModoCiclo('automatico'); setDisciplinasSelecionadas([]); setDificuldades({});
       setEstado('loading');
       await fetchCicloAtivo();
@@ -285,7 +359,7 @@ export default function CiclosEstudo() {
       await fetch('/api/ciclos', { method: 'DELETE' });
       setCicloAtivo(null);
       setEtapa(1); setDirecao('frente');
-      setHorasDiarias(4); setEditalSelecionado(null); setCargoSelecionado(null);
+      setHorasDiarias(2); setRitmo(getRitmoRecomendado(2)); setRitmoManual(false); setEditalSelecionado(null); setCargoSelecionado(null);
       setModoCiclo('automatico'); setDisciplinasSelecionadas([]); setDificuldades({});
       setEstado('criacao');
     } finally {
@@ -697,7 +771,7 @@ export default function CiclosEstudo() {
                                 concluida ? 'text-emerald-600 group-hover:text-emerald-500' : 'text-slate-400'
                               }`}>{step.label}</span>
                             </div>
-                            {idx < 2 && (
+                            {idx < STEPS.length - 1 && (
                               <div className={`flex-1 h-0.5 mx-3 self-start mt-4 rounded-full transition-all duration-500 ${
                                 etapa > step.num ? 'bg-sky-500' : 'bg-slate-100'
                               }`} />
@@ -711,91 +785,106 @@ export default function CiclosEstudo() {
                   {/* ══ ETAPA 1 ══ */}
                   {etapa === 1 && (
                     <div key="etapa1" className={`bg-white rounded-2xl p-8 shadow-sm border border-slate-100 ${animClass}`}>
-                      <p className="text-[10px] font-black text-sky-500 uppercase tracking-[0.3em] mb-2">Etapa 1 de 3</p>
+                      <p className="text-[10px] font-black text-sky-500 uppercase tracking-[0.3em] mb-2">Etapa 1 de 4</p>
                       <h2 className="text-2xl font-bold text-slate-800 mb-1">Defina sua meta diária de estudo</h2>
                       <p className="text-sm text-slate-400 mb-8">Escolha quantas horas você pretende estudar por dia. O ciclo será montado a partir dessa disponibilidade.</p>
 
-                      <div className="max-w-xl">
-                        <div className="mb-5 rounded-2xl border border-sky-100 bg-sky-50 p-5">
-                          <p className="text-xs font-bold uppercase tracking-widest text-sky-700">Meta diária</p>
-                          <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                            <p className="text-3xl font-black text-sky-700">
-                              {horasDiariasLimitadas} {horasDiariasLimitadas === 1 ? 'hora' : 'horas'} por dia
-                            </p>
-                            <p className="text-sm font-semibold text-sky-700">
-                              {horasDiariasLimitadas} {horasDiariasLimitadas === 1 ? 'sessão' : 'sessões'} por dia
-                            </p>
-                          </div>
-                          <p className="mt-3 text-xs font-semibold text-sky-700">
-                            Cada sessão é um bloco de estudo de 1h.
-                          </p>
-                        </div>
-
-                        <div className="flex items-center justify-between mb-3">
-                          <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Ajuste sua disponibilidade</label>
-                          <span className="text-sm font-black text-sky-600">{horasDiariasLimitadas}h</span>
-                        </div>
-                        <input
-                          type="range" min="1" max="8" step="1"
-                          value={horasDiariasLimitadas}
-                          onChange={e => setHorasDiarias(Math.min(Number(e.target.value), 8))}
-                          className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-sky-500 mb-1.5"
-                        />
-                        <div className="mb-3 flex justify-between text-[11px] font-bold text-slate-400">
-                          <span>1h</span>
-                          <span>8h</span>
-                        </div>
-
-                        <p className="mb-2 text-xs font-semibold text-slate-500">
-                          Escolha um perfil ou ajuste manualmente.
-                        </p>
-                        <div className="grid grid-cols-2 gap-2 mb-8 sm:grid-cols-3 lg:grid-cols-5">
-                          {[
-                            { h: 1, label: 'Leve' },
-                            { h: 2, label: 'Base' },
-                            { h: 4, label: 'Moderado' },
-                            { h: 6, label: 'Intenso' },
-                            { h: 8, label: 'Máximo' },
-                          ].map(({ h, label }) => (
-                            <button key={h} onClick={() => setHorasDiarias(h)}
-                              className={`rounded-xl px-3 py-2 text-left transition-all ${
-                                horasDiariasLimitadas === h ? 'bg-sky-500 text-white shadow-sm shadow-sky-100' : 'bg-slate-100 text-slate-500 hover:bg-sky-50 hover:text-sky-600'
-                              }`}
-                            >
-                              <span className="block text-xs font-black">{label}</span>
-                              <span className={`text-lg font-black leading-tight ${horasDiariasLimitadas === h ? 'text-white' : 'text-slate-700'}`}>
-                                {h}h
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                          <StatCard cor="sky"   label="Sessões por dia"      valor={String(horasDiariasLimitadas)} />
-                          <StatCard cor="sky"   label="Disciplinas no ciclo" valor={`até ${maxDisciplinas}`} />
-                        </div>
-
-                        <div className={`flex items-start gap-2 rounded-xl bg-slate-50 p-3 ${horasDiariasLimitadas === 8 ? 'mb-3' : 'mb-6'}`}>
-                          <Info size={14} className="text-slate-400 mt-0.5 shrink-0" />
-                          <p className="text-xs font-medium text-slate-500">
-                            Depois, escolha o edital e o cargo para montar a distribuição.
-                          </p>
-                        </div>
-
-                        {horasDiariasLimitadas === 8 && (
-                          <div className="flex items-start gap-2 bg-sky-50 border border-sky-100 rounded-xl p-3 mb-8">
-                            <Info size={14} className="text-sky-500 mt-0.5 shrink-0" />
-                            <p className="text-xs text-sky-700">
-                              8 horas é uma carga alta. Para manter qualidade, distribua o estudo ao longo do dia e faça pausas entre as sessões.
+                      <div className="grid w-full gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)] xl:items-stretch">
+                        <div className="min-w-0">
+                          <div className="mb-5 rounded-2xl border border-sky-100 bg-sky-50 p-5">
+                            <p className="text-xs font-bold uppercase tracking-widest text-sky-700">Meta diária</p>
+                            <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                              <p className="text-3xl font-black text-sky-700">
+                                {horasDiariasLimitadas} {horasDiariasLimitadas === 1 ? 'hora' : 'horas'} por dia
+                              </p>
+                              <p className="text-sm font-semibold text-sky-700">
+                                {horasDiariasLimitadas} {horasDiariasLimitadas === 1 ? 'sessão' : 'sessões'} por dia
+                              </p>
+                            </div>
+                            <p className="mt-3 text-xs font-semibold text-sky-700">
+                              Cada sessão é um bloco de estudo de 1h.
                             </p>
                           </div>
-                        )}
 
+                          <div className="rounded-2xl border border-slate-100 bg-white p-5">
+                            <div className="flex items-center justify-between mb-3">
+                              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Ajuste sua disponibilidade</label>
+                              <span className="text-sm font-black text-sky-600">{horasDiariasLimitadas}h</span>
+                            </div>
+                            <input
+                              type="range" min="1" max="8" step="1"
+                              value={horasDiariasLimitadas}
+                              onChange={e => setHorasDiarias(Math.min(Number(e.target.value), 8))}
+                              className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-sky-500 mb-1.5"
+                            />
+                            <div className="mb-4 flex justify-between text-[11px] font-bold text-slate-400">
+                              <span>1h</span>
+                              <span>8h</span>
+                            </div>
+
+                            <p className="mb-2 text-xs font-semibold text-slate-500">
+                              Escolha um perfil ou ajuste manualmente.
+                            </p>
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-5">
+                              {[
+                                { h: 1, label: 'Leve' },
+                                { h: 2, label: 'Essencial' },
+                                { h: 4, label: 'Moderado' },
+                                { h: 6, label: 'Intenso' },
+                                { h: 8, label: 'Máximo' },
+                              ].map(({ h, label }) => (
+                                <button key={h} onClick={() => setHorasDiarias(h)}
+                                  className={`rounded-xl px-3 py-2 text-left transition-all ${
+                                    horasDiariasLimitadas === h
+                                      ? h === 8 ? 'bg-amber-500 text-white shadow-sm shadow-amber-100' : 'bg-sky-500 text-white shadow-sm shadow-sky-100'
+                                      : 'bg-slate-100 text-slate-500 hover:bg-sky-50 hover:text-sky-600'
+                                  }`}
+                                >
+                                  <span className="block text-xs font-black">{label}</span>
+                                  <span className={`text-lg font-black leading-tight ${horasDiariasLimitadas === h ? 'text-white' : 'text-slate-700'}`}>
+                                    {h}h
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex min-w-0 flex-col rounded-2xl border border-slate-100 bg-slate-50 p-5">
+                          <p className="text-sm font-black text-slate-700">Impacto da escolha</p>
+                          <p className="mb-3 mt-1 text-xs font-medium text-slate-500">
+                            Com essa meta, seu ciclo será calculado para {horasDiariasLimitadas} {horasDiariasLimitadas === 1 ? 'sessão' : 'sessões'} por dia.
+                          </p>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                            <StatCard cor="sky"   label="Sessões por dia"      valor={String(horasDiariasLimitadas)} />
+                            <StatCard cor="sky"   label="Disciplinas no ciclo" valor={`até ${maxDisciplinas}`} />
+                          </div>
+
+                          <div className={`mt-4 flex items-start gap-2 rounded-xl bg-white p-3 ${horasDiariasLimitadas === 8 ? 'mb-3' : 'mb-5'}`}>
+                            <Info size={14} className="text-slate-400 mt-0.5 shrink-0" />
+                            <p className="text-xs font-medium text-slate-500">
+                              Depois, escolha o edital e o cargo para montar a distribuição.
+                            </p>
+                          </div>
+
+                          {horasDiariasLimitadas === 8 && (
+                            <div className="flex items-start gap-2 bg-sky-50 border border-sky-100 rounded-xl p-3 mb-5">
+                              <Info size={14} className="text-sky-500 mt-0.5 shrink-0" />
+                              <p className="text-xs text-sky-700">
+                                8 horas é uma carga alta. Para manter qualidade, distribua o estudo ao longo do dia e faça pausas entre as sessões.
+                              </p>
+                            </div>
+                          )}
+
+                        </div>
+                      </div>
+
+                      <div className="mt-6 flex justify-end">
                         <button
                           onClick={() => irParaEtapa(2)}
                           className="w-full justify-center px-8 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 hover:scale-105 active:scale-95 sm:w-auto"
                         >
-                          Continuar para edital e cargo <ChevronDown size={16} className="-rotate-90" />
+                          Continuar <ChevronDown size={16} className="-rotate-90" />
                         </button>
                       </div>
                     </div>
@@ -804,115 +893,180 @@ export default function CiclosEstudo() {
                   {/* ══ ETAPA 2 ══ */}
                   {etapa === 2 && (
                     <div key="etapa2" className={`bg-white rounded-2xl p-8 shadow-sm border border-slate-100 ${animClass}`}>
-                      <p className="text-[10px] font-black text-sky-500 uppercase tracking-[0.3em] mb-2">Etapa 2 de 3</p>
-                      <h2 className="text-2xl font-bold text-slate-800 mb-1">Qual edital você está estudando?</h2>
-                      <p className="text-sm text-slate-400 mb-6">Selecione o concurso e depois escolha o cargo desejado.</p>
+                      <p className="text-[10px] font-black text-sky-500 uppercase tracking-[0.3em] mb-2">Etapa 2 de 4</p>
+                      <h2 className="text-2xl font-bold text-slate-800 mb-1">Escolha seu edital e cargo</h2>
+                      <p className="text-sm text-slate-400 mb-6">O cargo define quais disciplinas poderão entrar no ciclo.</p>
 
-                      <div className="relative mb-4 max-w-lg">
-                        <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
-                        <input
-                          type="text" placeholder="Buscar edital..."
-                          value={busca} onChange={e => setBusca(e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 text-sm outline-none focus:border-sky-400 transition-colors bg-slate-50"
-                        />
-                      </div>
-
-                      {loadingEditais ? (
-                        <div className="flex items-center gap-2 text-slate-400 text-sm py-4 max-w-lg">
-                          <RefreshCw size={14} className="animate-spin" /> Carregando editais...
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-2 mb-6 max-w-lg">
-                          {editaisFiltrados.length === 0
-                            ? <p className="text-sm text-slate-400 italic py-2">Nenhum edital encontrado.</p>
-                            : editaisFiltrados.map(edital => (
+                      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)] xl:items-start">
+                        <div className="min-w-0">
+                          <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-slate-500">Encontre seu edital</label>
+                          <div className="relative mb-4 w-full">
+                            <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                            <input
+                              type="text" placeholder="Digite o nome do edital ou banca..."
+                              value={busca} onChange={e => setBusca(e.target.value)}
+                              className="w-full pl-10 pr-10 py-3 rounded-xl border border-slate-200 text-sm outline-none focus:border-sky-400 transition-colors bg-slate-50"
+                            />
+                            {busca && (
                               <button
-                                key={edital.id}
-                                onClick={() => setEditalSelecionado(editalSelecionado?.id === edital.id ? null : edital)}
-                                className={`flex items-center justify-between px-4 py-3.5 rounded-xl border-2 text-left transition-all ${
-                                  editalSelecionado?.id === edital.id ? 'border-sky-400 bg-sky-50' : 'border-slate-100 hover:border-slate-200 bg-white'
-                                }`}
+                                type="button"
+                                onClick={() => setBusca('')}
+                                aria-label="Limpar busca"
+                                className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                               >
-                                <div className="flex items-center gap-3">
-                                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                                    editalSelecionado?.id === edital.id ? 'border-sky-500 bg-sky-500' : 'border-slate-300'
-                                  }`}>
-                                    {editalSelecionado?.id === edital.id && <Check size={9} className="text-white" />}
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-bold text-slate-800">{edital.nome}</p>
-                                    {edital.banca && <p className="text-xs text-slate-500 font-medium">{edital.banca}</p>}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                                    edital.status === 'ABERTO' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
-                                  }`}>{edital.status}</span>
-                                  <span className="text-xs text-slate-500 hidden sm:block">{edital.data}</span>
-                                </div>
+                                ×
                               </button>
-                            ))
-                          }
-                        </div>
-                      )}
+                            )}
+                          </div>
 
-                      {editalSelecionado && (
-                        <div className="max-w-lg mb-6 animate-in fade-in slide-in-from-top-2 duration-300">
-                          <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Cargo</label>
-                          {loadingCargos ? (
-                            <div className="flex items-center gap-2 text-slate-400 text-sm py-2">
-                              <RefreshCw size={14} className="animate-spin" /> Carregando cargos...
+                          {loadingEditais ? (
+                            <div className="flex items-center gap-2 text-slate-400 text-sm py-4">
+                              <RefreshCw size={14} className="animate-spin" /> Carregando editais...
                             </div>
-                          ) : cargos.length === 0 ? (
-                            <p className="text-sm text-slate-400 italic">Nenhum cargo disponível.</p>
                           ) : (
-                            <div className="relative">
-                              <select
-                                value={cargoSelecionado?.id ?? ''}
-                                onChange={e => {
-                                  const cargo = cargos.find(c => c.id === Number(e.target.value)) ?? null;
-                                  setCargoSelecionado(cargo); setDisciplinasSelecionadas([]); setDificuldades({});
-                                }}
-                                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-sky-400 outline-none text-sm font-medium text-slate-800 bg-white appearance-none cursor-pointer transition-colors"
-                              >
-                                <option value="">Selecione um cargo...</option>
-                                {cargos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                              </select>
-                              <ChevronDown size={15} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            <>
+                              <div className="grid grid-cols-1 gap-2">
+                                {editaisFiltrados.length === 0
+                                  ? <p className="text-sm text-slate-400 italic py-2">Nenhum edital encontrado.</p>
+                                  : editaisFiltrados.map(edital => (
+                                    <button
+                                      key={edital.id}
+                                      onClick={() => setEditalSelecionado(editalSelecionado?.id === edital.id ? null : edital)}
+                                      className={`flex items-center justify-between gap-3 px-4 py-3.5 rounded-xl border-2 text-left transition-all ${
+                                        editalSelecionado?.id === edital.id ? 'border-sky-400 bg-sky-50' : 'border-slate-100 hover:border-slate-200 bg-white'
+                                      }`}
+                                    >
+                                      <div className="flex min-w-0 items-center gap-3">
+                                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                                          editalSelecionado?.id === edital.id ? 'border-sky-500 bg-sky-500' : 'border-slate-300'
+                                        }`}>
+                                          {editalSelecionado?.id === edital.id && <Check size={9} className="text-white" />}
+                                        </div>
+                                        <div className="min-w-0">
+                                          <p className="truncate text-sm font-bold text-slate-800">{edital.nome}</p>
+                                          {edital.banca && <p className="truncate text-xs text-slate-500 font-medium">{edital.banca}</p>}
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                          edital.status === 'ABERTO' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
+                                        }`}>{edital.status}</span>
+                                        <span className="text-xs text-slate-400 hidden sm:block">{edital.data}</span>
+                                      </div>
+                                    </button>
+                                  ))
+                                }
+                              </div>
+                              {editaisFiltradosBase.length > 5 && editaisFiltrados.length > 0 && (
+                                <p className="mt-3 text-xs font-medium text-slate-400">
+                                  Mostrando até 5 resultados. Use a busca para refinar.
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 rounded-2xl border border-slate-100 bg-slate-50 p-5">
+                          <p className="text-base font-black text-slate-800">Agora escolha o cargo</p>
+                          <p className="mt-1 text-sm text-slate-500">Depois do edital, selecione o cargo para carregar as disciplinas corretas.</p>
+
+                          <div className="mt-4">
+                            {!editalSelecionado ? (
+                              <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-4">
+                                <div className="flex gap-3">
+                                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-black text-slate-500">1</div>
+                                  <div>
+                                    <p className="text-sm font-bold text-slate-600">Escolha um edital à esquerda.</p>
+                                    <p className="mt-1 text-xs text-slate-400">Depois selecione o cargo aqui.</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : loadingCargos ? (
+                              <div className="flex items-center gap-2 text-slate-400 text-sm py-2">
+                                <RefreshCw size={14} className="animate-spin" /> Carregando cargos...
+                              </div>
+                            ) : cargos.length === 0 ? (
+                              <p className="text-sm text-slate-400 italic">Nenhum cargo disponível.</p>
+                            ) : (
+                              <div className="relative">
+                                <select
+                                  value={cargoSelecionado?.id ?? ''}
+                                  onChange={e => {
+                                    const cargo = cargos.find(c => c.id === Number(e.target.value)) ?? null;
+                                    setCargoSelecionado(cargo); setDisciplinasSelecionadas([]); setDificuldades({});
+                                  }}
+                                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-sky-400 outline-none text-sm font-medium text-slate-800 bg-white appearance-none cursor-pointer transition-colors"
+                                >
+                                  <option value="">Selecione um cargo...</option>
+                                  {cargos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                                </select>
+                                <ChevronDown size={15} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                              </div>
+                            )}
+                          </div>
+
+                          {editalSelecionado && !cargoSelecionado && (
+                            <div className="mt-5 rounded-xl border border-sky-100 bg-sky-50 p-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                              <p className="text-xs font-black uppercase tracking-wide text-sky-700">Edital selecionado</p>
+                              <p className="mt-1 text-sm font-bold text-slate-800">{editalSelecionado.nome}</p>
+                              {editalSelecionado.banca && <p className="mt-0.5 text-xs font-medium text-slate-500">{editalSelecionado.banca}</p>}
+                            </div>
+                          )}
+
+                          {editalSelecionado && cargoSelecionado && (
+                            <div className="mt-5 rounded-xl border border-sky-100 bg-sky-50 p-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                              <div className="mb-3 flex items-center gap-2">
+                                <CheckCircle2 size={15} className="text-sky-600" />
+                                <p className="text-sm font-black text-sky-700">Edital e cargo selecionados</p>
+                              </div>
+                              <p className="text-sm font-bold text-slate-800">{cargoSelecionado.nome}</p>
+                              <p className="mt-1 text-xs font-medium text-slate-500">{editalSelecionado.nome}</p>
+                              <div className="mt-3 flex items-center justify-between rounded-lg bg-white px-3 py-2">
+                                <span className="text-xs font-bold text-slate-500">Disciplinas disponíveis</span>
+                                <span className="text-sm font-black text-sky-600">{cargoSelecionado.disciplinas.length}</span>
+                              </div>
                             </div>
                           )}
                         </div>
-                      )}
+                      </div>
 
-                      <div className="flex gap-3">
-                        <button onClick={() => irParaEtapa(1)} className="px-6 py-3 border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all">
+                      <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row">
+                        <button onClick={() => irParaEtapa(1)} className="w-full px-6 py-3 border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all sm:w-auto">
                           ← Voltar
                         </button>
                         <button
                           onClick={() => irParaEtapa(3)} disabled={!podeContinuarEtapa2}
-                          className={`px-8 py-3 rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 ${
+                          className={`flex w-full items-center justify-center gap-2 px-8 py-3 rounded-xl font-bold text-sm shadow-md transition-all sm:w-auto ${
                             podeContinuarEtapa2 ? 'bg-sky-500 hover:bg-sky-600 text-white hover:scale-105 active:scale-95' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                           }`}
                         >
                           Continuar <ChevronDown size={16} className="-rotate-90" />
                         </button>
                       </div>
+                      {!podeContinuarEtapa2 && (
+                        <p className="mt-2 text-xs font-medium text-slate-400">
+                          Selecione um edital e um cargo para continuar.
+                        </p>
+                      )}
                     </div>
                   )}
 
                   {/* ══ ETAPA 3 ══ */}
                   {etapa === 3 && (
                     <div key="etapa3" className={`bg-white rounded-2xl p-8 shadow-sm border border-slate-100 ${animClass}`}>
-                      <p className="text-[10px] font-black text-sky-500 uppercase tracking-[0.3em] mb-2">Etapa 3 de 3</p>
-                      <h2 className="text-2xl font-bold text-slate-800 mb-1">Como montar seu ciclo?</h2>
+                      <p className="text-[10px] font-black text-sky-500 uppercase tracking-[0.3em] mb-2">Etapa 3 de 4</p>
+                      <h2 className="text-2xl font-bold text-slate-800 mb-1">Quanto controle você quer ter?</h2>
+                      <p className="text-sm text-slate-500 mb-2">
+                        Escolha se o sistema deve montar o ciclo por você ou se prefere selecionar as disciplinas manualmente.
+                      </p>
                       <p className="text-sm text-slate-400 mb-6">
                         <strong className="text-slate-600">{editalSelecionado?.nome}</strong> · <strong className="text-slate-600">{cargoSelecionado?.nome}</strong> · <strong className="text-sky-600">{horasDiariasLimitadas}h/dia</strong>
                       </p>
 
-                      <div className="grid grid-cols-2 gap-3 max-w-lg mb-8">
+                      <div className="grid grid-cols-1 gap-3 mb-8 sm:grid-cols-2">
                         {([
-                          { key: 'automatico',    icon: <Zap size={16} />,               titulo: 'Automático',    sub: 'Sistema define com base no edital',            tag: 'Recomendado' },
-                          { key: 'personalizado', icon: <SlidersHorizontal size={16} />, titulo: 'Personalizado', sub: 'Você escolhe e define o nível de dificuldade', tag: null },
+                          { key: 'automatico',    icon: <Zap size={16} />,               titulo: 'Automático',    sub: 'Ideal para quem está começando e quer montar o ciclo sem configuração.',                              tag: 'Recomendado' },
+                          { key: 'personalizado', icon: <SlidersHorizontal size={16} />, titulo: 'Personalizado', sub: 'Ideal para quem já conhece o edital e quer controlar a prioridade de cada disciplina.', tag: null },
                         ] as const).map(opt => (
                           <button key={opt.key} onClick={() => setModoCiclo(opt.key)}
                             className={`p-4 rounded-xl border-2 text-left transition-all ${modoCiclo === opt.key ? 'border-sky-400 bg-sky-50' : 'border-slate-200 hover:border-slate-300 bg-white'}`}
@@ -929,52 +1083,221 @@ export default function CiclosEstudo() {
                         ))}
                       </div>
 
+                      <div className={`rounded-xl border-2 p-4 mb-6 transition-all ${modoCiclo === 'automatico' ? 'border-sky-100 bg-sky-50' : 'border-violet-100 bg-violet-50'}`}>
+                        <div className="flex items-center gap-2 mb-3">
+                          {modoCiclo === 'automatico'
+                            ? <Zap size={15} className="text-sky-500" />
+                            : <SlidersHorizontal size={15} className="text-violet-500" />}
+                          <p className={`text-sm font-black ${modoCiclo === 'automatico' ? 'text-sky-700' : 'text-violet-700'}`}>
+                            {modoCiclo === 'automatico' ? 'O que o sistema faz por você' : 'O que você controla'}
+                          </p>
+                        </div>
+                        {modoCiclo === 'automatico' ? (
+                          <ul className="space-y-2">
+                            {[
+                              'Seleciona as disciplinas automaticamente com base no edital',
+                              'Define dificuldade como Média para todas — sem configuração',
+                              'Distribui as sessões priorizando disciplinas mais relevantes',
+                              'Bom ponto de partida para quem está começando a estudar para concursos',
+                            ].map((item, i) => (
+                              <li key={i} className="flex items-start gap-2 text-xs text-sky-700">
+                                <Check size={12} className="mt-0.5 shrink-0 text-sky-400" />
+                                {item}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <ul className="space-y-2">
+                            {[
+                              'Você escolhe quais disciplinas entram no ciclo',
+                              'Você define a dificuldade de cada disciplina individualmente',
+                              'Disciplinas com dificuldade Alta recebem maior frequência no ciclo',
+                              'Para quem conhece o edital e sabe exatamente onde precisa focar',
+                            ].map((item, i) => (
+                              <li key={i} className="flex items-start gap-2 text-xs text-violet-700">
+                                <Check size={12} className="mt-0.5 shrink-0 text-violet-400" />
+                                {item}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                        <button onClick={() => irParaEtapa(2)} className="w-full px-6 py-3 border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all sm:w-auto">
+                          ← Voltar
+                        </button>
+                        <button
+                          onClick={() => irParaEtapa(4)}
+                          className="flex w-full items-center justify-center gap-2 px-8 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-bold text-sm shadow-md transition-all hover:scale-105 active:scale-95 sm:w-auto"
+                        >
+                          Continuar <ChevronDown size={16} className="-rotate-90" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ══ ETAPA 4 ══ */}
+                  {etapa === 4 && (
+                    <div key="etapa4" className={`relative bg-white rounded-2xl p-8 pb-32 shadow-sm border border-slate-100 lg:pb-8 ${animClass}`}>
+                      <p className="text-[10px] font-black text-sky-500 uppercase tracking-[0.3em] mb-2">Etapa 4 de 4</p>
+                      <h2 className="text-2xl font-bold text-slate-800 mb-1">Organize as disciplinas do ciclo</h2>
+                      <p className="text-sm text-slate-400 mb-6">
+                        Escolha como as disciplinas serão distribuídas ao longo do ciclo.
+                      </p>
+
+                      {modoCiclo === 'automatico' && (
+                        <div className="mb-6">
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 block">Como prefere organizar seu dia?</label>
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                            {([
+                              { value: 'focado',      icon: <Zap size={16} />,          label: 'Focado',      sub: 'Menos disciplinas, mais repetição' },
+                              { value: 'equilibrado', icon: <CheckCircle2 size={16} />,  label: 'Equilibrado', sub: 'Mistura entre repetição e variedade' },
+                              { value: 'variado',     icon: <RefreshCw size={16} />,     label: 'Variado',     sub: 'Mais disciplinas, maior alternância' },
+                            ] as const).map((opt) => {
+                              const recomendado = getRitmoRecomendado(horasDiariasLimitadas) === opt.value;
+                              return (
+                              <button
+                                key={opt.value}
+                                onClick={() => { setRitmo(opt.value); setRitmoManual(true); }}
+                                className={`rounded-xl border-2 p-4 text-left transition-all ${
+                                  ritmo === opt.value ? 'border-sky-400 bg-sky-50' : 'border-slate-100 bg-white hover:border-slate-200'
+                                }`}
+                              >
+                                <div className={`mb-2 flex h-8 w-8 items-center justify-center rounded-lg ${ritmo === opt.value ? 'bg-sky-100 text-sky-600' : 'bg-slate-100 text-slate-400'}`}>
+                                  {opt.icon}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-sm font-black ${ritmo === opt.value ? 'text-sky-700' : 'text-slate-700'}`}>{opt.label}</span>
+                                  {recomendado && (
+                                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase text-emerald-600">
+                                      Recomendado
+                                    </span>
+                                  )}
+                                </div>
+                                <p className={`mt-1 text-xs leading-snug ${ritmo === opt.value ? 'text-sky-600' : 'text-slate-400'}`}>{opt.sub}</p>
+                              </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
                       {disciplinas.length === 0 ? (
                         <div className="flex items-center gap-2 text-slate-400 text-sm py-4">
                           <RefreshCw size={14} className="animate-spin" /> Carregando disciplinas...
                         </div>
                       ) : modoCiclo === 'automatico' ? (
                         <div>
-                          <div className="flex items-center gap-2 bg-sky-50 border border-sky-100 rounded-xl p-3 mb-4 max-w-2xl">
-                            <Zap size={14} className="text-sky-500 shrink-0" />
-                            <p className="text-xs text-sky-700">
-                              O sistema priorizará disciplinas <strong>específicas do edital</strong> e definirá a frequência de cada uma proporcionalmente ao <strong>score</strong> calculado com base em peso, quantidade de questões e tipo. A dificuldade será assumida como <strong>Médio</strong> para todas.
-                            </p>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-2xl">
-                            {disciplinasOrdenadas.map(disc => (
-                              <div key={disc.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-slate-100 bg-slate-50 opacity-60">
-                                <div className="flex items-center gap-2">
-                                  <Lock size={12} className="text-slate-300 shrink-0" />
-                                  <span className="text-sm font-medium text-slate-600">{disc.nome}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  {disc.peso && <span className="text-[11px] font-bold text-sky-500 bg-sky-50 px-2 py-0.5 rounded-full">Peso {disc.peso}</span>}
-                                  <span className="text-xs text-slate-500">{minutosPerDisciplina}min</span>
+                          <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
+                              <div>
+                                <p className="text-sm font-black text-slate-700">
+                                  {disciplinasAutomatico.selecionadas.length}{' '}
+                                  {disciplinasAutomatico.selecionadas.length === 1 ? 'disciplina entrará' : 'disciplinas entrarão'} no ciclo
+                                </p>
+                                <p className="mt-1 text-xs text-slate-500">
+                                  Selecionadas automaticamente com base nas {horasDiariasLimitadas}h/dia
+                                </p>
+                              </div>
+                              <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-sky-600 shrink-0">
+                                {getRitmoLabel(ritmo)}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {disciplinasAutomatico.selecionadas.map(disc => (
+                                <span key={disc.id} className={`rounded-full px-3 py-1 text-xs font-bold ${disc.tipo === 'E' ? 'bg-sky-100 text-sky-700' : 'bg-white text-slate-600'}`}>
+                                  {disc.nome}
+                                </span>
+                              ))}
+                            </div>
+                            {disciplinasAutomatico.foraDociclo.length > 0 && (
+                              <div className="mt-4 border-t border-slate-200 pt-4">
+                                <p className="text-xs font-bold text-slate-400 mb-2">
+                                  {disciplinasAutomatico.foraDociclo.length}{' '}
+                                  {disciplinasAutomatico.foraDociclo.length === 1 ? 'disciplina disponível não entrará' : 'disciplinas disponíveis não entrarão'} no ciclo
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {disciplinasAutomatico.foraDociclo.map(disc => (
+                                    <span key={disc.id} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-400">
+                                      {disc.nome}
+                                    </span>
+                                  ))}
                                 </div>
                               </div>
-                            ))}
+                            )}
                           </div>
                         </div>
                       ) : (
-                        <div className="max-w-2xl">
-                          <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <div className="mb-2">
                             <p className="text-xs text-slate-500">
-                              Selecione até <strong className="text-sky-600">{maxDisciplinas} disciplinas</strong>
+                              Escolha as disciplinas e informe o nível de dificuldade de cada uma.
                             </p>
-                            <span className={`text-xs font-bold px-3 py-1 rounded-full transition-colors ${
-                              disciplinasSelecionadas.length === maxDisciplinas ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'
-                            }`}>
-                              {disciplinasSelecionadas.length} / {maxDisciplinas}
-                            </span>
                           </div>
+                          {disciplinasSelecionadas.length > 0 && (
+                            <div className="mb-3 flex flex-wrap gap-2">
+                              <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-bold text-white">
+                                {disciplinasSelecionadas.length} selecionadas
+                              </span>
+                              {resumoTiposSelecionadas.especificas > 0 && (
+                                <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700">
+                                  {resumoTiposSelecionadas.especificas} específicas selecionadas
+                                </span>
+                              )}
+                              {resumoTiposSelecionadas.basicas > 0 && (
+                                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                                  {resumoTiposSelecionadas.basicas} básicas selecionadas
+                                </span>
+                              )}
+                            </div>
+                          )}
                           <div className="w-full h-1.5 bg-slate-100 rounded-full mb-4 overflow-hidden">
                             <div className="h-full bg-sky-400 rounded-full transition-all duration-500"
                               style={{ width: `${(disciplinasSelecionadas.length / maxDisciplinas) * 100}%` }} />
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {disciplinasOrdenadas.map(disc => {
+                          <div className="relative mb-4">
+                            <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                            <input
+                              type="text"
+                              placeholder="Buscar disciplina..."
+                              value={buscaDisciplina}
+                              onChange={e => setBuscaDisciplina(e.target.value)}
+                              className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-10 text-sm outline-none transition-colors focus:border-sky-400"
+                            />
+                            {buscaDisciplina && (
+                              <button
+                                type="button"
+                                onClick={() => setBuscaDisciplina('')}
+                                aria-label="Limpar busca de disciplina"
+                                className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                              >
+                                ×
+                              </button>
+                            )}
+                          </div>
+
+                          {disciplinasSelecionadas.length === 0 && (
+                            <div className="flex items-center gap-2 mb-4 bg-slate-50 border border-slate-200 rounded-xl p-3">
+                              <Info size={14} className="text-slate-400 shrink-0" />
+                              <p className="text-xs text-slate-500 font-medium">Selecione pelo menos uma disciplina para finalizar.</p>
+                            </div>
+                          )}
+
+                          {(() => {
+                            const grupos = [
+                              {
+                                titulo: 'Disciplinas específicas do cargo',
+                                disciplinas: disciplinasPersonalizadasFiltradas.filter(disc => getTipoDisciplinaLabel(disc.tipo) === 'Específica'),
+                              },
+                              {
+                                titulo: 'Disciplinas básicas/comuns',
+                                disciplinas: disciplinasPersonalizadasFiltradas.filter(disc => getTipoDisciplinaLabel(disc.tipo) !== 'Específica'),
+                              },
+                            ].filter(grupo => grupo.disciplinas.length > 0);
+
+                            const renderDisciplina = (disc: Disciplina) => {
                               const selecionada = disciplinasSelecionadas.includes(disc.id);
                               const bloqueada   = !selecionada && disciplinasSelecionadas.length >= maxDisciplinas;
                               const dific       = dificuldades[disc.id];
@@ -1004,13 +1327,13 @@ export default function CiclosEstudo() {
                                         bloqueada   ? 'text-slate-400' : 'text-slate-700'
                                       }`}>{disc.nome}</span>
                                     </div>
-                                    {disc.peso && <span className="text-[11px] font-bold text-sky-500 bg-sky-50 px-2 py-0.5 rounded-full shrink-0">Peso {disc.peso}</span>}
+                                    {disc.peso && !selecionada && <span className="text-[11px] font-bold text-sky-500 bg-sky-50 px-2 py-0.5 rounded-full shrink-0">Peso {disc.peso}</span>}
                                   </div>
 
                                   {selecionada && (
                                     <div className="px-4 pb-3 animate-in fade-in slide-in-from-top-1 duration-200">
                                       <p className={`text-[11px] font-black uppercase tracking-widest mb-1.5 ${semDific ? 'text-amber-500' : 'text-slate-400'}`}>
-                                        {semDific ? '⚠ Defina seu nível:' : 'Meu nível:'}
+                                        {semDific ? 'Agora informe o nível de dificuldade.' : 'Dificuldade desta disciplina'}
                                       </p>
                                       <div className="flex gap-1.5">
                                         {(['Baixo', 'Médio', 'Alto'] as const).map(nivel => (
@@ -1030,8 +1353,48 @@ export default function CiclosEstudo() {
                                   )}
                                 </div>
                               );
-                            })}
-                          </div>
+                            };
+
+                            return (
+                              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                                <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                  <div>
+                                    <p className="text-sm font-black text-slate-800">Escolha as disciplinas</p>
+                                    <p className="mt-1 text-xs text-slate-500">As disciplinas estão separadas por tipo para facilitar sua seleção.</p>
+                                  </div>
+                                  <span className={`w-fit rounded-full px-3 py-1 text-xs font-bold transition-colors ${
+                                    disciplinasSelecionadas.length === maxDisciplinas ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'
+                                  }`}>
+                                    {disciplinasSelecionadas.length} de {maxDisciplinas} selecionadas
+                                  </span>
+                                </div>
+                                {grupos.length === 0 ? (
+                                  <div className="rounded-xl border border-dashed border-slate-200 bg-white p-4">
+                                    <p className="text-sm font-bold text-slate-600">
+                                      {buscaDisciplina
+                                        ? `Nenhuma disciplina encontrada para "${buscaDisciplina}".`
+                                        : 'Nenhuma disciplina encontrada.'}
+                                    </p>
+                                    <p className="mt-1 text-xs text-slate-400">Tente ajustar a busca.</p>
+                                  </div>
+                                ) : (
+                                  grupos.map(grupo => (
+                                    <div key={grupo.titulo} className="border-t border-slate-100 pt-4 mt-6 first:mt-0 first:border-t-0 first:pt-0">
+                                      <div className="mb-2 flex items-center justify-between gap-3">
+                                        <p className="text-xs font-black uppercase tracking-widest text-slate-500">{grupo.titulo}</p>
+                                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500">
+                                          {grupo.disciplinas.length} {grupo.disciplinas.length === 1 ? 'disponível' : 'disponíveis'}
+                                        </span>
+                                      </div>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pb-4 last:pb-0">
+                                        {grupo.disciplinas.map(renderDisciplina)}
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            );
+                          })()}
 
                           {disciplinasSelecionadas.length === maxDisciplinas && (
                             <div className="flex items-center gap-2 mt-3 bg-emerald-50 border border-emerald-100 rounded-xl p-3">
@@ -1048,22 +1411,50 @@ export default function CiclosEstudo() {
                               </p>
                             </div>
                           )}
+
+                          {disciplinasSelecionadas.length > 0 && todasDificuldadesDefinidas && (
+                            <div className="flex items-center gap-2 mt-3 bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                              <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
+                              <p className="text-xs text-emerald-700 font-medium">
+                                Tudo certo: todas as disciplinas selecionadas têm dificuldade definida.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
 
-                      {/* Preview */}
-                      <div className="mt-8 bg-slate-50 border border-slate-200 rounded-xl p-4">
-                        <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Confirmação do ciclo</p>
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                          <div><span className="text-[11px] text-slate-400 uppercase font-bold">Edital</span><p className="text-xs font-bold text-slate-700 truncate">{editalSelecionado?.nome}</p></div>
-                          <div><span className="text-[11px] text-slate-400 uppercase font-bold">Cargo</span><p className="text-xs font-bold text-slate-700 truncate">{cargoSelecionado?.nome}</p></div>
-                          <div><span className="text-[11px] text-slate-400 uppercase font-bold">Horas/dia</span><p className="text-xs font-black text-sky-600">{horasDiariasLimitadas}h</p></div>
-                          <div><span className="text-[11px] text-slate-400 uppercase font-bold">Disciplinas/dia</span><p className="text-xs font-black text-sky-600">{discsPorDia}</p></div>
-                          <div><span className="text-[11px] text-slate-400 uppercase font-bold">Modo</span><p className="text-xs font-black text-slate-700 capitalize">{modoCiclo}</p></div>
-                          <div><span className="text-[11px] text-slate-400 uppercase font-bold">Min/disciplina</span><p className="text-xs font-black text-sky-600">{minutosPerDisciplina}min</p></div>
+                      {modoCiclo === 'personalizado' && (
+                        <div className="mt-6 rounded-2xl border border-slate-100 bg-white p-4">
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 block">Como alternar as disciplinas</label>
+                          <p className="mb-3 text-xs text-slate-500">Escolha como alternar as disciplinas ao longo das sessões.</p>
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                            {([
+                              { value: 'focado',      icon: <Zap size={16} />, label: 'Focado',      sub: 'Menos disciplinas, mais repetição' },
+                              { value: 'equilibrado', icon: <CheckCircle2 size={16} />, label: 'Equilibrado', sub: 'Repetição e variedade', tag: true },
+                              { value: 'variado',     icon: <RefreshCw size={16} />, label: 'Variado',     sub: 'Maior alternância' },
+                            ] as const).map((opt) => (
+                              <button
+                                key={opt.value}
+                                onClick={() => { setRitmo(opt.value); setRitmoManual(true); }}
+                                className={`rounded-xl border-2 p-3 text-left transition-all ${
+                                  ritmo === opt.value ? 'border-sky-400 bg-sky-50' : 'border-slate-100 bg-slate-50 hover:border-slate-200'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className={ritmo === opt.value ? 'text-sky-600' : 'text-slate-400'}>{opt.icon}</span>
+                                  <span className={`text-sm font-black ${ritmo === opt.value ? 'text-sky-700' : 'text-slate-700'}`}>{opt.label}</span>
+                                  {'tag' in opt && opt.tag && (
+                                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase text-emerald-600">
+                                      Recomendado
+                                    </span>
+                                  )}
+                                </div>
+                                <p className={`mt-1 text-xs leading-snug ${ritmo === opt.value ? 'text-sky-600' : 'text-slate-400'}`}>{opt.sub}</p>
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-
+                      )}
                       {erroSalvar && (
                         <div className="flex items-center gap-2 mt-4 bg-red-50 border border-red-100 rounded-xl p-3">
                           <AlertCircle size={14} className="text-red-500 shrink-0" />
@@ -1071,21 +1462,37 @@ export default function CiclosEstudo() {
                         </div>
                       )}
 
-                      <div className="flex gap-3 mt-4">
-                        <button onClick={() => irParaEtapa(2)} disabled={salvando} className="px-6 py-3 border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all disabled:opacity-50">
-                          ← Voltar
-                        </button>
-                        <button
-                          onClick={handleFinalizar} disabled={!podeFinalizar || salvando}
-                          className={`px-8 py-3 rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 ${
-                            podeFinalizar && !salvando ? 'bg-emerald-500 hover:bg-emerald-600 text-white hover:scale-105 active:scale-95' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                          }`}
-                        >
-                          {salvando
-                            ? <><RefreshCw size={15} className="animate-spin" /> Salvando...</>
-                            : <><CheckCircle2 size={16} /> Finalizar ciclo</>
-                          }
-                        </button>
+                      <div className="sticky bottom-0 -mx-8 -mb-32 mt-6 rounded-b-2xl border-t border-slate-100 bg-white/95 px-8 py-4 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                          <div>
+                            <p className="text-sm font-black text-slate-700">
+                              {modoCiclo === 'personalizado'
+                                ? `${disciplinasSelecionadas.length} de ${maxDisciplinas} disciplinas selecionadas`
+                                : `${disciplinasOrdenadas.length} disciplinas serão consideradas`}
+                            </p>
+                            <p className="mt-0.5 text-xs text-slate-500">
+                              {modoCiclo === 'personalizado' && disciplinasSelecionadas.length > 0 && !todasDificuldadesDefinidas
+                                ? 'Defina o nível das disciplinas selecionadas.'
+                                : 'Revise as escolhas e finalize para criar seu ciclo.'}
+                            </p>
+                          </div>
+                          <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                            <button onClick={() => irParaEtapa(3)} disabled={salvando} className="w-full px-6 py-3 border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all disabled:opacity-50 sm:w-auto">
+                              ← Voltar
+                            </button>
+                            <button
+                              onClick={handleFinalizar} disabled={!podeFinalizar || salvando}
+                              className={`flex w-full items-center justify-center gap-2 px-8 py-3 rounded-xl font-bold text-sm shadow-md transition-all sm:w-auto ${
+                                podeFinalizar && !salvando ? 'bg-emerald-500 hover:bg-emerald-600 text-white hover:scale-105 active:scale-95' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                              }`}
+                            >
+                              {salvando
+                                ? <><RefreshCw size={15} className="animate-spin" /> Salvando...</>
+                                : <><CheckCircle2 size={16} /> Finalizar ciclo</>
+                              }
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1114,7 +1521,7 @@ export default function CiclosEstudo() {
                       <div className="bg-sky-50 border border-sky-100 rounded-2xl p-5">
                         <p className="text-[11px] font-black text-sky-500 uppercase tracking-widest mb-3">Seu ciclo estimado</p>
                         {[
-                          { l: 'Sessões/turno',          v: discsPorDia },
+                          { l: 'Sessões por dia',      v: discsPorDia },
                           { l: 'Disciplinas no ciclo', v: maxDisciplinas },
                           { l: 'Min por sessão',        v: '60min' },
                         ].map(row => (
@@ -1182,7 +1589,7 @@ export default function CiclosEstudo() {
                     </>
                   )}
 
-                  {etapa === 3 && (
+                  {(etapa === 3 || etapa === 4) && (
                     <>
                       <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
                         <p className="text-[11px] font-black text-sky-500 uppercase tracking-widest mb-4">Resumo do ciclo</p>
@@ -1190,8 +1597,8 @@ export default function CiclosEstudo() {
                           <div><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Edital</p><p className="text-xs font-bold text-slate-700 leading-snug">{editalSelecionado?.nome}</p></div>
                           <div><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Cargo</p><p className="text-xs font-bold text-slate-700">{cargoSelecionado?.nome}</p></div>
                           <div className="flex gap-3">
-                            <div className="flex-1"><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Sessões/turno</p><p className="text-sm font-black text-sky-600">{discsPorDia}</p></div>
-                            <div className="flex-1"><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">No ciclo</p><p className="text-sm font-black text-sky-600">{maxDisciplinas}</p></div>
+                            <div className="flex-1"><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Sessões por dia</p><p className="text-sm font-black text-sky-600">{discsPorDia}</p></div>
+                            <div className="flex-1"><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Disciplinas no ciclo</p><p className="text-sm font-black text-sky-600">{maxDisciplinas}</p></div>
                           </div>
                           <div>
                             <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Modo</p>
@@ -1199,18 +1606,69 @@ export default function CiclosEstudo() {
                               {modoCiclo === 'automatico' ? 'Automático' : 'Personalizado'}
                             </span>
                           </div>
+                          {etapa === 4 && (
+                            <div>
+                              <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Organização</p>
+                              <span className="text-xs font-black text-slate-700 capitalize">{ritmo}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
+
+                      {etapa === 4 && (
+                        <div className={`rounded-2xl p-4 shadow-sm border transition-colors ${
+                          podeFinalizar
+                            ? 'border-emerald-100 bg-emerald-50/60'
+                            : 'border-amber-100 bg-amber-50/60'
+                        }`}>
+                          <p className={`text-[11px] font-black uppercase tracking-widest mb-1 ${
+                            podeFinalizar ? 'text-emerald-600' : 'text-amber-600'
+                          }`}>
+                            {podeFinalizar
+                              ? 'Tudo pronto para criar o ciclo'
+                              : disciplinasSelecionadas.length === 0
+                                ? 'Selecione disciplinas para continuar'
+                                : 'Falta definir níveis'}
+                          </p>
+                          <p className="text-xs text-slate-500 leading-snug mb-4">
+                            {modoCiclo === 'personalizado' && dificuldadesPendentesCount > 0
+                              ? `${dificuldadesPendentesCount} ${dificuldadesPendentesCount === 1 ? 'disciplina ainda está sem nível definido.' : 'disciplinas ainda estão sem nível definido.'}`
+                              : 'Revise o resumo acima e crie seu ciclo quando estiver tudo certo.'}
+                          </p>
+                          <div className="space-y-2">
+                            <button
+                              onClick={handleFinalizar}
+                              disabled={!podeFinalizar || salvando}
+                              className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold shadow-md transition-all ${
+                                podeFinalizar && !salvando
+                                  ? 'bg-emerald-500 text-white hover:bg-emerald-600 hover:scale-[1.02] active:scale-[0.98]'
+                                  : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
+                              }`}
+                            >
+                              {salvando
+                                ? <><RefreshCw size={15} className="animate-spin" /> Salvando...</>
+                                : <><CheckCircle2 size={16} /> Finalizar ciclo</>
+                              }
+                            </button>
+                            <button
+                              onClick={() => irParaEtapa(3)}
+                              disabled={salvando}
+                              className="flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-bold text-slate-500 transition-all hover:bg-slate-50 hover:text-slate-700 disabled:opacity-50"
+                            >
+                              ← Voltar
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
                       {modoCiclo === 'personalizado' && disciplinasSelecionadas.length > 0 && (
                         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
                           <p className="text-[11px] font-black text-sky-500 uppercase tracking-widest mb-3">Disciplinas no ciclo</p>
                           <div className="space-y-2">
-                            {disciplinasSelecionadas.map(id => {
-                              const disc = disciplinas.find(d => d.id === id);
-                              const dific = dificuldades[id];
-                              return disc ? (
-                                <div key={id} className="flex items-center justify-between">
+                            {disciplinasSelecionadasPreview.map(disc => {
+                              const dific = dificuldades[disc.id];
+                              return (
+                                <div key={disc.id} className="flex items-center justify-between">
                                   <p className="text-xs font-medium text-slate-700 truncate flex-1 mr-2">{disc.nome}</p>
                                   <div className="flex items-center gap-1.5 shrink-0">
                                     {dific ? (
@@ -1224,8 +1682,13 @@ export default function CiclosEstudo() {
                                     <span className="text-[11px] text-slate-400">{minutosPerDisciplina}min</span>
                                   </div>
                                 </div>
-                              ) : null;
+                              );
                             })}
+                            {disciplinasSelecionadasRestantes > 0 && (
+                              <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
+                                + {disciplinasSelecionadasRestantes} {disciplinasSelecionadasRestantes === 1 ? 'disciplina selecionada' : 'disciplinas selecionadas'}
+                              </div>
+                            )}
                           </div>
                           <div className="border-t border-slate-100 mt-3 pt-3 flex justify-between">
                             <span className="text-[11px] font-black text-slate-400 uppercase">Total</span>
@@ -1287,4 +1750,3 @@ function StatCard({ cor, label, valor }: { cor: 'sky' | 'slate'; label: string; 
     </div>
   );
 }
-

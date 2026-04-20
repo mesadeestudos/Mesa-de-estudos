@@ -6,6 +6,7 @@ interface SalvarCicloInput {
   idCargo:      number;
   horasDiarias: number;
   modo:         string;
+  ritmo:        string;
   disciplinas:  Array<{ id: number; dificuldade: string }>;
   distribuicao: DisciplinaCicloDTO[];
 }
@@ -21,6 +22,7 @@ export async function salvarCiclo(input: SalvarCicloInput) {
         id_usuario:    input.idUsuario,
         id_cargo:      input.idCargo,
         metodo:        input.modo.toUpperCase(),
+        ritmo:         input.ritmo.toUpperCase(),
         horas_por_dia: input.horasDiarias,
       },
     });

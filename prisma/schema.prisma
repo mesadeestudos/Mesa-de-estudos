@@ -211,6 +211,7 @@ model plano_estudo {
   id_usuario    BigInt
   id_cargo      Int
   metodo        String         @default("AUTOMATICO") @db.VarChar(20)
+  ritmo         String         @default("EQUILIBRADO") @db.VarChar(20)
   horas_por_dia Decimal        @db.Decimal(4, 2)
   data_criacao  DateTime?      @default(now()) @db.Timestamptz(6)
   ciclo_estudo  ciclo_estudo[]

@@ -234,6 +234,95 @@ O projeto estará disponível em `http://localhost:3000`.
 
 ## Ciclo de Estudos Inteligente
 
+### Fluxo de criação do ciclo — as 4 etapas
+
+O ciclo é criado por um assistente de 4 etapas. Cada etapa coleta um conjunto de informações que alimenta o algoritmo de geração. Entender o que cada etapa significa é fundamental para entender por que o ciclo é gerado do jeito que é.
+
+---
+
+#### Etapa 1 — Carga horária
+
+O usuário informa **quantas horas por dia** pretende estudar.
+
+Este número controla dois parâmetros do algoritmo:
+
+| Parâmetro derivado | Fórmula | Significado |
+|---|---|---|
+| `máximo_disciplinas` | `horasDiarias × 2` | Quantas disciplinas distintas podem entrar no ciclo |
+| `discsPorDia` | `f(horasDiarias, ritmo)` | Quantas disciplinas distintas o usuário vê por dia (ver Etapa 4) |
+
+**Limite prático:** o slider aceita de 1 a 8 horas. Acima de 8h seria pouco realista para estudo de qualidade contínua.
+
+---
+
+#### Etapa 2 — Edital e cargo
+
+O usuário seleciona o **edital** e o **cargo** para o qual está estudando.
+
+Esta etapa é crítica porque é aqui que o sistema obtém os dados objetivos que alimentarão o score de cada disciplina:
+
+- `peso` — pontuação por questão definida no edital
+- `qtd_questoes` — quantidade de questões por disciplina
+- `tipo` — se é específica (E) ou básica (B)
+- `categoria_cognitiva` — se exige raciocínio (R) ou memorização (M)
+- `qtd_topicos` — contagem de tópicos cadastrados para a disciplina (fallback quando edital não tem dados)
+
+Sem esses dados, o algoritmo ainda funciona — mas com menor diferenciação entre disciplinas.
+
+---
+
+#### Etapa 3 — Método: Automático ou Personalizado
+
+O usuário escolhe o nível de controle que quer exercer sobre o ciclo.
+
+| Modo | Para quem | O que o sistema faz | O que o usuário faz |
+|------|-----------|---------------------|---------------------|
+| **Automático** | Iniciantes, quem quer começar rápido | Seleciona todas as disciplinas do cargo, define dificuldade como Médio para todas | Nada além de escolher o ritmo |
+| **Personalizado** | Intermediários/avançados que conhecem o edital | Respeita a seleção do usuário, usa a dificuldade informada | Escolhe quais disciplinas entram e define a dificuldade de cada uma |
+
+**Impacto no score:**
+
+No modo automático, `dificNorm = 0.3` (Médio) para todas as disciplinas. A diferenciação vem do edital (`iNorm`) e do tipo (`tipoFator`). No modo personalizado, o `dificNorm` varia por disciplina (0 = Baixo, 0.3 = Médio, 0.7 = Alto), permitindo que a dificuldade pessoal do candidato influencie diretamente a frequência de cada matéria.
+
+**Persistência do nível de dificuldade:**
+
+Sempre que um ciclo é criado, o nível de dificuldade é persistido na tabela `disciplina_nivel_usuario`:
+- Automático: grava `MEDIO` para todas as disciplinas do ciclo (sobrescreve qualquer valor anterior)
+- Personalizado: grava o nível informado pelo usuário (sobrescreve também)
+
+Isso garante que o que é exibido na visualização do ciclo (nível da disciplina) seja sempre consistente com o que foi usado no cálculo do score.
+
+---
+
+#### Etapa 4 — Organização: ritmo de estudo
+
+O usuário define como prefere organizar seus estudos dentro de cada dia.
+
+O **ritmo** controla exclusivamente a variabilidade diária — não altera o total de horas estudadas por dia, nem quais disciplinas entram no ciclo. Apenas redistribui as horas entre mais ou menos disciplinas.
+
+| Ritmo | Fórmula `discsPorDia` | Comportamento |
+|---|---|---|
+| Focado | `max(1, ceil(horasDiarias × 0.4))` | Menos disciplinas distintas, maior profundidade por sessão |
+| Equilibrado | `max(1, ceil(horasDiarias × 0.6))` | Balanceia variedade e repetição |
+| Variado | `horasDiarias` | Uma disciplina diferente por hora, máxima variedade |
+
+**Recomendação automática baseada nas horas:**
+
+O sistema pré-seleciona o ritmo mais adequado conforme a carga horária declarada na Etapa 1:
+
+| Horas/dia | Recomendado | Por que |
+|---|---|---|
+| 1–3h | Variado | Com poucas horas, `ceil(h×0.6)` = h — equilibrado e variado são idênticos. Variado maximiza cobertura. |
+| 4–7h | Equilibrado | Faixa onde os três modos produzem resultados meaningfully diferentes. Equilibrado é o ponto ótimo. |
+| 8+h | Focado | Com muitas horas, alta variedade (8 disciplinas diferentes) gera fadiga cognitiva excessiva por troca de contexto. |
+
+O usuário pode alterar livremente — a recomendação é pré-seleção, não obrigação.
+
+**Modo automático:** o seletor de ritmo aparece na Etapa 4.
+**Modo personalizado:** o seletor de ritmo aparece junto com a lista de seleção de disciplinas.
+
+---
+
 ### Por que um ciclo de estudos?
 
 Antes de entrar nos detalhes técnicos, é importante entender o problema que o ciclo resolve.
@@ -508,22 +597,133 @@ Após montar a fila, o algoritmo aplica uma última verificação: garantir que 
 #### A regra de espaçamento
 
 ```
-gap mínimo = 2 × horasDiarias
+gap mínimo = 2 × disciplinasPorDia
 ```
 
-Isso significa que entre duas aparições consecutivas da mesma disciplina, devem existir pelo menos `2 × horasDiarias` sessões de distância.
+Isso significa que entre duas aparições consecutivas da mesma disciplina, devem existir pelo menos `2 × disciplinasPorDia` sessões de distância.
 
-**Por que 2 × horasDiarias?**
+**Por que `disciplinasPorDia` e não `horasDiarias`?**
 
-A meta diária tem `horasDiarias` sessões. Um gap de `2 × horasDiarias` garante que a disciplina não aparece:
-1. Duas vezes **na mesma meta diária** (mesmo turno de estudo)
-2. Na meta diária **imediatamente seguinte** (dia seguinte)
+Antes desta revisão, o gap usava `horasDiarias` diretamente. O problema: o gap semântico correto não é "horas por dia", mas "quantas disciplinas distintas o usuário estuda por dia" — que varia conforme o ritmo escolhido (ver Etapa 6). Com ritmo focado e 8h/dia, o usuário vê 4 disciplinas distintas por dia, não 8. Usar `horasDiarias` nesse caso produziria um gap excessivamente grande.
 
-Ou seja, há sempre pelo menos **um dia de descanso** entre dois estudos da mesma disciplina. Isso é alinhado com os princípios da **repetição espaçada** (Ebbinghaus, 1885): revisitar conteúdo após um intervalo de descanso é muito mais eficiente do que estudar o mesmo assunto em dias consecutivos.
+`disciplinasPorDia` é a unidade semanticamente correta: a disciplina não deve aparecer duas vezes na mesma "volta do dia" (gap = `discsPorDia`) nem na volta imediatamente seguinte (gap = `2 × discsPorDia`).
+
+**Garantia prática:** há sempre pelo menos um dia de descanso entre dois estudos da mesma disciplina. Alinhado com os princípios da **repetição espaçada** (Ebbinghaus, 1885).
 
 #### Como o reparo funciona
 
 O algoritmo percorre a fila posição por posição. Quando encontra uma disciplina que viola o gap mínimo, tenta trocar essa posição com a primeira disciplina à frente na fila que satisfaça o espaçamento. Se não encontrar candidato válido, deixa como está (melhor esforço).
+
+---
+
+### Etapa 6 — Ritmo de estudo e variabilidade diária
+
+#### O problema que esta etapa resolve
+
+`horasDiarias` controlava duas coisas ao mesmo tempo: o total de horas por dia E a quantidade de disciplinas distintas por dia. Com 8h/dia e 8 disciplinas no ciclo, o usuário via 8 matérias diferentes em sequência — uma por hora. Isso é alta variabilidade cognitiva: o cérebro troca de contexto a cada sessão, sem tempo para aprofundar nenhuma disciplina.
+
+Pesquisa sobre carga cognitiva (Sweller, 1988) sugere que muitos chaveamentos de contexto em um mesmo período reduzem a eficiência de aprendizado. Por outro lado, estudar a mesma matéria por horas consecutivas também tem rendimento decrescente.
+
+O ponto de equilíbrio varia por candidato e por estilo de estudo — por isso a solução correta é **deixar o usuário escolher**, com uma interface acessível.
+
+#### A separação dos dois conceitos
+
+| Parâmetro | O que controla | Quem define |
+|---|---|---|
+| `horasDiarias` | Total de sessões por dia (carga total) | Slider na Etapa 1 |
+| `ritmo` | Quantas disciplinas distintas por dia (variabilidade) | Seleção na Etapa 1 |
+
+O total de horas estudadas por dia nunca muda — o `ritmo` apenas redistribui essas horas entre mais ou menos disciplinas.
+
+#### Os três modos e suas fórmulas
+
+```
+focado:      discsPorDia = max(1, ceil(horasDiarias × 0.4))
+equilibrado: discsPorDia = max(1, ceil(horasDiarias × 0.6))   ← padrão recomendado
+variado:     discsPorDia = horasDiarias
+```
+
+**Exemplos práticos com 8h/dia:**
+
+| Ritmo | discsPorDia | Resultado no dia |
+|---|---|---|
+| Focado | 4 | 4 disciplinas × 2h cada (as mais relevantes repetem) |
+| Equilibrado | 5 | 5 disciplinas (3 com 2h, 2 com 1h) |
+| Variado | 8 | 8 disciplinas × 1h cada |
+
+**Por que esses multiplicadores (0.4 e 0.6)?**
+
+- `0.6` para equilibrado: reduz a variabilidade em ~40% sem criar blocos excessivamente longos. Com 8h, o usuário faz 5 disciplinas — ainda diversificado, mas com profundidade maior do que 8.
+- `0.4` para focado: reduz em ~60%, criando blocos de ~2h por disciplina — compatível com sessões de estudo profundo (deep work).
+- `variado`: comportamento original do sistema, para quem prefere alta rotatividade.
+
+#### Efeito em cascata: minGap do espaçamento
+
+O ritmo também altera o espaçamento mínimo na geração do ciclo (Etapa 5). Com `discsPorDia` menor, o `minGap` também é menor — o ciclo não precisa espaçar as disciplinas por "8 posições" se o usuário só vê 4 por dia. O ciclo fica mais compacto e mais adequado à rotina real do usuário.
+
+---
+
+### Etapa 7 — Montagem da sessão diária com repetição controlada
+
+Esta etapa acontece no **serviço de leitura** (`buscarCicloService`), não na geração do ciclo. Quando o usuário abre a tela de ciclos, o sistema monta dinamicamente quais sessões ele deve fazer hoje.
+
+#### Quando a repetição dentro do dia é ativada
+
+```
+condição: discsPorDia < horasPorDia
+```
+
+Ou seja: sempre que o usuário não escolheu o modo `variado`. Com `focado` ou `equilibrado`, haverá menos disciplinas distintas do que horas disponíveis — as horas excedentes precisam ser preenchidas com repetições.
+
+#### O algoritmo de montagem do dia
+
+```
+1. Toma discsPorDia slots consecutivos do ciclo (slots base)
+2. Calcula o orçamento de repetições: extras = horasPorDia - discsPorDia
+3. Para cada slot base, em ordem:
+   a. Adiciona o slot (sempre)
+   b. Se extras > 0 E freq(disciplina) >= 2 no ciclo E disciplina ainda não repetiu hoje:
+      → Adiciona o slot novamente (repetição consecutiva)
+      → Desconta 1 do orçamento de extras
+      → Marca a disciplina como já repetida hoje
+4. Se ainda sobrar orçamento após percorrer todos os slots base:
+   → Toma os próximos slots do ciclo normalmente (sem repetição)
+```
+
+**Por que a repetição é consecutiva?** Para que o usuário estude a mesma matéria em bloco — 2h seguidas antes de mudar de disciplina. Intercalar repetiria o problema da alta variabilidade que estamos tentando resolver.
+
+#### A condição `freq >= 2`
+
+Uma disciplina com `freq = 1` no ciclo inteiro foi avaliada pelo score como de baixa importância proporcional. Forçar uma repetição no dia distorceria a distribuição calculada pelo algoritmo — a disciplina receberia o dobro do tempo previsto naquele giro do ciclo.
+
+Com `freq >= 2`, a disciplina já tem "crédito" de múltiplas aparições no ciclo. Usar duas delas no mesmo dia é uma redistribuição temporal, não uma distorção de distribuição.
+
+**Comportamento de longo prazo:** O ciclo é contínuo. Uma disciplina que apareceu 2× no dia de hoje simplesmente tem suas próximas ocorrências naturalmente deslocadas para dias posteriores — o ritmo médio de aparição ao longo do tempo permanece fiel ao score calculado.
+
+#### Exemplo completo
+
+Ciclo com 8 disciplinas, usuário com 8h/dia, ritmo equilibrado (`discsPorDia = 5`, `extras = 3`):
+
+```
+Ciclo (posição atual = 1):
+  Slot 1: Contabilidade      (freq=3 no ciclo)
+  Slot 2: Dir. Tributário    (freq=2)
+  Slot 3: Português          (freq=1)
+  Slot 4: Raciocínio Lógico  (freq=2)
+  Slot 5: Informática        (freq=1)
+  ...
+
+Montagem do dia:
+  → Contabilidade:    sempre + freq=3 ≥ 2 + não repetida → REPETE. extras=2. repetidas={Cont.}
+  → Dir. Tributário:  sempre + freq=2 ≥ 2 + não repetida → REPETE. extras=1. repetidas={Cont., DT}
+  → Português:        sempre + freq=1 < 2 → NÃO repete.
+  → Raciocínio Lógico: sempre + freq=2 ≥ 2 + não repetida → REPETE. extras=0. repetidas={Cont., DT, RL}
+  → Informática:      sempre + extras=0 → NÃO repete.
+
+Sessões do dia (8 no total):
+  Contabilidade · Contabilidade · Dir.Tributário · Dir.Tributário · Português · Raciocínio · Raciocínio · Informática
+  └─ 2h ─────┘  └────── 2h ──────────────────┘  └── 1h ──┘  └────── 2h ──────────────┘  └── 1h ──┘
+```
 
 ---
 
@@ -540,7 +740,9 @@ Este algoritmo faz isso automaticamente, com base em critérios objetivos:
 | Considera dificuldade pessoal | Não | Sim |
 | Considera tipo da disciplina | Não | Sim |
 | Intercalação cognitiva | Não | Sim (R/M) |
-| Espaçamento entre repetições | Não | Sim (2× meta diária) |
+| Espaçamento entre repetições | Não | Sim (2× discsPorDia) |
+| Controle de variabilidade diária | Não | Sim (ritmo: focado/equilibrado/variado) |
+| Repetição controlada dentro do dia | Não | Sim (respeitando freq do ciclo) |
 | Ciclo adaptativo (futuro) | Não | Preparado |
 
 ---
@@ -801,6 +1003,7 @@ Na prática atual, cada criação de ciclo gera um novo `plano_estudo` — mas a
 | `id_usuario` | `BIGINT` FK | A qual usuário pertence este plano. `onDelete: Cascade` — usuário deletado, planos deletados. |
 | `id_cargo` | `INT` FK | Para qual cargo este plano foi criado. `onDelete: NoAction` — não queremos que deletar um cargo apague o histórico de estudo do usuário. |
 | `metodo` | `VARCHAR(20)` | `AUTOMATICO` ou `PERSONALIZADO`. Define se o usuário deixou o sistema escolher as disciplinas ou escolheu manualmente. |
+| `ritmo` | `VARCHAR(20)` | `FOCADO`, `EQUILIBRADO` ou `VARIADO`. Controla a variabilidade de disciplinas por dia (ver Etapa 6 do algoritmo). Default `EQUILIBRADO`. |
 | `horas_por_dia` | `DECIMAL(4,2)` | Disponibilidade diária do usuário. `DECIMAL` (não `INT`) porque no futuro pode suportar 1.5h, 2.5h, etc. |
 | `data_criacao` | `TIMESTAMPTZ` | Registro de quando o plano foi criado. Útil para análise de engajamento. |
 

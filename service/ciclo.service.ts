@@ -15,17 +15,29 @@ interface DisciplinaAlgo {
   categoria_cognitiva: string;
   dificuldade:         string;
   qtd_questoes:        number;
+  qtd_topicos:         number;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Disciplinas distintas por dia baseado no ritmo escolhido
+// ─────────────────────────────────────────────────────────────
+
+export function calcularDiscsPorDia(horasDiarias: number, ritmo: string): number {
+  const r = ritmo.toLowerCase();
+  if (r === 'focado')  return Math.max(1, Math.ceil(horasDiarias * 0.4));
+  if (r === 'variado') return horasDiarias;
+  return Math.max(1, Math.ceil(horasDiarias * 0.6)); // equilibrado (default)
 }
 
 // ─────────────────────────────────────────────────────────────
 // Score de importância da disciplina
 //
-// score = (1 + I_norm) × tipo_fator × dific_fator × desempenho
+// score = (1 + iNorm + dificNorm) × tipoFator × desempenho
 //
-// I      = peso × qtd_questoes  (contribuição total no edital)
-// I_norm = I / I_max            (normalizado entre 0 e 1)
-// tipo_fator : B=1.0, E=1.5
-// dific_fator: Baixo=1, Médio=2, Alto=3
+// I        = peso × (qtd_questoes > 0 ? qtd_questoes : qtd_topicos)
+// iNorm    = I / Imax              (normalizado 0–1, dado do edital)
+// dificNorm: Baixo=0, Médio=0.3, Alto=0.7  (aditivo — não monopoliza)
+// tipoFator: B=1.0, E=1.5
 //
 // Future: passar desempenho (0–1) calculado a partir de dados de
 //         performance do usuário para tornar o ciclo adaptativo.
@@ -37,8 +49,8 @@ export function calcularScore(
   desempenho: number = 1.0,
 ): number {
   const tipoFator:  Record<string, number> = { E: 1.5, B: 1.0 };
-  const dificFator: Record<string, number> = { Baixo: 1, Médio: 2, Alto: 3 };
-  return (1 + iNorm) * (tipoFator[d.tipo] ?? 1.0) * (dificFator[d.dificuldade] ?? 2) * desempenho;
+  const dificNorm:  Record<string, number> = { Baixo: 0, Médio: 0.3, Alto: 0.7 };
+  return (1 + iNorm + (dificNorm[d.dificuldade] ?? 0.3)) * (tipoFator[d.tipo] ?? 1.0) * desempenho;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -117,22 +129,37 @@ function repararEspacamento(
 // ─────────────────────────────────────────────────────────────
 
 export function gerarCiclo(
-  disciplinas:  DisciplinaAlgo[],
-  horasDiarias: number,
+  disciplinas:        DisciplinaAlgo[],
+  horasDiarias:       number,
+  disciplinasPorDia:  number,
+  respeitarSelecao:   boolean = false,
 ): DisciplinaCicloDTO[] {
 
   if (disciplinas.length === 0) return [];
 
-  // Passo 1 — seleção de disciplinas distintas
-  const n           = Math.min(disciplinas.length, Math.max(1, horasDiarias * 2));
-  const porPeso     = (a: DisciplinaAlgo, b: DisciplinaAlgo) => (b.peso ?? 1) - (a.peso ?? 1);
-  const especificas = disciplinas.filter(d => d.tipo === 'E').sort(porPeso);
-  const basicas     = disciplinas.filter(d => d.tipo !== 'E').sort(porPeso);
-  const maxE        = Math.ceil(n * 0.6);
-  const selecionadas = [...especificas.slice(0, maxE), ...basicas].slice(0, n);
+  // Passo 1 — seleção de disciplinas distintas por score
+  // Score calculado sobre o pool completo (Imax global) para ranking justo entre grupos.
+  // Passos 2–5 recomputam scores/freq sobre as selecionadas com seu próprio Imax.
+  const n            = Math.min(disciplinas.length, Math.max(1, horasDiarias * 2));
+  const getI         = (d: DisciplinaAlgo) => (d.peso ?? 1) * (d.qtd_questoes > 0 ? d.qtd_questoes : d.qtd_topicos);
+  const allIs        = disciplinas.map(getI);
+  const allImax      = Math.max(...allIs, 1);
+  const selScoreMap  = new Map(disciplinas.map((d, i) => [d.id, calcularScore(d, allIs[i] / allImax)]));
+  const porScore     = (a: DisciplinaAlgo, b: DisciplinaAlgo) => (selScoreMap.get(b.id) ?? 0) - (selScoreMap.get(a.id) ?? 0);
+
+  // Personalizado: respeita integralmente a seleção do usuário (sem split E/B)
+  // Automático: aplica proporção 60% E / 40% B como heurística de cobertura
+  const selecionadas = respeitarSelecao
+    ? [...disciplinas].sort(porScore).slice(0, n)
+    : (() => {
+        const especificas = disciplinas.filter(d => d.tipo === 'E').sort(porScore);
+        const basicas     = disciplinas.filter(d => d.tipo !== 'E').sort(porScore);
+        const maxE        = Math.ceil(n * 0.6);
+        return [...especificas.slice(0, maxE), ...basicas].slice(0, n);
+      })();
 
   // Passo 2 — score por disciplina
-  const Is     = selecionadas.map(d => (d.peso ?? 1) * (d.qtd_questoes ?? 0));
+  const Is     = selecionadas.map(getI);
   const Imax   = Math.max(...Is, 1);
   const scores = new Map(
     selecionadas.map((d, i) => [d.id, calcularScore(d, Is[i] / Imax)]),
@@ -166,8 +193,8 @@ export function gerarCiclo(
     if (mi < filaM.length) cicloBase.push(filaM[mi++]);
   }
 
-  // Passo 5 — espaçamento mínimo = 2 × horasDiarias entre repetições
-  const ciclo = repararEspacamento(cicloBase, freqs, horasDiarias * 2);
+  // Passo 5 — espaçamento mínimo = 2 × disciplinasPorDia entre repetições
+  const ciclo = repararEspacamento(cicloBase, freqs, disciplinasPorDia * 2);
 
   return ciclo.map((d, idx) => ({
     id:              d.id,
@@ -187,7 +214,8 @@ export async function criarCicloService(body: unknown, idUsuario: bigint) {
 
   const idsDisciplinas = input.disciplinas.map(d => d.id);
   const discsBanco = await prisma.disciplina.findMany({
-    where: { id_disciplina: { in: idsDisciplinas } },
+    where:   { id_disciplina: { in: idsDisciplinas } },
+    include: { _count: { select: { topico: true } } },
   });
 
   const dificMap = new Map(input.disciplinas.map(d => [d.id, d.dificuldade]));
@@ -200,23 +228,28 @@ export async function criarCicloService(body: unknown, idUsuario: bigint) {
     categoria_cognitiva: d.categoria_cognitiva,
     dificuldade:         dificMap.get(d.id_disciplina) ?? 'Médio',
     qtd_questoes:        d.qtd_questoes ? Number(d.qtd_questoes) : 0,
+    qtd_topicos:         d._count.topico,
   }));
 
-  const distribuicao = gerarCiclo(disciplinasAlgo, input.horasDiarias);
+  const disciplinasPorDia = calcularDiscsPorDia(input.horasDiarias, input.ritmo);
+  const distribuicao      = gerarCiclo(disciplinasAlgo, input.horasDiarias, disciplinasPorDia, input.modo === 'personalizado');
 
   const idsNoCiclo = new Set(distribuicao.map(d => d.id));
 
-  // Persiste nível de dificuldade apenas no modo personalizado (avaliação explícita do usuário)
-  const discParaUpsert = input.modo === 'personalizado'
-    ? input.disciplinas.filter(d => idsNoCiclo.has(d.id))
-    : [];
+  // Automático: persiste 'Médio' para todas, sobrescrevendo níveis anteriores (consistência score/display)
+  // Personalizado: persiste o nível que o usuário definiu explicitamente
+  const discParaUpsert: Array<{ id: number; dificuldade: string }> =
+    input.modo === 'personalizado'
+      ? input.disciplinas.filter(d => idsNoCiclo.has(d.id))
+      : distribuicao.map(d => ({ id: d.id, dificuldade: 'Médio' }));
 
   const ciclo = await salvarCiclo({
     idUsuario,
-    idCargo:      input.idCargo,
-    horasDiarias: input.horasDiarias,
-    modo:         input.modo,
-    disciplinas:  discParaUpsert as Array<{ id: number; dificuldade: string }>,
+    idCargo:            input.idCargo,
+    horasDiarias:       input.horasDiarias,
+    modo:               input.modo,
+    ritmo:              input.ritmo,
+    disciplinas:        discParaUpsert,
     distribuicao,
   });
 
@@ -238,7 +271,8 @@ export async function buscarCicloService(idUsuario: bigint) {
   if (!ciclo) return null;
 
   const horasPorDia  = Number(ciclo.plano_estudo.horas_por_dia);
-  const discsPorDia  = Math.min(horasPorDia, 4);
+  const ritmo        = ciclo.plano_estudo.ritmo ?? 'EQUILIBRADO';
+  const discsPorDia  = calcularDiscsPorDia(horasPorDia, ritmo);
   const posicaoAtual = Math.max(1, ciclo.ciclo_execucao?.posicao_atual ?? 1);
   const slots        = ciclo.ciclo_disciplina;
   const totalSlots   = slots.length;
@@ -257,9 +291,40 @@ export async function buscarCicloService(idUsuario: bigint) {
   });
   const nivelMap = new Map(niveis.map(n => [n.id_disciplina, n.nivel]));
 
-  const hojeSlots = Array.from({ length: horasPorDia }, (_, i) =>
-    slots[(posicaoAtual - 1 + i) % totalSlots],
-  ).map((s, i) => ({
+  const freqMap = new Map<number, number>();
+  for (const s of slots) freqMap.set(s.id_disciplina, (freqMap.get(s.id_disciplina) ?? 0) + 1);
+
+  const rawSlots: (typeof slots)[0][] = [];
+  if (discsPorDia < horasPorDia) {
+    const base        = Array.from({ length: discsPorDia }, (_, i) => slots[(posicaoAtual - 1 + i) % totalSlots]);
+    let extrasBudget  = horasPorDia - discsPorDia;
+    const repetidas   = new Set<number>();
+    for (const slot of base) {
+      rawSlots.push(slot);
+      const freq = freqMap.get(slot.id_disciplina) ?? 1;
+      if (extrasBudget > 0 && freq >= 2 && !repetidas.has(slot.id_disciplina)) {
+        rawSlots.push(slot);
+        extrasBudget--;
+        repetidas.add(slot.id_disciplina);
+      }
+    }
+    const idsNodia    = new Set(rawSlots.map(s => s.id_disciplina));
+    let nextIdx       = posicaoAtual - 1 + discsPorDia;
+    const limiteLoop  = nextIdx + totalSlots;
+    while (extrasBudget > 0 && nextIdx < limiteLoop) {
+      const next = slots[nextIdx % totalSlots];
+      if (!idsNodia.has(next.id_disciplina)) {
+        rawSlots.push(next);
+        idsNodia.add(next.id_disciplina);
+        extrasBudget--;
+      }
+      nextIdx++;
+    }
+  } else {
+    for (let i = 0; i < horasPorDia; i++) rawSlots.push(slots[(posicaoAtual - 1 + i) % totalSlots]);
+  }
+
+  const hojeSlots = rawSlots.map((s, i) => ({
     ordem:           i + 1,
     idDisciplina:    s.id_disciplina,
     nome:            s.disciplina.nome,
@@ -268,9 +333,6 @@ export async function buscarCicloService(idUsuario: bigint) {
     nivel:           nivelMap.get(s.id_disciplina) ?? null,
     minutosAlocados: Math.round(Number(s.horas_planejadas) * 60),
   }));
-
-  const freqMap = new Map<number, number>();
-  for (const s of slots) freqMap.set(s.id_disciplina, (freqMap.get(s.id_disciplina) ?? 0) + 1);
 
   const discMap = new Map<number, (typeof slots)[0]>();
   for (const s of slots) if (!discMap.has(s.id_disciplina)) discMap.set(s.id_disciplina, s);

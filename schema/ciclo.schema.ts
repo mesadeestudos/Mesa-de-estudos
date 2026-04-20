@@ -9,6 +9,7 @@ export const criarCicloSchema = z.object({
   horasDiarias: z.number().min(1).max(12),
   idCargo:      z.number().int().positive(),
   modo:         z.enum(['automatico', 'personalizado']),
+  ritmo:        z.enum(['focado', 'equilibrado', 'variado']).default('equilibrado'),
   disciplinas:  z.array(disciplinaInputSchema).min(1).max(60),
 });
 
