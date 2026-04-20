@@ -373,20 +373,36 @@ máximo_disciplinas = horasDiarias × 2
 
 **Por quê?** Esse valor representa o dobro da meta diária. Com 4 horas por dia, o ciclo pode ter até 8 disciplinas distintas. Isso garante que o candidato veja cada disciplina pelo menos a cada 2 dias, mantendo o conteúdo fresco na memória sem dispersar demais o foco.
 
-#### Prioridade por tipo: Específicas primeiro
+#### Seleção por score — não por peso isolado
 
-As disciplinas do edital são divididas em dois grupos:
+Dentro de cada grupo, as disciplinas são ordenadas pelo **score calculado** (ver Etapa 2), não apenas pelo peso. Isso significa que a combinação de peso, quantidade de questões, tópicos e tipo da disciplina determina quais entram — não uma única variável isolada.
+
+**Fallback de dados do edital:** quando o edital não informa `qtd_questoes`, o algoritmo usa a **contagem de tópicos cadastrados** (`qtd_topicos`) como substituto. Todo edital carregado no sistema possui tópicos, então o algoritmo sempre tem ao menos um sinal de diferenciação para ordenar as disciplinas, mesmo sem dados completos de prova.
+
+```
+I = peso × (qtd_questoes > 0 ? qtd_questoes : qtd_topicos)
+```
+
+#### Modo Automático — seleção com cota E/B
+
+No modo automático, o algoritmo divide as disciplinas do cargo em dois grupos:
 
 | Tipo | Descrição |
 |------|-----------|
 | **E** (Específica) | Conhecimentos específicos do cargo — Direito Tributário, Contabilidade, etc. |
 | **B** (Básica) | Conhecimentos básicos — Português, Raciocínio Lógico, Informática, etc. |
 
-O algoritmo reserva **até 60% das vagas** para disciplinas específicas, e preenche o restante com básicas ordenadas por peso.
+O algoritmo reserva **até 60% das vagas** para disciplinas específicas (ordenadas por score) e preenche o restante com básicas (também por score).
 
-**Por quê?** Disciplinas específicas são o principal diferencial em uma prova. Em concursos como SEFAZ, PGFN e Receita Federal, as questões de conhecimentos específicos valem mais, são mais difíceis e eliminam mais candidatos. Faz sentido estratégico garantir que elas tenham presença garantida no ciclo.
+**Por quê?** Disciplinas específicas são o principal diferencial em uma prova. Em concursos como SEFAZ, PGFN e Receita Federal, as questões de conhecimentos específicos valem mais, são mais difíceis e eliminam mais candidatos. Faz sentido estratégico garantir que elas tenham presença garantida no ciclo, mesmo quando o candidato não conhece bem o edital para fazer essa escolha manualmente.
 
-Dentro de cada grupo, as disciplinas são ordenadas pelo **peso descrescente**, ou seja, as mais importantes entram primeiro.
+No modo automático, **todas as disciplinas entram com dificuldade Médio**, e esse valor é gravado em `disciplina_nivel_usuario` sobrescrevendo qualquer configuração anterior. Isso garante consistência: o que é exibido na tela é exatamente o que foi usado no algoritmo.
+
+#### Modo Personalizado — respeita a seleção do usuário
+
+No modo personalizado, o usuário escolhe manualmente quais disciplinas entram. O algoritmo **não aplica a cota E/B**: todas as disciplinas selecionadas entram, ordenadas por score. A separação E/B deixa de fazer sentido quando o usuário já exerceu seu julgamento sobre o que deve estar no ciclo.
+
+O nível de dificuldade de cada disciplina é definido pelo próprio usuário e persistido em `disciplina_nivel_usuario`, sobrescrevendo valores anteriores. Isso permite que o ciclo seja refinado a cada recriação conforme o candidato evolui.
 
 ---
 
@@ -399,7 +415,7 @@ O score determina **com que frequência a disciplina aparecerá na fila**. Score
 #### A fórmula completa
 
 ```
-score = (1 + I_norm) × tipo_fator × dific_fator × desempenho
+score = (1 + iNorm + dificNorm) × tipoFator × desempenho
 ```
 
 Vamos entender cada componente:
@@ -413,20 +429,23 @@ Este componente captura o quanto a disciplina "vale" na prova, usando os dados d
 **Passo 1 — Calcular a contribuição bruta (I):**
 
 ```
-I = peso × qtd_questoes
+I = peso × (qtd_questoes > 0 ? qtd_questoes : qtd_topicos)
 ```
 
 | Variável | O que é | Exemplo |
 |----------|---------|---------|
 | `peso` | Pontuação por questão definida no edital. Se não informado, assume **1**. | SEFAZ: questões específicas valem 2 pontos cada |
-| `qtd_questoes` | Quantidade de questões daquela disciplina na prova. Se não informado, assume **0**. | 70 questões de Contabilidade |
+| `qtd_questoes` | Quantidade de questões daquela disciplina na prova. Se disponível, é o dado primário. | 70 questões de Contabilidade |
+| `qtd_topicos` | Contagem de tópicos cadastrados para a disciplina. Usado como fallback quando `qtd_questoes` não está disponível. | 12 tópicos em Informática |
+
+**Por que o fallback de tópicos?** Todo edital carregado no sistema possui tópicos cadastrados. Se o sistema usasse `qtd_questoes = 0` diretamente, disciplinas sem esse dado receberiam `I = 0` e perderiam toda diferenciação — tratando Português (12 tópicos) igual a Administração (3 tópicos). O fallback garante que o número de tópicos sirva como proxy da extensão da disciplina quando dados de prova não estão disponíveis.
 
 **Exemplo prático:**
-- Contabilidade: peso=2, qtd=70 → I = 140
-- Português: peso=1, qtd=50 → I = 50
-- Informática: peso=1, qtd=0 (não informado) → I = 0
+- Contabilidade: peso=1, qtd_questoes=70 → I = 70
+- Português: peso=1, qtd_questoes=50 → I = 50
+- Informática: peso=1, qtd_questoes=0, qtd_topicos=12 → I = 12
 
-Ou seja, `I` representa o **total de pontos que aquela disciplina pode gerar na prova**. É a métrica mais honesta de importância objetiva.
+Ou seja, `I` representa a **relevância ponderada daquela disciplina** — pontos na prova quando disponível, extensão de conteúdo quando não.
 
 **Passo 2 — Normalizar (I_norm):**
 
@@ -441,11 +460,15 @@ No exemplo acima, I_max = 140 (Contabilidade).
 - Português: I_norm = 50/140 = **0.36**
 - Informática: I_norm = 0/140 = **0** (sem dados = sem bônus)
 
-**Por que somar 1 antes de multiplicar?**
+**Por que somar 1 antes de adicionar os demais componentes?**
 
-A fórmula usa `(1 + I_norm)` e não apenas `I_norm`. Isso é intencional: mesmo quando não há nenhum dado de edital (I_norm = 0), o score não zera — a disciplina ainda conta com o tipo e a dificuldade para se diferenciar. O `1` é o piso que garante que toda disciplina tem ao menos alguma importância.
+A fórmula usa `(1 + iNorm + dificNorm)` e não apenas `iNorm`. O `1` é o piso que garante que toda disciplina tem ao menos alguma importância, mesmo que `iNorm = 0` e `dificNorm = 0`. Sem esse piso, uma disciplina sem dados de edital e com dificuldade Baixo teria score zero — o que impossibilitaria a raiz quadrada e eliminaria a disciplina indevidamente.
 
-Com `I_norm`, o componente varia entre **1.0** (sem dados) e **2.0** (máximo do edital). Ou seja, os dados do edital podem no máximo **dobrar** a importância base de uma disciplina.
+O componente `(1 + iNorm + dificNorm)` varia entre:
+- **Mínimo 1.0** — sem dados de edital (`iNorm=0`) e dificuldade Baixo (`dificNorm=0`)
+- **Máximo 2.7** — máximo do edital (`iNorm=1`) e dificuldade Alto (`dificNorm=0.7`)
+
+A estrutura aditiva tem uma consequência importante: os dados do edital e a dificuldade pessoal **contribuem de forma independente** para o score, sem que um amplifique o outro de forma exponencial. Uma disciplina com `iNorm` alto não multiplica também o peso da dificuldade — os dois se somam. Isso garante equilíbrio: nenhum dos dois fatores domina sozinho.
 
 ---
 
@@ -462,12 +485,12 @@ Este fator existe para garantir uma vantagem estrutural às disciplinas específ
 
 ---
 
-#### Componente 3: Fator de dificuldade (dific_fator)
+#### Componente 3: Peso de dificuldade aditivo (dificNorm)
 
 ```
-dific_fator = 1  se dificuldade = Baixo
-dific_fator = 2  se dificuldade = Médio
-dific_fator = 3  se dificuldade = Alto
+dificNorm = 0.0  se dificuldade = Baixo
+dificNorm = 0.3  se dificuldade = Médio
+dificNorm = 0.7  se dificuldade = Alto
 ```
 
 Este é o componente **mais pessoal** do score. Ele é informado pelo próprio candidato na etapa 3 de criação do ciclo, e reflete o quanto ele sente dificuldade naquela matéria.
@@ -476,11 +499,17 @@ Este é o componente **mais pessoal** do score. Ele é informado pelo próprio c
 
 Porque dificuldade = necessidade de repetição. Uma matéria que você já domina não precisa aparecer toda semana. Uma matéria em que você trava a cada questão precisa de muito mais exposição. Este é o princípio da **prática deliberada** (Ericsson, 1993): o esforço focado nos pontos de fraqueza é o que gera melhoria real.
 
-A escala multiplicativa (1, 2, 3) foi escolhida para que a dificuldade tenha peso proporcional. Uma disciplina com dificuldade Alta tem score 3× maior do que a mesma disciplina com dificuldade Baixa, o que pode resultar em 1 a 2 aparições extras por ciclo.
+**Por que aditivo (0 / 0.3 / 0.7) e não multiplicativo (1 / 2 / 3)?**
+
+Na versão multiplicativa, uma disciplina Básica + Médio e uma disciplina Específica + Alto podiam chegar à mesma frequência, porque a dificuldade multiplicava o score inteiro. Isso é contraintuitivo: uma básica que o candidato sente dificuldade "média" não deveria ter a mesma prioridade que uma específica que ele realmente trava.
+
+Com a escala aditiva, a dificuldade adiciona no máximo **0.7 ao expoente base** — um bônus significativo mas que não anula a vantagem estrutural de uma disciplina específica com mais questões no edital. O peso do edital (`iNorm`) e o tipo da disciplina (`tipoFator`) ainda dominam a hierarquia; a dificuldade pessoal afina essa hierarquia sem distorcê-la.
+
+Outra vantagem: a escala 0 / 0.3 / 0.7 é **assimétrica no sentido correto**. O salto de Médio → Alto (+0.4) é maior que o salto de Baixo → Médio (+0.3), refletindo que a diferença entre "acho difícil" e "domino" é mais impactante do que entre "domino" e "acho médio".
 
 **E se o usuário usar o modo automático?**
 
-No modo automático, o candidato não informa dificuldades. O sistema assume `dificuldade = Médio` para todas as disciplinas, garantindo que o ciclo seja gerado sem travar e que haja ao menos diferenciação por peso e tipo.
+No modo automático, o candidato não informa dificuldades. O sistema assume `dificNorm = 0.3` (Médio) para todas as disciplinas. Isso significa que no automático, a dificuldade é neutra — a diferenciação vem inteiramente do edital (`iNorm`) e do tipo (`tipoFator`).
 
 ---
 
@@ -502,14 +531,16 @@ Isso tornará o ciclo **adaptativo**: ele se ajusta automaticamente conforme o c
 
 #### Exemplo completo de score
 
-Candidato estudando para SEFAZ (CEBRASPE, sem peso explícito):
+Candidato estudando para SEFAZ (CEBRASPE, sem peso explícito, peso=1 para todos):
 
-| Disciplina | Tipo | qtd_questoes | I | I_norm | tipo_fator | dific | dific_fator | score |
-|-----------|------|-------------|---|--------|-----------|-------|------------|-------|
-| Contabilidade | E | 70 | 70 | 1.0 | 1.5 | Alto | 3 | (1+1.0)×1.5×3 = **9.0** |
-| Direito Tributário | E | 40 | 40 | 0.57 | 1.5 | Alto | 3 | (1+0.57)×1.5×3 = **7.07** |
-| Português | B | 50 | 50 | 0.71 | 1.0 | Médio | 2 | (1+0.71)×1.0×2 = **3.43** |
-| Informática | B | 10 | 10 | 0.14 | 1.0 | Baixo | 1 | (1+0.14)×1.0×1 = **1.14** |
+| Disciplina | Tipo | qtd_questoes | I | iNorm | tipoFator | dific | dificNorm | score |
+|-----------|------|-------------|---|-------|-----------|-------|-----------|-------|
+| Contabilidade | E | 70 | 70 | 1.00 | 1.5 | Alto | 0.7 | (1+1.00+0.7)×1.5 = **4.05** |
+| Direito Tributário | E | 40 | 40 | 0.57 | 1.5 | Alto | 0.7 | (1+0.57+0.7)×1.5 = **3.41** |
+| Português | B | 50 | 50 | 0.71 | 1.0 | Médio | 0.3 | (1+0.71+0.3)×1.0 = **2.01** |
+| Informática | B | 0 | 12* | 0.17 | 1.0 | Baixo | 0.0 | (1+0.17+0.0)×1.0 = **1.17** |
+
+*Informática sem qtd_questoes: fallback para qtd_topicos=12. I_max = 70 (Contabilidade).
 
 ---
 
@@ -529,31 +560,32 @@ Se usássemos o score diretamente, uma disciplina com score 9 apareceria 9× mai
 freq = max(1, round(√score))
 ```
 
-O score mínimo possível é **1** (básica + Baixo + sem dados de edital):
+O score mínimo possível é **1.0** (básica + Baixo + sem dados de edital):
 ```
-(1 + 0) × 1.0 × 1 = 1  →  √1 = 1  →  freq = 1
-```
-
-O score máximo possível é **9** (específica + Alto + I_norm máximo):
-```
-(1 + 1) × 1.5 × 3 = 9  →  √9 = 3  →  freq = 3
+(1 + 0 + 0.0) × 1.0 × 1.0 = 1.0  →  √1.0 = 1.0  →  freq = 1
 ```
 
-Isso significa que o ciclo terá frequências variando entre **1 e 3 aparições por disciplina**.
+O score máximo possível é **≈4.05** (específica + Alto + iNorm máximo):
+```
+(1 + 1 + 0.7) × 1.5 × 1.0 = 4.05  →  √4.05 ≈ 2.01  →  freq = 2
+```
 
-A âncora é **absoluta e fixa**, não relativa ao grupo. Isso é fundamental. Se todas as disciplinas têm score alto, todas aparecem mais vezes — porque genuinamente precisam. Não é uma comparação interna. Uma disciplina com score 4.5 sempre terá frequência 2, independente do que está ao lado dela.
+Isso significa que o ciclo terá frequências variando entre **1 e 2 aparições por disciplina** no MVP atual. Quando o componente `desempenho` for ativado com dados reais de performance (ciclo adaptativo), o score poderá superar esse teto, atingindo frequência 3 para disciplinas onde o candidato está estagnado.
+
+A âncora é **absoluta e fixa**, não relativa ao grupo. Se todas as disciplinas têm score alto, todas aparecem mais vezes — porque genuinamente precisam. Uma disciplina com score 3.0 sempre terá frequência 2, independente do que está ao lado dela.
 
 **Mapeamento score → frequência:**
 
 | Score | √score | Frequência |
 |-------|--------|------------|
-| 1 | 1.00 | 1 |
-| 2 | 1.41 | 1 |
-| 3 | 1.73 | 2 |
-| 4 | 2.00 | 2 |
-| 4.5 | 2.12 | 2 |
-| 6 | 2.45 | 2 |
-| 9 | 3.00 | 3 |
+| 1.00 | 1.00 | 1 |
+| 1.50 | 1.22 | 1 |
+| 2.25 | 1.50 | 2 |
+| 3.00 | 1.73 | 2 |
+| 4.05 | 2.01 | 2 |
+| 9.00* | 3.00 | 3 |
+
+*Somente atingível quando `desempenho > 1.0` (ciclo adaptativo futuro).
 
 #### Tamanho do ciclo é dinâmico
 
@@ -679,16 +711,24 @@ Ou seja: sempre que o usuário não escolheu o modo `variado`. Com `focado` ou `
 
 ```
 1. Toma discsPorDia slots consecutivos do ciclo (slots base)
-2. Calcula o orçamento de repetições: extras = horasPorDia - discsPorDia
-3. Para cada slot base, em ordem:
+2. Registra as disciplinas desses slots em idsNodia (Set de ids)
+3. Calcula o orçamento de repetições: extras = horasPorDia - discsPorDia
+4. Para cada slot base, em ordem:
    a. Adiciona o slot (sempre)
    b. Se extras > 0 E freq(disciplina) >= 2 no ciclo E disciplina ainda não repetiu hoje:
       → Adiciona o slot novamente (repetição consecutiva)
       → Desconta 1 do orçamento de extras
       → Marca a disciplina como já repetida hoje
-4. Se ainda sobrar orçamento após percorrer todos os slots base:
-   → Toma os próximos slots do ciclo normalmente (sem repetição)
+5. Se ainda sobrar orçamento após percorrer todos os slots base:
+   → Itera os próximos slots do ciclo em sequência
+   → Adiciona apenas slots cuja disciplina NÃO esteja em idsNodia
+   → Registra cada disciplina adicionada em idsNodia
+   → Para quando extras zerar ou esgotar o limite de busca (totalSlots)
 ```
+
+**Por que verificar `idsNodia` ao puxar os próximos slots?**
+
+Sem essa verificação, os "próximos slots" poderiam incluir disciplinas que já aparecem nos slots base — gerando duplicatas na sessão diária. Por exemplo, se Contabilidade está no slot 1 e também no slot 9, ao puxar o slot 9 como "extra", o usuário veria Contabilidade três vezes no mesmo dia sem que isso fosse intencional. O Set `idsNodia` garante que cada disciplina apareça no máximo uma vez nos slots base do dia, e as repetições controladas (passo 4b) sejam a única forma de ver a mesma matéria duas vezes.
 
 **Por que a repetição é consecutiva?** Para que o usuário estude a mesma matéria em bloco — 2h seguidas antes de mudar de disciplina. Intercalar repetiria o problema da alta variabilidade que estamos tentando resolver.
 
@@ -733,17 +773,18 @@ A maioria das plataformas de concurso oferece ciclos estáticos: você escolhe a
 
 Este algoritmo faz isso automaticamente, com base em critérios objetivos:
 
-| Critério | Plataformas comuns | Mesa de Estudos |
-|----------|-------------------|-----------------|
-| Distribuição de tempo | Manual pelo candidato | Automática por score |
-| Considera peso do edital | Raramente | Sim |
-| Considera dificuldade pessoal | Não | Sim |
-| Considera tipo da disciplina | Não | Sim |
-| Intercalação cognitiva | Não | Sim (R/M) |
-| Espaçamento entre repetições | Não | Sim (2× discsPorDia) |
-| Controle de variabilidade diária | Não | Sim (ritmo: focado/equilibrado/variado) |
-| Repetição controlada dentro do dia | Não | Sim (respeitando freq do ciclo) |
-| Ciclo adaptativo (futuro) | Não | Preparado |
+| Critério | Plataformas comuns | Mesa de Estudos (Automático) | Mesa de Estudos (Personalizado) |
+|----------|-------------------|------------------------------|--------------------------------|
+| Distribuição de tempo | Manual pelo candidato | Automática por score | Automática por score + escolha do usuário |
+| Considera peso do edital | Raramente | Sim | Sim |
+| Considera quantidade de questões | Raramente | Sim (com fallback por tópicos) | Sim (com fallback por tópicos) |
+| Considera dificuldade pessoal | Não | Não (assume Médio) | Sim (configurada pelo usuário) |
+| Considera tipo da disciplina | Não | Sim (cota 60/40 E/B) | Sim (sem cota — respeita seleção) |
+| Intercalação cognitiva | Não | Sim (R/M) | Sim (R/M) |
+| Espaçamento entre repetições | Não | Sim (2× discsPorDia) | Sim (2× discsPorDia) |
+| Controle de variabilidade diária | Não | Sim (ritmo: focado/equilibrado/variado) | Sim (ritmo: focado/equilibrado/variado) |
+| Repetição controlada dentro do dia | Não | Sim (sem duplicatas via idsNodia) | Sim (sem duplicatas via idsNodia) |
+| Ciclo adaptativo (futuro) | Não | Preparado (parâmetro `desempenho`) | Preparado (parâmetro `desempenho`) |
 
 ---
 
@@ -1066,9 +1107,12 @@ Relacionamento 1:1 com `ciclo_estudo` via `@unique` em `id_ciclo`. Todo ciclo te
 
 Armazena o **nível de dificuldade que o usuário tem em cada disciplina** — a avaliação pessoal de "o quanto eu sei dessa matéria".
 
-**Por que existe separado do ciclo?** Porque o nível de uma disciplina pertence ao usuário, não ao ciclo. Se o usuário recriar o ciclo, o nível que ele informou antes deve ser preservado e reutilizado. Também é a tabela que será atualizada futuramente pelo sistema adaptativo — quando os dados de desempenho indicarem que o usuário melhorou em uma matéria, `nivel` será atualizado automaticamente aqui.
+**Por que existe separado do ciclo?** Porque o nível de uma disciplina pertence ao usuário, não ao ciclo. Se o usuário recriar o ciclo, o nível que ele informou antes é reutilizado no personalizado, ou sobrescrito com Médio no automático. Também é a tabela que será atualizada futuramente pelo sistema adaptativo — quando os dados de desempenho indicarem que o usuário melhorou em uma matéria, `nivel` será atualizado automaticamente aqui.
 
-A constraint `UNIQUE([id_usuario, id_disciplina])` garante que um usuário tem no máximo um nível por disciplina — e o `upsert` da aplicação atualiza esse nível quando o ciclo é recriado.
+A constraint `UNIQUE([id_usuario, id_disciplina])` garante que um usuário tem no máximo um nível por disciplina. O `upsert` da aplicação **sempre sobrescreve** o nível ao criar um novo ciclo:
+
+- **Modo automático:** grava `MEDIO` para todas as disciplinas do ciclo, sobrescrevendo qualquer valor anterior. Isso garante que a visualização do ciclo seja consistente com o que o algoritmo usou — se o usuário tinha criado um ciclo personalizado antes com Alto em Administração, e agora criou um automático, o sistema corrige para Médio em vez de exibir um nível desatualizado.
+- **Modo personalizado:** grava o nível escolhido pelo usuário, sobrescrevendo também. Isso permite que o candidato refine seus níveis a cada recriação conforme evolui nos estudos.
 
 | Coluna | Tipo | Por que existe |
 |--------|------|---------------|
