@@ -108,7 +108,7 @@ export default function CiclosEstudo() {
   const [encerrando, setEncerrando] = useState(false);
 
   // Etapa 1
-  const [horasDiarias, setHorasDiarias] = useState(4);
+  const [horasDiarias, setHorasDiarias] = useState(2);
 
   // Etapa 2
   const [editais, setEditais]                         = useState<Edital[]>([]);
@@ -126,9 +126,11 @@ export default function CiclosEstudo() {
   const [salvando, setSalvando]                               = useState(false);
   const [erroSalvar, setErroSalvar]                           = useState<string | null>(null);
 
+  const horasDiariasLimitadas = Math.min(horasDiarias, 8);
+
   // Computed — espelha a lógica do servidor
-  const discsPorDia          = useMemo(() => Math.min(horasDiarias, 4), [horasDiarias]);
-  const maxDisciplinas       = useMemo(() => horasDiarias * 2,          [horasDiarias]);
+  const discsPorDia          = useMemo(() => Math.min(horasDiariasLimitadas, 4), [horasDiariasLimitadas]);
+  const maxDisciplinas       = useMemo(() => horasDiariasLimitadas * 2,          [horasDiariasLimitadas]);
   const minutosPerDisciplina = 60;
   const disciplinas = useMemo(() => cargoSelecionado?.disciplinas ?? [], [cargoSelecionado]);
   const disciplinasOrdenadas = useMemo(() =>
@@ -249,7 +251,7 @@ export default function CiclosEstudo() {
     setErroSalvar(null);
     try {
       const payload = {
-        horasDiarias,
+        horasDiarias: horasDiariasLimitadas,
         idCargo: cargoSelecionado.id,
         modo:    modoCiclo,
         disciplinas: modoCiclo === 'personalizado'
@@ -710,49 +712,90 @@ export default function CiclosEstudo() {
                   {etapa === 1 && (
                     <div key="etapa1" className={`bg-white rounded-2xl p-8 shadow-sm border border-slate-100 ${animClass}`}>
                       <p className="text-[10px] font-black text-sky-500 uppercase tracking-[0.3em] mb-2">Etapa 1 de 3</p>
-                      <h2 className="text-2xl font-bold text-slate-800 mb-1">Quanto tempo você pode estudar?</h2>
-                      <p className="text-sm text-slate-400 mb-8">Defina sua disponibilidade diária. O sistema calculará quantas disciplinas entrarão no ciclo.</p>
+                      <h2 className="text-2xl font-bold text-slate-800 mb-1">Defina sua meta diária de estudo</h2>
+                      <p className="text-sm text-slate-400 mb-8">Escolha quantas horas você pretende estudar por dia. O ciclo será montado a partir dessa disponibilidade.</p>
 
                       <div className="max-w-xl">
-                        <div className="flex items-center justify-between mb-3">
-                          <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Horas por dia</label>
-                          <span className="text-2xl font-black text-sky-500">{horasDiarias}h</span>
-                        </div>
-                        <input
-                          type="range" min="1" max="12" step="1"
-                          value={horasDiarias}
-                          onChange={e => setHorasDiarias(Number(e.target.value))}
-                          className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-sky-500 mb-3"
-                        />
-
-                        <div className="flex justify-between gap-1 mb-8">
-                          {[1, 2, 3, 4, 5, 6, 8, 10, 12].map(h => (
-                            <button key={h} onClick={() => setHorasDiarias(h)}
-                              className={`flex-1 py-1.5 rounded-lg text-[11px] font-black transition-all ${
-                                horasDiarias === h ? 'bg-sky-500 text-white shadow-sm' : 'bg-slate-100 text-slate-400 hover:bg-sky-50 hover:text-sky-500'
-                              }`}
-                            >{h}h</button>
-                          ))}
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-4 mb-6">
-                          <StatCard cor="sky"   label="Sessões/turno"        valor={String(discsPorDia)} />
-                          <StatCard cor="sky"   label="Disciplinas no ciclo" valor={String(maxDisciplinas)} />
-                          <StatCard cor="slate" label="Min/sessão"           valor="60min" />
-                        </div>
-
-                        <div className="flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-xl p-3 mb-8">
-                          <Info size={14} className="text-amber-500 mt-0.5 shrink-0" />
-                          <p className="text-xs text-amber-700">
-                            Com <strong>{horasDiarias}h/dia</strong>, cada turno terá <strong>{discsPorDia} sessões</strong> de 60 min. O ciclo selecionará até <strong>{maxDisciplinas} disciplinas distintas</strong> — a frequência de cada uma varia conforme o score.
+                        <div className="mb-5 rounded-2xl border border-sky-100 bg-sky-50 p-5">
+                          <p className="text-xs font-bold uppercase tracking-widest text-sky-700">Meta diária</p>
+                          <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                            <p className="text-3xl font-black text-sky-700">
+                              {horasDiariasLimitadas} {horasDiariasLimitadas === 1 ? 'hora' : 'horas'} por dia
+                            </p>
+                            <p className="text-sm font-semibold text-sky-700">
+                              {horasDiariasLimitadas} {horasDiariasLimitadas === 1 ? 'sessão' : 'sessões'} por dia
+                            </p>
+                          </div>
+                          <p className="mt-3 text-xs font-semibold text-sky-700">
+                            Cada sessão é um bloco de estudo de 1h.
                           </p>
                         </div>
 
+                        <div className="flex items-center justify-between mb-3">
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Ajuste sua disponibilidade</label>
+                          <span className="text-sm font-black text-sky-600">{horasDiariasLimitadas}h</span>
+                        </div>
+                        <input
+                          type="range" min="1" max="8" step="1"
+                          value={horasDiariasLimitadas}
+                          onChange={e => setHorasDiarias(Math.min(Number(e.target.value), 8))}
+                          className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-sky-500 mb-1.5"
+                        />
+                        <div className="mb-3 flex justify-between text-[11px] font-bold text-slate-400">
+                          <span>1h</span>
+                          <span>8h</span>
+                        </div>
+
+                        <p className="mb-2 text-xs font-semibold text-slate-500">
+                          Escolha um perfil ou ajuste manualmente.
+                        </p>
+                        <div className="grid grid-cols-2 gap-2 mb-8 sm:grid-cols-3 lg:grid-cols-5">
+                          {[
+                            { h: 1, label: 'Leve' },
+                            { h: 2, label: 'Base' },
+                            { h: 4, label: 'Moderado' },
+                            { h: 6, label: 'Intenso' },
+                            { h: 8, label: 'Máximo' },
+                          ].map(({ h, label }) => (
+                            <button key={h} onClick={() => setHorasDiarias(h)}
+                              className={`rounded-xl px-3 py-2 text-left transition-all ${
+                                horasDiariasLimitadas === h ? 'bg-sky-500 text-white shadow-sm shadow-sky-100' : 'bg-slate-100 text-slate-500 hover:bg-sky-50 hover:text-sky-600'
+                              }`}
+                            >
+                              <span className="block text-xs font-black">{label}</span>
+                              <span className={`text-lg font-black leading-tight ${horasDiariasLimitadas === h ? 'text-white' : 'text-slate-700'}`}>
+                                {h}h
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                          <StatCard cor="sky"   label="Sessões por dia"      valor={String(horasDiariasLimitadas)} />
+                          <StatCard cor="sky"   label="Disciplinas no ciclo" valor={`até ${maxDisciplinas}`} />
+                        </div>
+
+                        <div className={`flex items-start gap-2 rounded-xl bg-slate-50 p-3 ${horasDiariasLimitadas === 8 ? 'mb-3' : 'mb-6'}`}>
+                          <Info size={14} className="text-slate-400 mt-0.5 shrink-0" />
+                          <p className="text-xs font-medium text-slate-500">
+                            Depois, escolha o edital e o cargo para montar a distribuição.
+                          </p>
+                        </div>
+
+                        {horasDiariasLimitadas === 8 && (
+                          <div className="flex items-start gap-2 bg-sky-50 border border-sky-100 rounded-xl p-3 mb-8">
+                            <Info size={14} className="text-sky-500 mt-0.5 shrink-0" />
+                            <p className="text-xs text-sky-700">
+                              8 horas é uma carga alta. Para manter qualidade, distribua o estudo ao longo do dia e faça pausas entre as sessões.
+                            </p>
+                          </div>
+                        )}
+
                         <button
                           onClick={() => irParaEtapa(2)}
-                          className="px-8 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 hover:scale-105 active:scale-95"
+                          className="w-full justify-center px-8 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 hover:scale-105 active:scale-95 sm:w-auto"
                         >
-                          Continuar <ChevronDown size={16} className="-rotate-90" />
+                          Continuar para edital e cargo <ChevronDown size={16} className="-rotate-90" />
                         </button>
                       </div>
                     </div>
@@ -863,7 +906,7 @@ export default function CiclosEstudo() {
                       <p className="text-[10px] font-black text-sky-500 uppercase tracking-[0.3em] mb-2">Etapa 3 de 3</p>
                       <h2 className="text-2xl font-bold text-slate-800 mb-1">Como montar seu ciclo?</h2>
                       <p className="text-sm text-slate-400 mb-6">
-                        <strong className="text-slate-600">{editalSelecionado?.nome}</strong> · <strong className="text-slate-600">{cargoSelecionado?.nome}</strong> · <strong className="text-sky-600">{horasDiarias}h/dia</strong>
+                        <strong className="text-slate-600">{editalSelecionado?.nome}</strong> · <strong className="text-slate-600">{cargoSelecionado?.nome}</strong> · <strong className="text-sky-600">{horasDiariasLimitadas}h/dia</strong>
                       </p>
 
                       <div className="grid grid-cols-2 gap-3 max-w-lg mb-8">
@@ -1014,7 +1057,7 @@ export default function CiclosEstudo() {
                         <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                           <div><span className="text-[11px] text-slate-400 uppercase font-bold">Edital</span><p className="text-xs font-bold text-slate-700 truncate">{editalSelecionado?.nome}</p></div>
                           <div><span className="text-[11px] text-slate-400 uppercase font-bold">Cargo</span><p className="text-xs font-bold text-slate-700 truncate">{cargoSelecionado?.nome}</p></div>
-                          <div><span className="text-[11px] text-slate-400 uppercase font-bold">Horas/dia</span><p className="text-xs font-black text-sky-600">{horasDiarias}h</p></div>
+                          <div><span className="text-[11px] text-slate-400 uppercase font-bold">Horas/dia</span><p className="text-xs font-black text-sky-600">{horasDiariasLimitadas}h</p></div>
                           <div><span className="text-[11px] text-slate-400 uppercase font-bold">Disciplinas/dia</span><p className="text-xs font-black text-sky-600">{discsPorDia}</p></div>
                           <div><span className="text-[11px] text-slate-400 uppercase font-bold">Modo</span><p className="text-xs font-black text-slate-700 capitalize">{modoCiclo}</p></div>
                           <div><span className="text-[11px] text-slate-400 uppercase font-bold">Min/disciplina</span><p className="text-xs font-black text-sky-600">{minutosPerDisciplina}min</p></div>
@@ -1129,7 +1172,7 @@ export default function CiclosEstudo() {
                       )}
                       <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
                         <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">Etapa 1 — resumo</p>
-                        {[{ l: 'Horas/dia', v: `${horasDiarias}h` }, { l: 'Disciplinas/dia', v: String(discsPorDia) }].map(r => (
+                        {[{ l: 'Horas/dia', v: `${horasDiariasLimitadas}h` }, { l: 'Disciplinas/dia', v: String(discsPorDia) }].map(r => (
                           <div key={r.l} className="flex justify-between items-center mb-1 last:mb-0">
                             <span className="text-xs text-slate-500">{r.l}</span>
                             <span className="text-xs font-black text-slate-700">{r.v}</span>
@@ -1186,7 +1229,7 @@ export default function CiclosEstudo() {
                           </div>
                           <div className="border-t border-slate-100 mt-3 pt-3 flex justify-between">
                             <span className="text-[11px] font-black text-slate-400 uppercase">Total</span>
-                            <span className="text-xs font-black text-sky-600">{horasDiarias}h/dia</span>
+                            <span className="text-xs font-black text-sky-600">{horasDiariasLimitadas}h/dia</span>
                           </div>
                         </div>
                       )}
