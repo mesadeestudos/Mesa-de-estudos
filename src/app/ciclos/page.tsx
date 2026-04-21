@@ -1,9 +1,13 @@
 ﻿'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { deleteCookie } from 'cookies-next';
+import {
+  gerarCicloEstrutural,
+  selecionarDisciplinas,
+} from '@/lib/cicloAlgorithm';
 import {
   Bell, Settings, User, LayoutDashboard, BookOpen, RefreshCw,
   LineChart, Calendar, LogOut, Search, ChevronDown, ChevronRight, Check,
@@ -11,8 +15,16 @@ import {
   Pencil,
 } from 'lucide-react';
 
-interface Edital      { id: number; nome: string; banca: string; status: string; data: string; }
-interface Disciplina  { id: number; nome: string; tipo: string; peso: number | null; qtd_questoes: number | null; }
+interface Edital      { id: number; nome: string; descricao: string; banca: string; status: string; data: string; }
+interface Disciplina  {
+  id: number;
+  nome: string;
+  tipo: string;
+  peso: number | null;
+  qtd_questoes: number | null;
+  qtd_topicos?: number | null;
+  categoria_cognitiva?: string | null;
+}
 interface Cargo       { id: number; nome: string; disciplinas: Disciplina[]; }
 
 interface HojeSlot {
@@ -48,12 +60,26 @@ interface CicloAtivo {
   discsPorDia:  number;
   diasPorCiclo: number;
   hojeSlots:    HojeSlot[];
+  cicloSlots:   HojeSlot[];
   disciplinas:  DiscCiclo[];
+}
+
+interface DisciplinaPreview extends Disciplina {
+  dificuldade: 'Baixo' | 'Médio' | 'Alto';
+}
+
+interface SessaoPreview {
+  ordem: number;
+  id: number;
+  nome: string;
+  tipo: string;
+  dificuldade: 'Baixo' | 'Médio' | 'Alto';
 }
 
 interface ConcursoApi {
   id: number;
   nome: string;
+  descricao?: string | null;
   banca?: string | null;
   status?: string | null;
   data?: string | null;
@@ -66,6 +92,8 @@ interface DisciplinaApi {
   tipo?: string | null;
   peso?: number | null;
   qtd_questoes?: number | null;
+  qtd_topicos?: number | null;
+  categoria_cognitiva?: string | null;
 }
 
 interface CargoApi {
@@ -95,16 +123,19 @@ const getTipoDisciplinaLabel = (tipo?: string | null) => {
   return null;
 };
 
-const getRitmoLabel = (ritmo: 'focado' | 'equilibrado' | 'variado') => ({
-  focado: 'Focado',
-  equilibrado: 'Equilibrado',
-  variado: 'Variado',
-})[ritmo];
-
-const getRitmoRecomendado = (horas: number): 'focado' | 'equilibrado' | 'variado' => {
-  if (horas <= 3) return 'variado';
-  if (horas >= 8) return 'focado';
-  return 'equilibrado';
+const gerarPreviewCiclo = (
+  disciplinas: DisciplinaPreview[],
+  horasDiarias: number,
+): SessaoPreview[] => {
+  if (disciplinas.length === 0) return [];
+  const { ciclo } = gerarCicloEstrutural(disciplinas, horasDiarias, 'equilibrado', true);
+  return ciclo.map((disciplina, indice) => ({
+    ordem: indice + 1,
+    id: disciplina.id,
+    nome: disciplina.nome,
+    tipo: disciplina.tipo,
+    dificuldade: disciplina.dificuldade,
+  }));
 };
 
 export default function CiclosEstudo() {
@@ -122,8 +153,6 @@ export default function CiclosEstudo() {
 
   // Etapa 1
   const [horasDiarias, setHorasDiarias] = useState(2);
-  const [ritmo, setRitmo]               = useState<'focado' | 'equilibrado' | 'variado'>(() => getRitmoRecomendado(2));
-  const [ritmoManual, setRitmoManual]   = useState(false);
 
   // Etapa 2
   const [editais, setEditais]                         = useState<Edital[]>([]);
@@ -141,11 +170,17 @@ export default function CiclosEstudo() {
   const [buscaDisciplina, setBuscaDisciplina]                 = useState('');
   const [salvando, setSalvando]                               = useState(false);
   const [erroSalvar, setErroSalvar]                           = useState<string | null>(null);
+  const [previewExpandida, setPreviewExpandida]               = useState(false);
+  const [previewModalAberta, setPreviewModalAberta]           = useState(false);
+  const [previewPinnedId, setPreviewPinnedId]                 = useState<number | null>(null);
+  const [previewHighlightId, setPreviewHighlightId]           = useState<number | null>(null);
+  const [visualizacaoHoverOrdem, setVisualizacaoHoverOrdem]   = useState<number | null>(null);
+  const [visualizacaoHoverDisciplinaId, setVisualizacaoHoverDisciplinaId] = useState<number | null>(null);
+  const visualizacaoHoverTimeoutRef                           = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const horasDiariasLimitadas = Math.min(horasDiarias, 8);
 
   // Computed — espelha a lógica do servidor
-  const discsPorDia          = useMemo(() => Math.min(horasDiariasLimitadas, 4), [horasDiariasLimitadas]);
   const maxDisciplinas       = useMemo(() => horasDiariasLimitadas * 2,          [horasDiariasLimitadas]);
   const minutosPerDisciplina = 60;
   const disciplinas = useMemo(() => cargoSelecionado?.disciplinas ?? [], [cargoSelecionado]);
@@ -161,11 +196,6 @@ export default function CiclosEstudo() {
       : disciplinasOrdenadas,
     [buscaDisciplina, disciplinasOrdenadas]
   );
-  const resumoTiposDisciplinas = useMemo(() => {
-    const especificas = disciplinas.filter(disc => getTipoDisciplinaLabel(disc.tipo) === 'Específica').length;
-    const basicas = disciplinas.length - especificas;
-    return { especificas, basicas };
-  }, [disciplinas]);
   const resumoTiposSelecionadas = useMemo(() => {
     const selecionadas = disciplinas.filter(disc => disciplinasSelecionadas.includes(disc.id));
     const especificas = selecionadas.filter(disc => getTipoDisciplinaLabel(disc.tipo) === 'Específica').length;
@@ -174,20 +204,9 @@ export default function CiclosEstudo() {
   }, [disciplinas, disciplinasSelecionadas]);
   const disciplinasAutomatico = useMemo(() => {
     if (disciplinas.length === 0) return { selecionadas: [] as Disciplina[], foraDociclo: [] as Disciplina[] };
-    const n       = Math.min(disciplinas.length, Math.max(1, horasDiariasLimitadas * 2));
-    const allIs   = disciplinas.map(d => (d.peso ?? 1) * (d.qtd_questoes ?? 0));
-    const allImax = Math.max(...allIs, 1);
-    // dificFator = 2 (Médio) é constante no automático — não afeta ordenação relativa
-    const scoreMap    = new Map(disciplinas.map((d, i) =>
-      [d.id, (1 + allIs[i] / allImax) * (d.tipo === 'E' ? 1.5 : 1.0)]));
-    const porScore    = (a: Disciplina, b: Disciplina) =>
-      (scoreMap.get(b.id) ?? 0) - (scoreMap.get(a.id) ?? 0);
-    const especificas  = disciplinas.filter(d => d.tipo === 'E').sort(porScore);
-    const basicas      = disciplinas.filter(d => d.tipo !== 'E').sort(porScore);
-    const maxE         = Math.ceil(n * 0.6);
-    const selecionadas = [...especificas.slice(0, maxE), ...basicas].slice(0, n);
-    const idsNoCiclo   = new Set(selecionadas.map(d => d.id));
-    const foraDociclo  = disciplinas.filter(d => !idsNoCiclo.has(d.id));
+    const { selecionadas } = selecionarDisciplinas(disciplinas, horasDiariasLimitadas, false);
+    const idsNoCiclo = new Set(selecionadas.map(d => d.id));
+    const foraDociclo = disciplinas.filter(d => !idsNoCiclo.has(d.id));
     return { selecionadas, foraDociclo };
   }, [disciplinas, horasDiariasLimitadas]);
   const disciplinasSelecionadasDetalhadas = useMemo(
@@ -205,6 +224,51 @@ export default function CiclosEstudo() {
     [disciplinasSelecionadasDetalhadas]
   );
   const disciplinasSelecionadasRestantes = Math.max(0, disciplinasSelecionadasDetalhadas.length - disciplinasSelecionadasPreview.length);
+  const disciplinasPreview = useMemo<DisciplinaPreview[]>(() => {
+    if (modoCiclo === 'automatico') {
+      return disciplinasAutomatico.selecionadas.map(disciplina => ({
+        ...disciplina,
+        dificuldade: 'Médio',
+      }));
+    }
+
+    return disciplinasSelecionadasDetalhadas.map(disciplina => ({
+      ...disciplina,
+      dificuldade: (dificuldades[disciplina.id] as 'Baixo' | 'Médio' | 'Alto' | undefined) ?? 'Médio',
+    }));
+  }, [modoCiclo, disciplinasAutomatico.selecionadas, disciplinasSelecionadasDetalhadas, dificuldades]);
+  const cicloPreview = useMemo(
+    () => gerarPreviewCiclo(disciplinasPreview, horasDiariasLimitadas),
+    [disciplinasPreview, horasDiariasLimitadas]
+  );
+  const limiteSequenciaPreview = 12;
+  const cicloPreviewVisivel = previewExpandida ? cicloPreview : cicloPreview.slice(0, limiteSequenciaPreview);
+  const disciplinasResumoPreview = useMemo(() => {
+    const mapa = new Map<number, { id: number; nome: string; tipo: string; dificuldade: string; sessoes: number; primeiraOrdem: number }>();
+    for (const sessao of cicloPreview) {
+      const atual = mapa.get(sessao.id);
+      if (atual) {
+        atual.sessoes += 1;
+      } else {
+        mapa.set(sessao.id, {
+          id: sessao.id,
+          nome: sessao.nome,
+          tipo: sessao.tipo,
+          dificuldade: sessao.dificuldade,
+          sessoes: 1,
+          primeiraOrdem: sessao.ordem,
+        });
+      }
+    }
+    return [...mapa.values()].sort((a, b) => b.sessoes - a.sessoes || a.primeiraOrdem - b.primeiraOrdem);
+  }, [cicloPreview]);
+  const sessaoInicialPreview = cicloPreview[0] ?? null;
+  const previewHighlightAtivo = previewHighlightId ?? previewPinnedId ?? sessaoInicialPreview?.id ?? null;
+  const disciplinaHighlightPreview = disciplinasResumoPreview.find(item => item.id === previewHighlightAtivo) ?? null;
+  const disciplinasAutomaticasAgrupadas = useMemo(() => ({
+    especificas: disciplinasPreview.filter(disciplina => getTipoDisciplinaLabel(disciplina.tipo) === 'Específica'),
+    basicas: disciplinasPreview.filter(disciplina => getTipoDisciplinaLabel(disciplina.tipo) !== 'Específica'),
+  }), [disciplinasPreview]);
 
   const todasDificuldadesDefinidas = useMemo(
     () => disciplinasSelecionadas.every(id => Boolean(dificuldades[id])),
@@ -213,10 +277,93 @@ export default function CiclosEstudo() {
   const podeContinuarEtapa2 = editalSelecionado !== null && cargoSelecionado !== null;
   const podeFinalizar = modoCiclo === 'automatico'
     || (disciplinasSelecionadas.length > 0 && todasDificuldadesDefinidas);
+  const visualizacaoProximasSessoes = useMemo(() => {
+    if (!cicloAtivo?.cicloSlots?.length) return [] as HojeSlot[];
+    return Array.from({ length: cicloAtivo.totalSlots }, (_, indice) => {
+      const posicao = (cicloAtivo.posicaoAtual - 1 + indice) % cicloAtivo.totalSlots;
+      return {
+        ...cicloAtivo.cicloSlots[posicao],
+        ordem: posicao + 1,
+      };
+    });
+  }, [cicloAtivo]);
+  const visualizacaoDiscResumo = useMemo(() => {
+    if (!cicloAtivo?.cicloSlots?.length) return [] as Array<{ idDisciplina: number; nome: string; tipo: string; nivel: string | null; frequencia: number; primeiraOrdem: number }>;
+    const mapa = new Map<number, { idDisciplina: number; nome: string; tipo: string; nivel: string | null; frequencia: number; primeiraOrdem: number }>();
+    cicloAtivo.cicloSlots.forEach((slot, indice) => {
+      const atual = mapa.get(slot.idDisciplina);
+      if (atual) {
+        atual.frequencia += 1;
+      } else {
+        mapa.set(slot.idDisciplina, {
+          idDisciplina: slot.idDisciplina,
+          nome: slot.nome,
+          tipo: slot.tipo,
+          nivel: slot.nivel,
+          frequencia: 1,
+          primeiraOrdem: indice + 1,
+        });
+      }
+    });
+    return [...mapa.values()].sort((a, b) => b.frequencia - a.frequencia || a.primeiraOrdem - b.primeiraOrdem);
+  }, [cicloAtivo]);
+  const visualizacaoOrdemAtiva = visualizacaoHoverDisciplinaId ? null : (visualizacaoHoverOrdem ?? cicloAtivo?.posicaoAtual ?? null);
+  const visualizacaoSessaoAtiva = useMemo(
+    () => {
+      if (visualizacaoHoverDisciplinaId) {
+        return cicloAtivo?.cicloSlots?.find(slot => slot.idDisciplina === visualizacaoHoverDisciplinaId) ?? null;
+      }
+      return cicloAtivo?.cicloSlots?.find(slot => slot.ordem === visualizacaoOrdemAtiva) ?? null;
+    },
+    [cicloAtivo, visualizacaoHoverDisciplinaId, visualizacaoOrdemAtiva]
+  );
+  const visualizacaoDisciplinaAtivaId = visualizacaoHoverDisciplinaId ?? visualizacaoSessaoAtiva?.idDisciplina ?? cicloAtivo?.hojeSlots[0]?.idDisciplina ?? null;
+  const indicadorAtualAnel = useMemo(() => {
+    if (!cicloAtivo?.totalSlots) return null;
+    const segmento = 360 / cicloAtivo.totalSlots;
+    const angulo = -90 + ((cicloAtivo.posicaoAtual - 1) * segmento) + (segmento / 2);
+    const radianos = (angulo * Math.PI) / 180;
+    const raioCard = 43;
+    return {
+      left: `${50 + Math.cos(radianos) * raioCard}%`,
+      top: `${50 + Math.sin(radianos) * raioCard}%`,
+      rotation: `${angulo + 90}deg`,
+    };
+  }, [cicloAtivo]);
 
   const irParaEtapa = (nova: number) => {
     setDirecao(nova > etapa ? 'frente' : 'atras');
     setEtapa(nova);
+  };
+
+  const limparHoverVisualizacao = () => {
+    if (visualizacaoHoverTimeoutRef.current) {
+      clearTimeout(visualizacaoHoverTimeoutRef.current);
+      visualizacaoHoverTimeoutRef.current = null;
+    }
+    visualizacaoHoverTimeoutRef.current = setTimeout(() => {
+      setVisualizacaoHoverOrdem(null);
+      setVisualizacaoHoverDisciplinaId(null);
+      visualizacaoHoverTimeoutRef.current = null;
+    }, 70);
+  };
+
+  const ativarHoverSessaoVisualizacao = (ordem: number) => {
+    if (visualizacaoHoverTimeoutRef.current) {
+      clearTimeout(visualizacaoHoverTimeoutRef.current);
+      visualizacaoHoverTimeoutRef.current = null;
+    }
+    setVisualizacaoHoverDisciplinaId(null);
+    setVisualizacaoHoverOrdem(ordem);
+  };
+
+  const ativarHoverDisciplinaVisualizacao = (idDisciplina: number) => {
+    if (visualizacaoHoverTimeoutRef.current) {
+      clearTimeout(visualizacaoHoverTimeoutRef.current);
+      visualizacaoHoverTimeoutRef.current = null;
+    }
+    setVisualizacaoHoverOrdem(null);
+    setVisualizacaoHoverDisciplinaId(idDisciplina);
   };
 
   const animClass = direcao === 'frente'
@@ -228,8 +375,30 @@ export default function CiclosEstudo() {
   }, []);
   useEffect(() => { if (mounted) fetchCicloAtivo(); }, [mounted]);
   useEffect(() => { if (etapa === 2 && editais.length === 0) fetchEditais(); }, [etapa, editais.length]);
-  useEffect(() => { if (!ritmoManual) setRitmo(getRitmoRecomendado(horasDiarias)); }, [horasDiarias, ritmoManual]);
   useEffect(() => { if (editalSelecionado) fetchCargos(editalSelecionado.id); }, [editalSelecionado]);
+  useEffect(() => { setPreviewExpandida(false); }, [modoCiclo, cargoSelecionado, disciplinasSelecionadas.length, horasDiariasLimitadas]);
+  useEffect(() => { setPreviewHighlightId(null); }, [cicloPreview]);
+  useEffect(() => { setPreviewPinnedId(null); }, [cicloPreview]);
+  useEffect(() => { setPreviewModalAberta(false); }, [modoCiclo, cargoSelecionado, disciplinasSelecionadas.length, horasDiariasLimitadas]);
+  useEffect(() => {
+    setVisualizacaoHoverOrdem(null);
+    setVisualizacaoHoverDisciplinaId(null);
+  }, [cicloAtivo?.idCiclo, cicloAtivo?.posicaoAtual]);
+  useEffect(() => () => {
+    if (visualizacaoHoverTimeoutRef.current) {
+      clearTimeout(visualizacaoHoverTimeoutRef.current);
+    }
+  }, []);
+  useEffect(() => {
+    if (!previewModalAberta) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setPreviewModalAberta(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewModalAberta]);
 
   const fetchCicloAtivo = async () => {
     try {
@@ -243,11 +412,9 @@ export default function CiclosEstudo() {
           setEstado('criacao');
         }
       } else {
-        console.error('[fetchCicloAtivo] erro GET /api/ciclos:', data);
         setEstado('criacao');
       }
-    } catch (e) {
-      console.error('[fetchCicloAtivo] exceção:', e);
+    } catch {
       setEstado('criacao');
     }
   };
@@ -258,7 +425,7 @@ export default function CiclosEstudo() {
       const res  = await fetch('/api/concursos');
       const data = await res.json() as ConcursoApi[];
       setEditais(data.map((c) => ({
-        id: c.id, nome: c.nome, banca: c.banca || '',
+        id: c.id, nome: c.nome, descricao: c.descricao || c.nome, banca: c.banca || '',
         status: c.status ? c.status.toUpperCase() : 'PREVISTO',
         data: c.data ? c.data.split('T')[0].split('-').reverse().join('/') : 'A definir',
       })));
@@ -288,6 +455,8 @@ export default function CiclosEstudo() {
               tipo: d.tipo ?? 'B',
               peso: d.peso ?? null,
               qtd_questoes: d.qtd_questoes ?? null,
+              qtd_topicos: d.qtd_topicos ?? null,
+              categoria_cognitiva: d.categoria_cognitiva ?? null,
             }];
           }) ?? [],
         }];
@@ -323,14 +492,14 @@ export default function CiclosEstudo() {
     setSalvando(true);
     setErroSalvar(null);
     try {
-      const payload = {
-        horasDiarias: horasDiariasLimitadas,
-        idCargo: cargoSelecionado.id,
-        modo:    modoCiclo,
-        ritmo,
-        disciplinas: modoCiclo === 'personalizado'
-          ? disciplinasSelecionadas.map(id => ({ id, dificuldade: dificuldades[id] }))
-          : disciplinas.map(d => ({ id: d.id })), // algoritmo seleciona as melhores
+        const payload = {
+          horasDiarias: horasDiariasLimitadas,
+          idCargo: cargoSelecionado.id,
+          modo:    modoCiclo,
+          ritmo: 'equilibrado',
+          disciplinas: modoCiclo === 'personalizado'
+            ? disciplinasSelecionadas.map(id => ({ id, dificuldade: dificuldades[id] }))
+            : disciplinas.map(d => ({ id: d.id })), // algoritmo seleciona as melhores
       };
       const res  = await fetch('/api/ciclos', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -341,7 +510,7 @@ export default function CiclosEstudo() {
 
       // Resetar form e ir para visualização
       setEtapa(1); setDirecao('frente');
-      setHorasDiarias(2); setRitmo(getRitmoRecomendado(2)); setRitmoManual(false); setEditalSelecionado(null); setCargoSelecionado(null);
+      setHorasDiarias(2); setEditalSelecionado(null); setCargoSelecionado(null);
       setModoCiclo('automatico'); setDisciplinasSelecionadas([]); setDificuldades({});
       setEstado('loading');
       await fetchCicloAtivo();
@@ -359,7 +528,7 @@ export default function CiclosEstudo() {
       await fetch('/api/ciclos', { method: 'DELETE' });
       setCicloAtivo(null);
       setEtapa(1); setDirecao('frente');
-      setHorasDiarias(2); setRitmo(getRitmoRecomendado(2)); setRitmoManual(false); setEditalSelecionado(null); setCargoSelecionado(null);
+      setHorasDiarias(2); setEditalSelecionado(null); setCargoSelecionado(null);
       setModoCiclo('automatico'); setDisciplinasSelecionadas([]); setDificuldades({});
       setEstado('criacao');
     } finally {
@@ -411,6 +580,276 @@ export default function CiclosEstudo() {
                   : 'Confirmar'
                 }
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {previewModalAberta && cicloPreview.length > 0 && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-2 backdrop-blur-sm sm:p-4"
+          onClick={() => setPreviewModalAberta(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="preview-ciclo-title"
+            className="relative flex max-h-[96vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-white/40 bg-white shadow-[0_28px_90px_rgba(15,23,42,0.28)] sm:rounded-[32px]"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-4 py-4 sm:px-5 lg:px-8">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-500">Prévia do ciclo</p>
+                <p id="preview-ciclo-title" className="mt-1 text-lg font-black text-slate-800 lg:text-xl">Veja o ciclo completo antes de finalizar</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  O anel mostra o ciclo completo e a lateral destaca o início da sequência.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewModalAberta(false)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-xl text-slate-400 transition-colors hover:border-slate-300 hover:text-slate-600"
+                aria-label="Fechar prévia do ciclo"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="overflow-y-auto px-4 py-4 sm:px-5 sm:py-5 lg:px-8 lg:py-6">
+              <div className="rounded-xl border border-sky-100 bg-sky-50/60 px-4 py-3">
+                <p className="text-xs font-medium text-slate-600">
+                  {cicloPreview.length > limiteSequenciaPreview
+                    ? `O anel mostra o ciclo completo. À direita, você vê as ${limiteSequenciaPreview} primeiras sessões.`
+                    : 'O anel abaixo já representa o ciclo completo.'}
+                </p>
+                  {modoCiclo === 'personalizado' && dificuldadesPendentesCount > 0 && (
+                  <p className="mt-1 text-xs font-medium text-amber-600">
+                    Esta é uma prévia provisória: disciplinas sem nível definido aparecem como médio.
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(360px,0.95fr)_minmax(0,1.05fr)] lg:gap-4">
+                <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.16),_transparent_38%),radial-gradient(circle_at_bottom,_rgba(59,130,246,0.08),_transparent_42%),linear-gradient(180deg,#ffffff_0%,#f6fbff_100%)] p-4 shadow-sm sm:p-5 lg:rounded-[32px] lg:p-6">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-slate-600 shadow-sm">
+                        {cicloPreview.length} {cicloPreview.length === 1 ? 'sessão' : 'sessões'}
+                      </span>
+                      <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-slate-600 shadow-sm">
+                        {disciplinasPreview.length} {disciplinasPreview.length === 1 ? 'disciplina' : 'disciplinas'}
+                      </span>
+                    </div>
+
+                    <div className="mt-5 flex w-full justify-center">
+                      <div className="relative aspect-square w-full max-w-[280px] sm:max-w-[320px] lg:max-w-[380px]">
+                        <div className="absolute left-1/2 top-1 z-10 -translate-x-1/2 rounded-full border border-sky-100 bg-white/95 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-sky-700 shadow-sm">
+                          Início
+                        </div>
+                        <svg
+                          viewBox="0 0 260 260"
+                          role="img"
+                          aria-label={`Anel do ciclo com ${cicloPreview.length} ${cicloPreview.length === 1 ? 'sessão' : 'sessões'}. ${sessaoInicialPreview ? `${sessaoInicialPreview.nome} inicia o ciclo.` : ''}`}
+                          className="h-full w-full -rotate-90 drop-shadow-[0_24px_54px_rgba(14,165,233,0.12)]"
+                        >
+                          <circle cx="130" cy="130" r="92" fill="none" stroke="#e2e8f0" strokeWidth="20" />
+                          {cicloPreview.map((sessao, index) => {
+                            const cor = WHEEL_COLORS[sessao.id % WHEEL_COLORS.length];
+                            const total = cicloPreview.length;
+                            const circunferencia = 2 * Math.PI * 92;
+                            const gap = Math.max(3, total > 24 ? 1.2 : 2.2);
+                            const segmento = circunferencia / total;
+                            const dash = Math.max(segmento - gap, 4);
+                            const offset = -(index * segmento);
+                            const destaque = previewHighlightAtivo === sessao.id;
+                            const primeiraSessao = index === 0;
+
+                            return (
+                              <circle
+                                key={`${sessao.id}-${sessao.ordem}`}
+                                cx="130"
+                                cy="130"
+                                r="92"
+                                fill="none"
+                                stroke={cor}
+                                strokeWidth={primeiraSessao || destaque ? 24 : 18}
+                                strokeLinecap="round"
+                                strokeDasharray={`${dash} ${Math.max(circunferencia - dash, 0)}`}
+                                strokeDashoffset={offset}
+                                className="transition-all duration-300"
+                                style={{ opacity: previewHighlightAtivo && !destaque ? 0.28 : 0.96, filter: primeiraSessao || destaque ? 'drop-shadow(0 0 10px rgba(14,165,233,0.25))' : 'none' }}
+                                onMouseEnter={() => setPreviewHighlightId(sessao.id)}
+                                onMouseLeave={() => setPreviewHighlightId(null)}
+                                onClick={() => setPreviewPinnedId(prev => prev === sessao.id ? null : sessao.id)}
+                              />
+                            );
+                          })}
+                        </svg>
+                        <div className="absolute inset-[21%] rounded-full border border-white/70 bg-white/92 shadow-[0_18px_50px_rgba(148,163,184,0.18)] backdrop-blur">
+                          <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">
+                              Volta do ciclo
+                            </p>
+                            <p className="mt-2 text-3xl font-black text-slate-800 lg:text-4xl">{cicloPreview.length}</p>
+                            <p className="text-sm font-bold text-slate-500">{cicloPreview.length === 1 ? 'sessão' : 'sessões'}</p>
+                            <div className="mt-4 h-px w-20 bg-slate-200" />
+                            <p className="mt-4 text-base font-black leading-tight text-slate-800 lg:text-lg">
+                              {disciplinaHighlightPreview?.nome ?? sessaoInicialPreview?.nome ?? 'Volta do ciclo'}
+                            </p>
+                            <p className="mt-1 text-xs font-medium text-slate-500">
+                              {disciplinaHighlightPreview
+                                ? `${disciplinaHighlightPreview.sessoes} ${disciplinaHighlightPreview.sessoes === 1 ? 'sessão' : 'sessões'} no ciclo`
+                                : `Sessão ${sessaoInicialPreview?.ordem ?? 1} inicia o ciclo`}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 max-w-md text-center">
+                      <p className="text-base font-black text-slate-800 lg:text-lg">
+                        A estrutura completa do seu ciclo
+                      </p>
+                      <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                        Ao concluir a última sessão, o ciclo reinicia do início.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5 lg:rounded-[28px]">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Início da sequência</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-500">Confira como o ciclo começa antes de continuar estudando.</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {previewPinnedId && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPreviewPinnedId(null);
+                              setPreviewHighlightId(null);
+                            }}
+                            className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-bold text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50"
+                          >
+                            Voltar ao início
+                          </button>
+                        )}
+                        {cicloPreview.length > limiteSequenciaPreview && (
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-600">
+                            {cicloPreviewVisivel.length} de {cicloPreview.length}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 max-h-[320px] space-y-2 overflow-y-auto pr-1 sm:max-h-[372px]">
+                      {cicloPreviewVisivel.map(sessao => {
+                        const cor = WHEEL_COLORS[sessao.id % WHEEL_COLORS.length];
+                        const tipoLabel = getTipoDisciplinaLabel(sessao.tipo);
+                        const ativo = previewHighlightAtivo === sessao.id;
+                        const inicio = sessao.ordem === (sessaoInicialPreview?.ordem ?? 1);
+
+                        return (
+                          <button
+                            key={`${sessao.id}-${sessao.ordem}`}
+                            type="button"
+                            aria-label={`${inicio ? 'Sessão inicial' : `Sessão ${sessao.ordem}`}: ${sessao.nome}`}
+                            aria-pressed={previewPinnedId === sessao.id}
+                            onMouseEnter={() => setPreviewHighlightId(sessao.id)}
+                            onMouseLeave={() => setPreviewHighlightId(null)}
+                            onClick={() => setPreviewPinnedId(prev => prev === sessao.id ? null : sessao.id)}
+                            className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-all ${
+                              ativo
+                                ? 'border-sky-200 bg-sky-50'
+                                : inicio
+                                  ? 'border-sky-100 bg-sky-50/50 hover:border-sky-200'
+                                  : 'border-slate-200 bg-slate-50/70 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-sm font-black shadow-sm ${
+                              inicio ? 'bg-sky-500 text-white' : 'bg-white text-slate-700'
+                            }`}>
+                              {sessao.ordem}
+                            </div>
+                            <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: cor }} />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-black text-slate-800">{sessao.nome}</p>
+                              <p className="mt-1 text-xs text-slate-500">
+                                {inicio ? 'Início do ciclo' : (tipoLabel ?? 'Disciplina')} · {sessao.dificuldade}
+                              </p>
+                            </div>
+                            {inicio && (
+                              <span className="rounded-full bg-sky-100 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-sky-700">
+                                início
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {cicloPreview.length > limiteSequenciaPreview && (
+                      <div className="mt-4 flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => setPreviewExpandida(prev => !prev)}
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50"
+                        >
+                          {previewExpandida ? 'Mostrar menos' : `Ver sequência completa (${cicloPreview.length} sessões)`}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5 lg:rounded-[28px]">
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Disciplinas no ciclo</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-500">
+                        Frequência de cada disciplina no ciclo.
+                      </p>
+                    </div>
+
+                    <div className="mt-4 max-h-[280px] space-y-2 overflow-y-auto pr-1">
+                      {disciplinasResumoPreview.map(item => {
+                        const cor = WHEEL_COLORS[item.id % WHEEL_COLORS.length];
+                        const tipoLabel = getTipoDisciplinaLabel(item.tipo);
+                        const ativo = previewHighlightAtivo === item.id;
+
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            aria-label={`${item.nome}, ${item.sessoes} ${item.sessoes === 1 ? 'sessão' : 'sessões'} no ciclo`}
+                            aria-pressed={previewPinnedId === item.id}
+                            onMouseEnter={() => setPreviewHighlightId(item.id)}
+                            onMouseLeave={() => setPreviewHighlightId(null)}
+                            onClick={() => setPreviewPinnedId(prev => prev === item.id ? null : item.id)}
+                            className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-all ${
+                              ativo ? 'border-sky-200 bg-sky-50 shadow-sm' : 'border-slate-200 bg-slate-50/70 hover:border-slate-300'
+                            }`}
+                          >
+                            <span className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ backgroundColor: cor }} />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-black text-slate-800">{item.nome}</p>
+                              <p className="mt-1 text-xs text-slate-500">
+                                {item.sessoes} {item.sessoes === 1 ? 'sessão' : 'sessões'}{tipoLabel ? ` · ${tipoLabel}` : ''}
+                              </p>
+                            </div>
+                            {item.primeiraOrdem === (sessaoInicialPreview?.ordem ?? 1) && (
+                              <span className="rounded-full bg-sky-100 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-sky-700">
+                                início
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -497,7 +936,7 @@ export default function CiclosEstudo() {
                   <div className="grid grid-cols-12 items-start gap-4">
 
                     {/* ── Cabeçalho ── */}
-                    <div className="col-span-12 xl:col-span-8 rounded-lg border border-slate-100 bg-white px-6 py-4 shadow-sm flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                    <div className="col-span-12 rounded-lg border border-slate-100 bg-white px-6 py-4 shadow-sm flex flex-col lg:flex-row lg:items-start justify-between gap-4">
                       <div className="min-w-0 max-w-2xl">
                         <div className="flex items-center gap-2 mb-2">
                           <span className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-[11px] font-black uppercase tracking-wide">
@@ -515,7 +954,7 @@ export default function CiclosEstudo() {
                           </p>
                         )}
                         <p className="text-sm text-slate-500 mt-2 leading-relaxed">
-                          Acompanhe seu ciclo e siga a próxima sessão sem perder o ritmo.
+                          Continue pela próxima sessão e acompanhe a estrutura completa do seu ciclo.
                         </p>
                       </div>
                       <div className="flex flex-col sm:flex-row lg:flex-col gap-2 shrink-0">
@@ -529,208 +968,321 @@ export default function CiclosEstudo() {
                       </div>
                     </div>
 
-                    {/* ── Resumo compacto ── */}
-                    <div className="col-span-12 xl:col-span-4 rounded-lg border border-slate-100 bg-white p-3.5 shadow-sm">
-                      <div className="mb-2.5 flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-black text-slate-700">Resumo do ciclo</p>
-                          <p className="text-[11px] font-semibold text-slate-500">Visão geral</p>
-                        </div>
-                        {cicloAtivo.posicaoAtual / cicloAtivo.totalSlots >= 0.8 && (
-                          <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                            Reta final
-                          </span>
-                        )}
-                      </div>
+                    <div className="col-span-12 flex min-w-0 flex-col gap-4">
 
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="rounded-md border border-slate-100 bg-slate-50 px-2.5 py-2 min-w-0">
-                          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Sessões</p>
-                          <p className="text-base font-black leading-tight text-slate-800">{cicloAtivo.totalSlots}</p>
-                          <p className="text-[10px] font-semibold text-slate-500">no ciclo</p>
-                        </div>
-                        <div className="rounded-md border border-sky-100 bg-sky-50 px-2.5 py-2 min-w-0">
-                          <p className="text-[10px] font-bold uppercase tracking-wide text-sky-700">Meta de hoje</p>
-                          <p className="text-base font-black leading-tight text-sky-700">{cicloAtivo.horasPorDia} sessões</p>
-                          <p className="text-[10px] font-semibold text-sky-700">{cicloAtivo.horasPorDia} horas hoje</p>
-                        </div>
-                      </div>
-                    </div>
+                      {/* ── Sessão atual ── */}
+                      <div className="relative overflow-hidden rounded-lg border border-sky-100 bg-linear-to-br from-sky-50 via-white to-white px-5 py-4 shadow-sm">
+                        <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-sky-100/70" />
+                        {cicloAtivo.hojeSlots[0] && (() => {
+                          const s = cicloAtivo.hojeSlots[0];
+                          const proximaSessao = visualizacaoProximasSessoes[1];
+                          const tipoLabel = getTipoDisciplinaLabel(s.tipo);
+                          const nivelCores: Record<string, string> = { ALTO: 'bg-red-100 text-red-700', MEDIO: 'bg-amber-100 text-amber-700', BAIXO: 'bg-emerald-100 text-emerald-700' };
+                          const nivelLabel: Record<string, string> = { ALTO: 'Alto', MEDIO: 'Médio', BAIXO: 'Baixo' };
 
-                    <div className="col-span-12 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.85fr)] xl:items-start">
-                      <div className="flex min-w-0 flex-col gap-4">
-
-                        {/* ── Sessão atual ── */}
-                        <div className="relative overflow-hidden rounded-lg border border-sky-100 bg-linear-to-br from-sky-50 via-white to-white p-5 shadow-sm">
-                          <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-sky-100/70" />
-                          {cicloAtivo.hojeSlots[0] && (() => {
-                            const s = cicloAtivo.hojeSlots[0];
-                            const proximaSessao = cicloAtivo.hojeSlots[1];
-                            const tipoLabel = getTipoDisciplinaLabel(s.tipo);
-                            const nivelCores: Record<string, string> = { ALTO: 'bg-red-100 text-red-700', MEDIO: 'bg-amber-100 text-amber-700', BAIXO: 'bg-emerald-100 text-emerald-700' };
-                            const nivelLabel: Record<string, string> = { ALTO: 'Alto', MEDIO: 'Médio', BAIXO: 'Baixo' };
-
-                            return (
-                              <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                                <div className="min-w-0">
-                                  <p className="mb-2 text-sm font-black uppercase tracking-wide text-sky-700">Sessão atual</p>
-                                  <h3 className="text-2xl font-black leading-tight text-slate-900">{s.nome}</h3>
-                                  <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-bold text-slate-600">
-                                    <span>Você está na sessão {cicloAtivo.posicaoAtual} de {cicloAtivo.totalSlots}</span>
-                                    <span className="text-slate-300">·</span>
-                                    <span>1h</span>
-                                    {tipoLabel && (
-                                      <>
-                                        <span className="text-slate-300">·</span>
-                                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">
-                                          {tipoLabel}
-                                        </span>
-                                      </>
-                                    )}
-                                    {s.nivel && (
-                                      <>
-                                        <span className="text-slate-300">·</span>
-                                        <span className={`rounded-full px-2 py-0.5 text-xs font-black uppercase ${nivelCores[s.nivel] ?? 'bg-slate-100 text-slate-600'}`}>
-                                          {nivelLabel[s.nivel] ?? s.nivel}
-                                        </span>
-                                      </>
-                                    )}
-                                  </div>
-                                  <p className="mt-3 text-sm font-semibold text-slate-500">
-                                    {proximaSessao
-                                      ? `Ao concluir, você avança para a disciplina: ${proximaSessao.nome}.`
-                                      : 'Depois desta sessão, o ciclo avança para a próxima disciplina.'}
-                                  </p>
-                                </div>
-                                <div className="shrink-0">
-                                  <button
-                                    onClick={() => router.push('/dashboard')}
-                                    aria-label="Estudar sessão atual na Minha Mesa"
-                                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-sky-500 px-6 py-3 text-sm font-black text-white shadow-md shadow-sky-100 transition-all hover:bg-sky-600 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2"
-                                  >
-                                    Estudar na Minha Mesa <ChevronRight size={15} />
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </div>
-
-                        {/* ── Plano de hoje ── */}
-                        <div className="rounded-lg border border-slate-100 bg-white p-5 shadow-sm">
-                          <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                            <div>
-                              <div className="mb-1 flex items-center gap-2">
-                                <span className="h-2 w-2 rounded-full bg-sky-500" />
-                                <p className="text-base font-black text-slate-800">Plano de hoje</p>
-                              </div>
-                              <p className="text-sm text-slate-500">
-                                Próximas sessões na ordem recomendada. Cada sessão dura 1h.
-                              </p>
-                            </div>
-                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                              Hoje: {cicloAtivo.horasPorDia} sessões
-                            </span>
-                          </div>
-
-                          <div className="space-y-0">
-                            {cicloAtivo.hojeSlots.map((s, i) => {
-                              const sessao = cicloAtivo.posicaoAtual + i > cicloAtivo.totalSlots
-                                ? ((cicloAtivo.posicaoAtual + i - 1) % cicloAtivo.totalSlots) + 1
-                                : cicloAtivo.posicaoAtual + i;
-                              const atual = i === 0;
-                              const etapaLabel = atual ? 'Agora' : i === 1 ? 'Próxima' : 'Depois';
-
-                              return (
-                                <div key={i} className="relative flex gap-3 pb-3 last:pb-0">
-                                  {i < cicloAtivo.hojeSlots.length - 1 && (
-                                    <div className="absolute left-3 top-7 h-[calc(100%-1.25rem)] w-px bg-slate-200" />
-                                  )}
-                                  <div className={`relative z-10 flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-black ${atual ? 'bg-sky-500 text-white shadow-sm shadow-sky-100' : 'bg-slate-100 text-slate-500'}`}>
-                                    {sessao}
-                                  </div>
-                                  <div className={`min-w-0 flex-1 rounded-lg border px-3 py-2 transition-colors ${atual ? 'border-sky-200 bg-sky-50 shadow-sm shadow-sky-50 ring-1 ring-sky-100' : 'border-transparent bg-white hover:border-slate-100 hover:bg-slate-50'}`}>
-                                    <div className="flex items-center gap-2">
-                                      <span className={`shrink-0 text-[11px] font-black uppercase tracking-wide ${atual ? 'text-sky-700' : 'text-slate-400'}`}>
-                                        {etapaLabel}
+                          return (
+                            <div className="relative flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                              <div className="min-w-0">
+                                <p className="mb-1.5 text-[11px] font-black uppercase tracking-[0.22em] text-sky-700">Sessão atual</p>
+                                <h3 className="text-[30px] font-black leading-tight text-slate-900">{s.nome}</h3>
+                                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm font-bold text-slate-600">
+                                  <span>Você está na sessão {cicloAtivo.posicaoAtual} de {cicloAtivo.totalSlots}</span>
+                                  <span className="text-slate-300">·</span>
+                                  <span>1h</span>
+                                  {tipoLabel && (
+                                    <>
+                                      <span className="text-slate-300">·</span>
+                                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">
+                                        {tipoLabel}
                                       </span>
-                                      <p className="truncate text-sm font-bold text-slate-700">{s.nome}</p>
+                                    </>
+                                  )}
+                                  {s.nivel && (
+                                    <>
+                                      <span className="text-slate-300">·</span>
+                                      <span className={`rounded-full px-2 py-0.5 text-xs font-black uppercase ${nivelCores[s.nivel] ?? 'bg-slate-100 text-slate-600'}`}>
+                                        {nivelLabel[s.nivel] ?? s.nivel}
+                                      </span>
+                                    </>
+                                    )}
+                                  </div>
+                                <p className="mt-2 text-sm font-semibold text-slate-500">
+                                  {proximaSessao
+                                    ? `Ao concluir, você avança para a disciplina: ${proximaSessao.nome}.`
+                                    : 'Depois desta sessão, o ciclo avança para a próxima disciplina.'}
+                                </p>
+                              </div>
+                              <div className="shrink-0">
+                                <button
+                                  onClick={() => router.push('/dashboard')}
+                                  aria-label="Estudar sessão atual na Minha Mesa"
+                                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-sky-500 px-6 py-3 text-sm font-black text-white shadow-md shadow-sky-100 transition-all hover:bg-sky-600 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2"
+                                >
+                                  Estudar na Minha Mesa <ChevronRight size={15} />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      {/* ── Visualização do ciclo ── */}
+                      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(460px,1.02fr)_minmax(380px,0.98fr)] xl:items-stretch">
+                        <div className="overflow-hidden rounded-[28px] border border-sky-100 bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.18),_transparent_38%),radial-gradient(circle_at_bottom,_rgba(59,130,246,0.10),_transparent_42%),linear-gradient(180deg,#ffffff_0%,#f6fbff_100%)] p-5 shadow-sm transition-all duration-300 sm:p-6 lg:rounded-[32px] lg:p-7 hover:shadow-md">
+                          <div className="flex h-full flex-col gap-4">
+                            <div className="flex flex-col gap-3 text-left sm:flex-row sm:items-start sm:justify-between">
+                              <div className="max-w-sm">
+                                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-700">Estrutura do ciclo</p>
+                                <p className="mt-1 text-sm font-semibold leading-relaxed text-slate-500">Veja a ordem das sessões e acompanhe sua posição atual dentro do ciclo.</p>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                                <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-slate-600 shadow-sm">
+                                  {cicloAtivo.totalSlots} {cicloAtivo.totalSlots === 1 ? 'sessão' : 'sessões'}
+                                </span>
+                                <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-slate-600 shadow-sm">
+                                  {visualizacaoDiscResumo.length} {visualizacaoDiscResumo.length === 1 ? 'disciplina' : 'disciplinas'}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-1 items-start justify-center pt-1">
+                              <div className="relative aspect-square w-full max-w-[290px] sm:max-w-[344px] lg:max-w-[392px]">
+                                {indicadorAtualAnel && (
+                                  <div
+                                    className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2"
+                                    style={{ left: indicadorAtualAnel.left, top: indicadorAtualAnel.top }}
+                                  >
+                                    <div
+                                      className="flex h-8 w-8 items-center justify-center"
+                                      style={{ transform: `rotate(${indicadorAtualAnel.rotation})` }}
+                                      aria-hidden="true"
+                                    >
+                                      <div className="h-0 w-0 border-l-[10px] border-r-[10px] border-b-0 border-t-[18px] border-l-transparent border-r-transparent border-t-sky-500 drop-shadow-[0_4px_10px_rgba(14,165,233,0.18)] [filter:drop-shadow(0_1px_0_rgba(15,23,42,0.9))]" />
                                     </div>
                                   </div>
+                                )}
+                                <svg
+                                  viewBox="0 0 260 260"
+                                  role="img"
+                                  aria-label={`Anel do ciclo em andamento com ${cicloAtivo.totalSlots} sessões. ${cicloAtivo.hojeSlots[0] ? `${cicloAtivo.hojeSlots[0].nome} é a sessão atual.` : ''}`}
+                                  className="h-full w-full -rotate-90 drop-shadow-[0_24px_54px_rgba(14,165,233,0.12)]"
+                                >
+                                  <circle cx="130" cy="130" r="92" fill="none" stroke="#e2e8f0" strokeWidth="20" />
+                                  {cicloAtivo.cicloSlots.map((sessao, index) => {
+                                    const colorIndex = visualizacaoDiscResumo.findIndex(item => item.idDisciplina === sessao.idDisciplina);
+                                    const cor = WHEEL_COLORS[(colorIndex >= 0 ? colorIndex : sessao.idDisciplina) % WHEEL_COLORS.length];
+                                    const total = cicloAtivo.cicloSlots.length;
+                                    const circunferencia = 2 * Math.PI * 92;
+                                    const gap = Math.max(3, total > 24 ? 1.2 : 2.2);
+                                    const segmento = circunferencia / total;
+                                    const dash = Math.max(segmento - gap, 4);
+                                    const offset = -(index * segmento);
+                                    const destaque = visualizacaoHoverDisciplinaId
+                                      ? sessao.idDisciplina === visualizacaoHoverDisciplinaId
+                                      : visualizacaoOrdemAtiva === sessao.ordem;
+                                    return (
+                                      <circle
+                                        key={`${sessao.idDisciplina}-${index}`}
+                                        cx="130"
+                                        cy="130"
+                                        r="92"
+                                        fill="none"
+                                        stroke={cor}
+                                        strokeWidth={destaque ? 20 : 18}
+                                        strokeLinecap="round"
+                                        strokeDasharray={`${dash} ${Math.max(circunferencia - dash, 0)}`}
+                                        strokeDashoffset={offset}
+                                        className="transition-all duration-200 ease-out"
+                                        style={{ opacity: destaque ? 1 : 0.24, filter: destaque ? 'drop-shadow(0 0 10px rgba(14,165,233,0.24))' : 'none' }}
+                                        onMouseEnter={() => ativarHoverSessaoVisualizacao(sessao.ordem)}
+                                        onMouseLeave={limparHoverVisualizacao}
+                                      />
+                                    );
+                                  })}
+                                </svg>
+                                <div className="absolute inset-[18%] rounded-full border border-white/70 bg-white/92 shadow-[0_18px_50px_rgba(148,163,184,0.18)] backdrop-blur">
+                                  <div className="flex h-full flex-col items-center justify-center px-5 text-center sm:px-6">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                                      {visualizacaoOrdemAtiva === cicloAtivo.posicaoAtual ? 'Disciplina atual' : 'Disciplina'}
+                                    </p>
+                                    <div className="mt-4 h-px w-16 bg-slate-200" />
+                                    <p
+                                      className="mt-4 max-w-[170px] text-sm font-black leading-tight text-slate-800 sm:max-w-[190px] sm:text-base"
+                                      title={visualizacaoSessaoAtiva?.nome ?? cicloAtivo.hojeSlots[0]?.nome ?? 'Sessão atual'}
+                                      style={{
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: 3,
+                                        WebkitBoxOrient: 'vertical',
+                                        overflow: 'hidden',
+                                      }}
+                                    >
+                                      {visualizacaoSessaoAtiva?.nome ?? cicloAtivo.hojeSlots[0]?.nome ?? 'Sessão atual'}
+                                    </p>
+                                  </div>
                                 </div>
-                              );
-                            })}
-                          </div>
+                              </div>
+                            </div>
 
-                          <p className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
-                            Use a Minha Mesa para registrar cada sessão concluída.
-                          </p>
+                            <div className="rounded-[20px] border border-white/70 bg-white/70 px-4 py-2.5 text-left shadow-sm">
+                              <p className="text-sm font-black text-slate-800">Seu ciclo segue em ordem contínua</p>
+                              <p className="mt-1 text-[13px] leading-relaxed text-slate-500">
+                                Ao concluir a última sessão, o ciclo reinicia do começo.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-[28px] border border-sky-100 bg-linear-to-br from-white via-sky-50/60 to-white p-4 shadow-sm transition-all duration-300 sm:p-5 lg:rounded-[32px] hover:shadow-md">
+                          <div className="flex h-full flex-col">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-700">Próximas sessões</p>
+                                <p className="mt-1 text-sm font-semibold text-slate-600">Acompanhe a sequência completa a partir da sessão atual.</p>
+                              </div>
+                              <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-sky-700 shadow-sm">
+                                {visualizacaoProximasSessoes.length} visíveis
+                              </span>
+                            </div>
+
+                            <div className="mt-4 max-h-[468px] space-y-1.5 overflow-y-auto pr-1">
+                              {visualizacaoProximasSessoes.map((sessao, indice) => {
+                                const colorIndex = visualizacaoDiscResumo.findIndex(item => item.idDisciplina === sessao.idDisciplina);
+                                const cor = WHEEL_COLORS[(colorIndex >= 0 ? colorIndex : sessao.idDisciplina) % WHEEL_COLORS.length];
+                                const tipoLabel = getTipoDisciplinaLabel(sessao.tipo);
+                                const atual = indice === 0;
+                                const destaque = visualizacaoOrdemAtiva === sessao.ordem;
+
+                                return (
+                                  <button
+                                    key={`${sessao.idDisciplina}-${sessao.ordem}-${indice}`}
+                                    type="button"
+                                    onMouseEnter={() => ativarHoverSessaoVisualizacao(sessao.ordem)}
+                                    onMouseLeave={limparHoverVisualizacao}
+                                    className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition-all duration-200 ease-out ${
+                                      destaque
+                                        ? 'border-sky-200 bg-white shadow-sm ring-1 ring-sky-100'
+                                        : atual
+                                          ? 'border-sky-100 bg-sky-50/50'
+                                          : 'border-slate-200 bg-slate-50/70 hover:border-slate-300 hover:bg-white'
+                                    }`}
+                                  >
+                                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-sm font-black shadow-sm ${
+                                      destaque || atual ? 'bg-sky-500 text-white' : 'bg-white text-slate-700'
+                                    }`}>
+                                      {sessao.ordem}
+                                    </div>
+                                    <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: cor }} />
+                                    <div className="min-w-0 flex-1">
+                                      <p className="truncate text-sm font-black text-slate-800">{sessao.nome}</p>
+                                      <p className="mt-1 text-xs text-slate-500">
+                                        {atual ? 'Agora' : indice === 1 ? 'Próxima' : 'Depois'} · {tipoLabel ?? 'Disciplina'}
+                                      </p>
+                                    </div>
+                                    {atual && (
+                                      <span className="rounded-full bg-sky-100 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-sky-700">
+                                        atual
+                                      </span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="flex min-w-0 flex-col gap-4">
-                        {/* ── Distribuição ── */}
-                        <div className="rounded-lg border border-slate-100 bg-white p-5 shadow-sm">
-                          {(() => {
-                            const disciplinasOrdenadas = [...cicloAtivo.disciplinas].sort((a, b) => b.frequencia - a.frequencia);
-                            const gruposDistribuicao = Array.from(new Set(disciplinasOrdenadas.map(d => d.frequencia)))
-                              .map(frequencia => ({
-                                frequencia,
-                                disciplinas: disciplinasOrdenadas.filter(d => d.frequencia === frequencia),
-                              }));
+                      <div className="rounded-[28px] border border-slate-100 bg-white p-4 shadow-sm transition-all duration-300 sm:p-5 lg:rounded-[32px]">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                          <div>
+                            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Disciplinas no ciclo</p>
+                            <p className="mt-1 text-sm font-semibold text-slate-500">Veja a composição do ciclo e quantas sessões cada disciplina ocupa.</p>
+                          </div>
+                          <span className="rounded-full bg-slate-50 px-3 py-1 text-[11px] font-bold text-slate-600 shadow-sm">
+                            {visualizacaoDiscResumo.length} {visualizacaoDiscResumo.length === 1 ? 'disciplina' : 'disciplinas'}
+                          </span>
+                        </div>
+
+                        <div className="mt-4 grid gap-2.5 lg:grid-cols-2">
+                          {visualizacaoDiscResumo.map(item => {
+                            const colorIndex = visualizacaoDiscResumo.findIndex(disc => disc.idDisciplina === item.idDisciplina);
+                            const cor = WHEEL_COLORS[colorIndex % WHEEL_COLORS.length];
+                            const tipoLabel = getTipoDisciplinaLabel(item.tipo);
+                            const destaque = item.idDisciplina === visualizacaoDisciplinaAtivaId;
 
                             return (
-                              <>
-                                <p className="text-base font-black text-slate-800 mb-1">
-                                  Distribuição das disciplinas
-                                </p>
-                                <p className="mb-3 text-xs text-slate-500">
-                                  Este ciclo reúne {cicloAtivo.disciplinas.length} {cicloAtivo.disciplinas.length === 1 ? 'disciplina' : 'disciplinas'}, agrupadas por frequência no ciclo.
-                                </p>
-                                <div className="relative">
-                                  <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1">
-                                    {gruposDistribuicao.map(({ frequencia, disciplinas }) => (
-                                      <div key={frequencia} className="rounded-lg border border-slate-100 bg-slate-50/60 p-2">
-                                        <div className="mb-1.5 flex items-center justify-between gap-2 px-1">
-                                          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                                            {frequencia} {frequencia === 1 ? 'sessão' : 'sessões'} no ciclo
-                                          </p>
-                                          <span className="text-[11px] font-bold text-slate-400">
-                                            {disciplinas.length} {disciplinas.length === 1 ? 'disciplina' : 'disciplinas'}
-                                          </span>
-                                        </div>
-                                        <div className="space-y-1">
-                                          {disciplinas.map(d => {
-                                            const colorIndex = disciplinasOrdenadas.findIndex(item => item.idDisciplina === d.idDisciplina);
-                                            const color = WHEEL_COLORS[colorIndex % WHEEL_COLORS.length];
-                                            const eAtual = d.idDisciplina === cicloAtivo.hojeSlots[0]?.idDisciplina;
-
-                                            return (
-                                              <div key={d.idDisciplina} className={`rounded-md px-2.5 py-2 transition-colors ${eAtual ? 'bg-sky-50 ring-1 ring-sky-100' : 'bg-white/70 hover:bg-white'}`}>
-                                                <div className="flex items-center gap-2">
-                                                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                                                  <p className={`flex-1 text-sm font-bold truncate min-w-0 ${eAtual ? 'text-slate-900' : 'text-slate-700'}`}>{d.nome}</p>
-                                                  {eAtual && (
-                                                    <span className="shrink-0 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-700">
-                                                      atual
-                                                    </span>
-                                                  )}
-                                                </div>
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                  {cicloAtivo.disciplinas.length > 8 && (
-                                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-linear-to-t from-white to-white/0" />
-                                  )}
+                              <button
+                                key={item.idDisciplina}
+                                type="button"
+                                onMouseEnter={() => ativarHoverDisciplinaVisualizacao(item.idDisciplina)}
+                                onMouseLeave={limparHoverVisualizacao}
+                                className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-all duration-200 ease-out ${
+                                  destaque
+                                    ? 'border-sky-200 bg-sky-50/60 shadow-sm'
+                                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70'
+                                }`}
+                              >
+                                <span className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ backgroundColor: cor }} />
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-sm font-black text-slate-800">{item.nome}</p>
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    {item.frequencia} {item.frequencia === 1 ? 'sessão' : 'sessões'}{tipoLabel ? ` · ${tipoLabel}` : ''}
+                                  </p>
                                 </div>
-                              </>
+                              </button>
                             );
-                          })()}
+                          })}
                         </div>
+                      </div>
+
+                      {/* ── Plano de hoje ── */}
+                      <div className="rounded-lg border border-slate-100 bg-white p-5 shadow-sm">
+                        <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                          <div>
+                            <div className="mb-1 flex items-center gap-2">
+                              <span className="h-2 w-2 rounded-full bg-sky-500" />
+                              <p className="text-base font-black text-slate-800">Plano de hoje</p>
+                            </div>
+                            <p className="text-sm text-slate-500">
+                              Próximas sessões da sua meta diária. Cada sessão dura 1h.
+                            </p>
+                          </div>
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                            Hoje: {cicloAtivo.horasPorDia} sessões
+                          </span>
+                        </div>
+
+                        <div className="space-y-0">
+                          {cicloAtivo.hojeSlots.map((s, i) => {
+                            const sessao = cicloAtivo.posicaoAtual + i > cicloAtivo.totalSlots
+                              ? ((cicloAtivo.posicaoAtual + i - 1) % cicloAtivo.totalSlots) + 1
+                              : cicloAtivo.posicaoAtual + i;
+                            const atual = i === 0;
+                            const etapaLabel = atual ? 'Agora' : i === 1 ? 'Próxima' : 'Depois';
+
+                            return (
+                              <div key={i} className="relative flex gap-3 pb-3 last:pb-0">
+                                {i < cicloAtivo.hojeSlots.length - 1 && (
+                                  <div className="absolute left-3 top-7 h-[calc(100%-1.25rem)] w-px bg-slate-200" />
+                                )}
+                                <div className={`relative z-10 flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-black ${atual ? 'bg-sky-500 text-white shadow-sm shadow-sky-100' : 'bg-slate-100 text-slate-500'}`}>
+                                  {sessao}
+                                </div>
+                                <div className={`min-w-0 flex-1 rounded-lg border px-3 py-2 transition-colors ${atual ? 'border-sky-200 bg-sky-50 shadow-sm shadow-sky-50 ring-1 ring-sky-100' : 'border-transparent bg-white hover:border-slate-100 hover:bg-slate-50'}`}>
+                                  <div className="flex items-center gap-2">
+                                    <span className={`shrink-0 text-[11px] font-black uppercase tracking-wide ${atual ? 'text-sky-700' : 'text-slate-400'}`}>
+                                      {etapaLabel}
+                                    </span>
+                                    <p className="truncate text-sm font-bold text-slate-700">{s.nome}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <p className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
+                          Use a Minha Mesa para registrar cada sessão concluída.
+                        </p>
                       </div>
                     </div>
 
@@ -1008,8 +1560,13 @@ export default function CiclosEstudo() {
                           {editalSelecionado && !cargoSelecionado && (
                             <div className="mt-5 rounded-xl border border-sky-100 bg-sky-50 p-4 animate-in fade-in slide-in-from-top-2 duration-300">
                               <p className="text-xs font-black uppercase tracking-wide text-sky-700">Edital selecionado</p>
-                              <p className="mt-1 text-sm font-bold text-slate-800">{editalSelecionado.nome}</p>
-                              {editalSelecionado.banca && <p className="mt-0.5 text-xs font-medium text-slate-500">{editalSelecionado.banca}</p>}
+                              <p className="mt-1 text-sm font-bold leading-snug text-slate-800">{editalSelecionado.descricao}</p>
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-black uppercase text-sky-700">
+                                  {editalSelecionado.nome}
+                                </span>
+                                {editalSelecionado.banca && <span className="text-xs font-medium text-slate-500">{editalSelecionado.banca}</span>}
+                              </div>
                             </div>
                           )}
 
@@ -1020,7 +1577,8 @@ export default function CiclosEstudo() {
                                 <p className="text-sm font-black text-sky-700">Edital e cargo selecionados</p>
                               </div>
                               <p className="text-sm font-bold text-slate-800">{cargoSelecionado.nome}</p>
-                              <p className="mt-1 text-xs font-medium text-slate-500">{editalSelecionado.nome}</p>
+                              <p className="mt-1 text-xs font-medium leading-snug text-slate-500">{editalSelecionado.descricao}</p>
+                              <p className="mt-1 text-[11px] font-black uppercase tracking-wide text-sky-600">{editalSelecionado.nome}</p>
                               <div className="mt-3 flex items-center justify-between rounded-lg bg-white px-3 py-2">
                                 <span className="text-xs font-bold text-slate-500">Disciplinas disponíveis</span>
                                 <span className="text-sm font-black text-sky-600">{cargoSelecionado.disciplinas.length}</span>
@@ -1138,96 +1696,26 @@ export default function CiclosEstudo() {
                   )}
 
                   {/* ══ ETAPA 4 ══ */}
-                  {etapa === 4 && (
-                    <div key="etapa4" className={`relative bg-white rounded-2xl p-8 pb-32 shadow-sm border border-slate-100 lg:pb-8 ${animClass}`}>
-                      <p className="text-[10px] font-black text-sky-500 uppercase tracking-[0.3em] mb-2">Etapa 4 de 4</p>
-                      <h2 className="text-2xl font-bold text-slate-800 mb-1">Organize as disciplinas do ciclo</h2>
-                      <p className="text-sm text-slate-400 mb-6">
-                        Escolha como as disciplinas serão distribuídas ao longo do ciclo.
-                      </p>
+                    {etapa === 4 && (
+                      <div key="etapa4" className={`relative bg-white rounded-2xl p-8 pb-32 shadow-sm border border-slate-100 lg:pb-8 ${animClass}`}>
+                        <p className="text-[10px] font-black text-sky-500 uppercase tracking-[0.3em] mb-2">Etapa 4 de 4</p>
+                        <h2 className="text-2xl font-bold text-slate-800 mb-1">
+                          {modoCiclo === 'automatico'
+                            ? 'Revise seu ciclo automático'
+                            : 'Organize as disciplinas do ciclo'}
+                        </h2>
+                        <p className="text-sm text-slate-400 mb-6">
+                          {modoCiclo === 'automatico'
+                            ? 'Confira as disciplinas selecionadas pelo sistema antes de finalizar.'
+                            : 'Escolha as disciplinas e defina o nível de dificuldade antes de finalizar.'}
+                        </p>
 
-                      {modoCiclo === 'automatico' && (
-                        <div className="mb-6">
-                          <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 block">Como prefere organizar seu dia?</label>
-                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                            {([
-                              { value: 'focado',      icon: <Zap size={16} />,          label: 'Focado',      sub: 'Menos disciplinas, mais repetição' },
-                              { value: 'equilibrado', icon: <CheckCircle2 size={16} />,  label: 'Equilibrado', sub: 'Mistura entre repetição e variedade' },
-                              { value: 'variado',     icon: <RefreshCw size={16} />,     label: 'Variado',     sub: 'Mais disciplinas, maior alternância' },
-                            ] as const).map((opt) => {
-                              const recomendado = getRitmoRecomendado(horasDiariasLimitadas) === opt.value;
-                              return (
-                              <button
-                                key={opt.value}
-                                onClick={() => { setRitmo(opt.value); setRitmoManual(true); }}
-                                className={`rounded-xl border-2 p-4 text-left transition-all ${
-                                  ritmo === opt.value ? 'border-sky-400 bg-sky-50' : 'border-slate-100 bg-white hover:border-slate-200'
-                                }`}
-                              >
-                                <div className={`mb-2 flex h-8 w-8 items-center justify-center rounded-lg ${ritmo === opt.value ? 'bg-sky-100 text-sky-600' : 'bg-slate-100 text-slate-400'}`}>
-                                  {opt.icon}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className={`text-sm font-black ${ritmo === opt.value ? 'text-sky-700' : 'text-slate-700'}`}>{opt.label}</span>
-                                  {recomendado && (
-                                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase text-emerald-600">
-                                      Recomendado
-                                    </span>
-                                  )}
-                                </div>
-                                <p className={`mt-1 text-xs leading-snug ${ritmo === opt.value ? 'text-sky-600' : 'text-slate-400'}`}>{opt.sub}</p>
-                              </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {disciplinas.length === 0 ? (
+                        {disciplinas.length === 0 ? (
                         <div className="flex items-center gap-2 text-slate-400 text-sm py-4">
                           <RefreshCw size={14} className="animate-spin" /> Carregando disciplinas...
                         </div>
                       ) : modoCiclo === 'automatico' ? (
-                        <div>
-                          <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
-                              <div>
-                                <p className="text-sm font-black text-slate-700">
-                                  {disciplinasAutomatico.selecionadas.length}{' '}
-                                  {disciplinasAutomatico.selecionadas.length === 1 ? 'disciplina entrará' : 'disciplinas entrarão'} no ciclo
-                                </p>
-                                <p className="mt-1 text-xs text-slate-500">
-                                  Selecionadas automaticamente com base nas {horasDiariasLimitadas}h/dia
-                                </p>
-                              </div>
-                              <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-sky-600 shrink-0">
-                                {getRitmoLabel(ritmo)}
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {disciplinasAutomatico.selecionadas.map(disc => (
-                                <span key={disc.id} className={`rounded-full px-3 py-1 text-xs font-bold ${disc.tipo === 'E' ? 'bg-sky-100 text-sky-700' : 'bg-white text-slate-600'}`}>
-                                  {disc.nome}
-                                </span>
-                              ))}
-                            </div>
-                            {disciplinasAutomatico.foraDociclo.length > 0 && (
-                              <div className="mt-4 border-t border-slate-200 pt-4">
-                                <p className="text-xs font-bold text-slate-400 mb-2">
-                                  {disciplinasAutomatico.foraDociclo.length}{' '}
-                                  {disciplinasAutomatico.foraDociclo.length === 1 ? 'disciplina disponível não entrará' : 'disciplinas disponíveis não entrarão'} no ciclo
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                  {disciplinasAutomatico.foraDociclo.map(disc => (
-                                    <span key={disc.id} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-400">
-                                      {disc.nome}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                        <div />
                       ) : (
                         <div>
                           <div className="mb-2">
@@ -1423,38 +1911,70 @@ export default function CiclosEstudo() {
                         </div>
                       )}
 
-                      {modoCiclo === 'personalizado' && (
-                        <div className="mt-6 rounded-2xl border border-slate-100 bg-white p-4">
-                          <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 block">Como alternar as disciplinas</label>
-                          <p className="mb-3 text-xs text-slate-500">Escolha como alternar as disciplinas ao longo das sessões.</p>
-                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                            {([
-                              { value: 'focado',      icon: <Zap size={16} />, label: 'Focado',      sub: 'Menos disciplinas, mais repetição' },
-                              { value: 'equilibrado', icon: <CheckCircle2 size={16} />, label: 'Equilibrado', sub: 'Repetição e variedade', tag: true },
-                              { value: 'variado',     icon: <RefreshCw size={16} />, label: 'Variado',     sub: 'Maior alternância' },
-                            ] as const).map((opt) => (
-                              <button
-                                key={opt.value}
-                                onClick={() => { setRitmo(opt.value); setRitmoManual(true); }}
-                                className={`rounded-xl border-2 p-3 text-left transition-all ${
-                                  ritmo === opt.value ? 'border-sky-400 bg-sky-50' : 'border-slate-100 bg-slate-50 hover:border-slate-200'
-                                }`}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className={ritmo === opt.value ? 'text-sky-600' : 'text-slate-400'}>{opt.icon}</span>
-                                  <span className={`text-sm font-black ${ritmo === opt.value ? 'text-sky-700' : 'text-slate-700'}`}>{opt.label}</span>
-                                  {'tag' in opt && opt.tag && (
-                                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase text-emerald-600">
-                                      Recomendado
-                                    </span>
-                                  )}
+                        {modoCiclo === 'automatico' ? (
+                          cicloPreview.length === 0 ? (
+                            <div className="mt-6 rounded-xl border border-dashed border-slate-200 bg-white p-4">
+                              <p className="text-sm font-bold text-slate-700">
+                                O resumo do ciclo automático será exibido assim que as disciplinas forem carregadas.
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="mt-6 rounded-[24px] border border-slate-200 bg-white p-4">
+                              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                  <p className="text-base font-black text-slate-800">Resumo do ciclo automático</p>
+                                  <p className="mt-1 text-sm text-slate-500">
+                                    Estas são as disciplinas que entrarão no ciclo, já organizadas por tipo e com dificuldade média.
+                                  </p>
                                 </div>
-                                <p className={`mt-1 text-xs leading-snug ${ritmo === opt.value ? 'text-sky-600' : 'text-slate-400'}`}>{opt.sub}</p>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                                <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700">
+                                  Dificuldade padrão: Médio
+                                </span>
+                              </div>
+
+                              <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                                {[
+                                  {
+                                    titulo: 'Disciplinas específicas',
+                                    quantidade: disciplinasAutomaticasAgrupadas.especificas.length,
+                                    disciplinas: disciplinasAutomaticasAgrupadas.especificas,
+                                    chipClass: 'bg-sky-50 text-sky-700',
+                                  },
+                                  {
+                                    titulo: 'Disciplinas básicas',
+                                    quantidade: disciplinasAutomaticasAgrupadas.basicas.length,
+                                    disciplinas: disciplinasAutomaticasAgrupadas.basicas,
+                                    chipClass: 'bg-slate-100 text-slate-700',
+                                  },
+                                ].map(grupo => (
+                                  <div key={grupo.titulo} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <p className="text-sm font-black text-slate-800">{grupo.titulo}</p>
+                                      <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-600">
+                                        {grupo.quantidade}
+                                      </span>
+                                    </div>
+                                    <div className="mt-3 space-y-2">
+                                      {grupo.disciplinas.length > 0 ? grupo.disciplinas.map(disciplina => (
+                                        <div key={disciplina.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                                          <p className="min-w-0 flex-1 text-sm font-bold text-slate-800">{disciplina.nome}</p>
+                                          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${grupo.chipClass}`}>
+                                            Médio
+                                          </span>
+                                        </div>
+                                      )) : (
+                                        <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-3 py-4 text-center text-xs font-medium text-slate-400">
+                                          Nenhuma disciplina neste grupo.
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        ) : null}
+
                       {erroSalvar && (
                         <div className="flex items-center gap-2 mt-4 bg-red-50 border border-red-100 rounded-xl p-3">
                           <AlertCircle size={14} className="text-red-500 shrink-0" />
@@ -1521,9 +2041,9 @@ export default function CiclosEstudo() {
                       <div className="bg-sky-50 border border-sky-100 rounded-2xl p-5">
                         <p className="text-[11px] font-black text-sky-500 uppercase tracking-widest mb-3">Seu ciclo estimado</p>
                         {[
-                          { l: 'Sessões por dia',      v: discsPorDia },
+                          { l: 'Sessões por dia',      v: horasDiariasLimitadas },
                           { l: 'Disciplinas no ciclo', v: maxDisciplinas },
-                          { l: 'Min por sessão',        v: '60min' },
+                          { l: 'Min por sessão',       v: '60min' },
                         ].map(row => (
                           <div key={row.l} className="flex justify-between items-center mb-2 last:mb-0">
                             <span className="text-xs text-slate-500">{row.l}</span>
@@ -1579,7 +2099,7 @@ export default function CiclosEstudo() {
                       )}
                       <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
                         <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">Etapa 1 — resumo</p>
-                        {[{ l: 'Horas/dia', v: `${horasDiariasLimitadas}h` }, { l: 'Disciplinas/dia', v: String(discsPorDia) }].map(r => (
+                        {[{ l: 'Horas/dia', v: `${horasDiariasLimitadas}h` }].map(r => (
                           <div key={r.l} className="flex justify-between items-center mb-1 last:mb-0">
                             <span className="text-xs text-slate-500">{r.l}</span>
                             <span className="text-xs font-black text-slate-700">{r.v}</span>
@@ -1597,8 +2117,11 @@ export default function CiclosEstudo() {
                           <div><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Edital</p><p className="text-xs font-bold text-slate-700 leading-snug">{editalSelecionado?.nome}</p></div>
                           <div><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Cargo</p><p className="text-xs font-bold text-slate-700">{cargoSelecionado?.nome}</p></div>
                           <div className="flex gap-3">
-                            <div className="flex-1"><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Sessões por dia</p><p className="text-sm font-black text-sky-600">{discsPorDia}</p></div>
-                            <div className="flex-1"><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Disciplinas no ciclo</p><p className="text-sm font-black text-sky-600">{maxDisciplinas}</p></div>
+                            <div className="flex-1"><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Sessões por dia</p><p className="text-sm font-black text-sky-600">{horasDiariasLimitadas}</p></div>
+                          </div>
+                          <div>
+                            <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Disciplinas no ciclo</p>
+                            <p className="text-sm font-black text-sky-600">{maxDisciplinas}</p>
                           </div>
                           <div>
                             <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Modo</p>
@@ -1606,12 +2129,6 @@ export default function CiclosEstudo() {
                               {modoCiclo === 'automatico' ? 'Automático' : 'Personalizado'}
                             </span>
                           </div>
-                          {etapa === 4 && (
-                            <div>
-                              <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Organização</p>
-                              <span className="text-xs font-black text-slate-700 capitalize">{ritmo}</span>
-                            </div>
-                          )}
                         </div>
                       </div>
 
@@ -1636,6 +2153,16 @@ export default function CiclosEstudo() {
                               : 'Revise o resumo acima e crie seu ciclo quando estiver tudo certo.'}
                           </p>
                           <div className="space-y-2">
+                            {cicloPreview.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setPreviewModalAberta(true)}
+                                className="flex w-full items-center justify-center gap-2 rounded-xl border border-sky-200 bg-white px-4 py-3 text-sm font-bold text-sky-700 transition-all hover:border-sky-300 hover:bg-sky-50"
+                              >
+                                Ver prévia do ciclo
+                                <ChevronRight size={16} />
+                              </button>
+                            )}
                             <button
                               onClick={handleFinalizar}
                               disabled={!podeFinalizar || salvando}
@@ -1711,7 +2238,7 @@ export default function CiclosEstudo() {
 
 /* ── Paleta e roda do ciclo ── */
 
-const WHEEL_COLORS = ['#0ea5e9','#10b981','#8b5cf6','#f59e0b','#f43f5e','#06b6d4','#f97316','#84cc16','#6366f1','#ec4899'];
+const WHEEL_COLORS = ['#0f9bd7','#14b87a','#7c5cff','#f39c12','#ef476f','#00b8d9','#ff7a00','#7cb518','#4361ee','#d946ef','#2a9d8f','#ff595e'];
 
 /* ── Componentes de suporte ── */
 

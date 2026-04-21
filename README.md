@@ -323,6 +323,261 @@ O usuário pode alterar livremente — a recomendação é pré-seleção, não 
 
 ---
 
+### Atualizacao consolidada do algoritmo (versao vigente)
+
+> Esta secao documenta a versao atual do algoritmo de criacao do ciclo. Em caso de divergencia com descricoes historicas abaixo, esta secao deve ser considerada a referencia correta.
+
+#### 1. Principio orientador
+
+O desenho atual do algoritmo parte de uma decisao de produto importante:
+
+> a fidelidade a importancia da disciplina e mais importante do que forcar uma variabilidade diaria artificialmente baixa.
+
+Isso significa que o sistema tenta reduzir a troca de contexto, mas nao vai distorcer score, frequencia ou prioridade de disciplina so para deixar o dia mais uniforme.
+
+#### 2. Etapa 1 - carga horaria
+
+horasDiarias continua sendo a entrada principal do algoritmo.
+
+Ela controla dois derivados:
+
+maximoDisciplinas = horasDiarias x 2
+
+Esse teto define quantas disciplinas distintas podem entrar no ciclo.
+
+horasDiarias tambem gera automaticamente um alvo de variabilidade diaria:
+
+| Horas por dia | Disciplinas distintas por dia (discsPorDia) |
+|---|---|
+| 1h | 1 |
+| 2h | 2 |
+| 3h | 3 |
+| 4h | 3 |
+| 5h | 4 |
+| 6h | 4 |
+| 7h | 4 |
+| 8h | 5 |
+
+Essa regra substitui, na pratica, a dependencia de focado, equilibrado e variado para a montagem da fila. O objetivo e desacoplar:
+
+- horasDiarias = volume de estudo
+- discsPorDia = variabilidade cognitiva alvo
+
+#### 3. Etapa 2 - metodo automatico x personalizado
+
+##### 3.1. Automatico
+
+No automatico, a selecao deixou de ser uma cota fixa 60 por cento para especificas. A regra atual e:
+
+n = min(totalDisponivel, max(1, horasDiarias x 2))
+minimoEspecificas = ceil(n x 0.4)
+minimoBasicas = floor(n x 0.25), com piso 1 quando houver mais de uma vaga
+
+Fluxo:
+
+1. ordena todas as disciplinas por score
+2. garante primeiro um piso de especificas
+3. garante depois um piso de basicas
+4. preenche o restante com o ranking global por score
+
+Motivo da decisao:
+
+- especificas precisam ter presenca garantida
+- basicas nao podem desaparecer
+- o fechamento final deve obedecer ao score real
+
+No automatico, todas as disciplinas incluidas no ciclo recebem dificuldade MEDIO, persistida em disciplina_nivel_usuario.
+
+##### 3.2. Personalizado
+
+No personalizado, a escolha do usuario e soberana dentro do teto estrutural:
+
+maximoDisciplinas = horasDiarias x 2
+
+Na interface isso aparece como ate X disciplinas, e nao como quantidade obrigatoria.
+
+Motivo:
+
+- o valor calculado e um teto saudavel de diversidade
+- nao e uma exigencia pedagogica
+- obrigar o preenchimento total levaria a escolhas artificiais
+
+Cada disciplina escolhida recebe o nivel definido pelo usuario e esse nivel tambem e persistido em disciplina_nivel_usuario.
+
+#### 4. Calculo do score
+
+A formula base do score continua:
+
+score = (1 + iNorm + dificNorm) x tipoFator x desempenho
+
+Onde:
+
+- iNorm = importancia normalizada da disciplina no edital
+- dificNorm = 0.0 para Baixo, 0.3 para Medio, 0.7 para Alto
+- tipoFator = 1.5 para Especifica, 1.0 para Basica
+- desempenho = 1.0 no estado atual, reservado para o ciclo adaptativo futuro
+
+A importancia bruta continua sendo:
+
+I = peso x (qtd_questoes > 0 ? qtd_questoes : max(1, qtd_topicos))
+
+e a normalizacao:
+
+iNorm = I / Imax
+
+Essa base foi mantida porque continua correta conceitualmente:
+
+- o edital precisa ter peso real no algoritmo
+- a dificuldade pessoal precisa influenciar sem dominar
+- disciplinas especificas precisam de vantagem estrutural
+- o sistema precisa funcionar mesmo quando o edital nao traz todos os dados
+
+#### 5. Frequencia hibrida 1x 2x 3x
+
+A regra antiga baseada em round raiz do score comprimia demais a escala. No range real do produto, quase tudo acabava em 1x ou 2x, e 3x ficava praticamente inalcanavel.
+
+A versao atual usa frequencia hibrida com quatro camadas.
+
+##### 5.1. Corte absoluto
+
+score maior ou igual a 2.75 -> freq 3
+score maior ou igual a 1.85 -> freq 2
+caso contrario -> freq 1
+
+##### 5.2. Corte relativo por dispersao
+
+relativo = (score - scoreMin) / (scoreMax - scoreMin)
+
+Se a dispersao do grupo for relevante, maior ou igual a 0.35:
+
+relativo maior ou igual a 0.78 -> freq 3
+relativo maior ou igual a 0.28 -> freq 2
+caso contrario -> freq 1
+
+##### 5.3. Promocao do topo estrategico
+
+O algoritmo promove para 3x algumas disciplinas do topo quando elas:
+
+- estao no top 25 por cento do ranking
+- sao Especificas ou estao com dificuldade Alto
+- tem score maior ou igual a 2.25
+- tem relativo maior ou igual a 0.45
+
+##### 5.4. Limite de disciplinas 3x
+
+limiteFreq3 = ceil(totalDisciplinasSelecionadas x 0.3)
+
+No maximo cerca de 30 por cento das disciplinas podem terminar com frequencia 3x.
+
+Motivo da decisao:
+
+- manter corte absoluto coerente
+- ler a posicao relativa da disciplina no grupo
+- produzir 1x, 2x e 3x ja no MVP real
+
+#### 6. Construcao estrutural da fila
+
+Antes havia uma mistura entre a fila salva e a forma como o dia era montado na leitura. Agora a fila persistida em ciclo_disciplina passou a ser a verdade do sistema.
+
+##### 6.1. Montagem por blocos
+
+O ciclo nao e mais pensado apenas slot a slot. Ele e montado em blocos compativeis com horasDiarias.
+
+Para cada bloco:
+
+1. calcula quantas sessoes ainda cabem
+2. define o alvo de disciplinas distintas
+3. escolhe primeiro o conjunto de disciplinas do bloco
+4. depois distribui a ordem interna das sessoes
+
+Formula do alvo:
+
+targetDistintas = min(discsPorDia, slotsDoBloco, disciplinasDisponiveis)
+
+##### 6.2. Criterios para entrar no bloco
+
+Cada disciplina recebe uma pontuacao local combinando:
+
+- scoreBase
+- quantidade de ocorrencias ainda restantes
+- distancia desde a ultima aparicao
+- intervalo ideal entre aparicoes = totalSlots / frequencia
+- bonus para frequencia 2x ou 3x
+- bonus de alternancia cognitiva
+- penalidades suaves para disciplinas 1x nos primeiros blocos quando ainda existem candidatas repetiveis
+
+Por que penalizar 1x cedo?
+
+Porque, se o algoritmo gastar cedo demais as disciplinas que so aparecem uma vez, ele fica sem material de repeticao quando a carga diaria e alta. Mesmo assim, essa penalidade nunca supera a logica principal do sistema. Se a disciplina precisa entrar pelo score, ela entra.
+
+##### 6.3. Repeticoes dentro do bloco
+
+As sessoes extras do bloco so podem vir de disciplinas que:
+
+- ja foram escolhidas para aquele bloco
+- ainda tem ocorrencias restantes na frequencia global
+
+Ou seja: o algoritmo nao inventa repeticao.
+
+Uma disciplina 1x nao ganha uma segunda aparicao no bloco so para deixar o dia mais focado. Isso distorceria a prioridade calculada.
+
+##### 6.4. Ordem interna do bloco
+
+Depois de definir quais disciplinas entram e quantas sessoes cada uma recebe, o algoritmo distribui a ordem interna buscando:
+
+- evitar repeticoes consecutivas da mesma disciplina
+- alternar categoria cognitiva sempre que fizer sentido
+- reaproveitar melhor disciplinas com mais sessoes ainda pendentes
+
+#### 7. Variabilidade diaria como alvo, nao como obrigacao
+
+O algoritmo tenta respeitar discsPorDia, mas esse valor e uma meta de construcao, nao um mandamento.
+
+Se houver conflito entre reduzir a variabilidade de forma perfeita e respeitar score, frequencia e importancia da disciplina, o sistema escolhe a segunda opcao.
+
+Essa hierarquia reflete o dominio do problema:
+
+1. importancia da disciplina
+2. frequencia no ciclo
+3. espacamento e alternancia
+4. variabilidade diaria
+
+#### 8. Rotacao para melhor inicio
+
+Depois de montar a fila, o algoritmo testa todos os possiveis pontos de inicio e escolhe o que gera a janela inicial mais saudavel.
+
+Essa rotacao penaliza:
+
+- repeticoes muito cedo
+- disciplinas iguais muito proximas na janela inicial
+
+e da um pequeno bonus para comecar por uma disciplina de score mais forte.
+
+#### 9. Leitura do dia
+
+Na versao atual, a leitura do dia ficou propositalmente simples:
+
+hoje = proximas horasDiarias sessoes a partir da posicaoAtual
+
+O backend nao remonta o dia com regras especiais. Ele apenas le a proxima janela da fila real.
+
+Motivo da decisao:
+
+- elimina a ambiguidade entre o ciclo visto pelo usuario e o ciclo realmente salvo
+- faz a mesma fila aparecer na previa, no banco, na visualizacao final e no plano de hoje
+
+#### 10. Meta diaria nao e agenda fixa
+
+Embora o algoritmo use blocos compativeis com um dia para construir a fila, a plataforma continua baseada em uma fila continua.
+
+A meta diaria e so uma referencia. O usuario pode:
+
+- parar antes
+- cumprir exatamente a meta
+- ou continuar alem dela
+
+Isso preserva a filosofia original do produto: o candidato nao segue um cronograma semanal, ele avanca em um ciclo continuo.
+
 ### Por que um ciclo de estudos?
 
 Antes de entrar nos detalhes técnicos, é importante entender o problema que o ciclo resolve.
@@ -785,6 +1040,15 @@ Este algoritmo faz isso automaticamente, com base em critérios objetivos:
 | Controle de variabilidade diária | Não | Sim (ritmo: focado/equilibrado/variado) | Sim (ritmo: focado/equilibrado/variado) |
 | Repetição controlada dentro do dia | Não | Sim (sem duplicatas via idsNodia) | Sim (sem duplicatas via idsNodia) |
 | Ciclo adaptativo (futuro) | Não | Preparado (parâmetro `desempenho`) | Preparado (parâmetro `desempenho`) |
+
+---
+
+**Leitura vigente desse comparativo**
+
+- No automatico, a selecao deixou de ser uma cota fixa 60 40 e passou a usar piso de especificas mais piso de basicas mais preenchimento final por score global.
+- A frequencia deixou de ser baseada so em sqrt do score e passou a ser hibrida, permitindo 1x, 2x e 3x no cenario real.
+- O controle de variabilidade diaria deixou de depender do seletor focado equilibrado variado como motor pratico da montagem e passou a ser automatico por carga horaria.
+- O dia deixou de ser remontado por uma regra especial e passou a ser apenas a proxima janela da fila real do ciclo.
 
 ---
 
