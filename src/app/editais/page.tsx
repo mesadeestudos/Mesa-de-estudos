@@ -4,15 +4,44 @@ import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation'; // Adicione esta importação
 
+type ConcursoResumo = {
+  id: number;
+  nome: string;
+  descricao?: string;
+  data?: string | null;
+  cargo?: string;
+  banca?: string;
+  status?: string;
+};
+
+type Edital = {
+  id: number;
+  nome: string;
+  descricao: string;
+  data: string;
+  cargo: string;
+  banca: string;
+  status: string;
+  disciplinas: string[];
+};
+
+type ConcursoDetalhe = {
+  edital?: Array<{
+    cargo?: Array<{
+      disciplina: Array<{ nome: string }>;
+    }>;
+  }>;
+};
+
 export default function PlanejamentoEditais() {
   // Estados para controle da lógica de planejamento e navegação entre etapas
   const [horasDiarias, setHorasDiarias] = useState(4);
-  const [editalSelecionado, setEditalSelecionado] = useState<any>(null);
+  const [editalSelecionado, setEditalSelecionado] = useState<Edital | null>(null);
   const [etapa, setEtapa] = useState(1);
   const [niveisDificuldade, setNiveisDificuldade] = useState<Record<string, string>>({});
   const [busca, setBusca] = useState(''); // Novo estado para pesquisa
   // Estado que vai armazenar os editais vindos da API
-  const [editais, setEditais] = useState<any[]>([])
+  const [editais, setEditais] = useState<Edital[]>([])
   const router = useRouter(); // Inicializa o roteador
 
   /**
@@ -33,7 +62,7 @@ export default function PlanejamentoEditais() {
         console.log('DADOS DA API:', data) // 👈 importante pra debug
 
         // Adaptando dados da API para o formato do frontend
-        const editaisFormatados = data.map((concurso: any) => ({
+        const editaisFormatados = (data as ConcursoResumo[]).map((concurso) => ({
           id: concurso.id,
 
           nome: concurso.nome, // sigla
@@ -61,8 +90,8 @@ export default function PlanejamentoEditais() {
         // Atualiza estado
         setEditais(editaisFormatados)
 
-      } catch (error) {
-
+      } catch {
+        setEditais([])
       }
 
     }
@@ -113,26 +142,29 @@ export default function PlanejamentoEditais() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B] font-sans">
+    <div className="relative min-h-screen overflow-hidden bg-[linear-gradient(135deg,#eef9ff_0%,#f8fafc_34%,#f4f7ff_68%,#ecfdf5_100%)] text-[#1E293B] font-sans">
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(90deg,rgba(14,165,233,0.08)_0%,transparent_28%,rgba(16,185,129,0.07)_58%,transparent_100%)]" />
       {/* Header Fixo */}
-      <header className="h-20 bg-[#082040] fixed top-0 w-full z-50 px-10 flex items-center justify-between shadow-lg">
+      <header className="fixed top-0 z-50 mx-4 mt-4 flex h-20 w-[calc(100%-2rem)] items-center justify-between rounded-[28px] border border-white/20 bg-slate-950/90 px-6 shadow-2xl shadow-slate-950/20 backdrop-blur-xl lg:px-10">
         <div className="flex items-center gap-5">
-          <img src="/logo_azul.png" alt="Logo" className="h-40 w-auto" />
+          <div className="rounded-2xl bg-white/95 px-4 py-2 shadow-lg shadow-sky-950/20">
+            <img src="/logo_azul.png" alt="Logo" className="h-12 w-auto" />
+          </div>
           <div className="h-6 w-[1px] bg-white/10" />
           <h1 className="text-[11px] font-black uppercase tracking-[0.4em] text-white">
             Planejamento <span className="text-cyan-400">de Editais</span>
           </h1>
         </div>
-        <Link href="/dashboard" className="text-white/60 text-white text-[10px] font-black uppercase tracking-widest transition-all">
+        <Link href="/dashboard" className="rounded-full border border-white/10 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white/70 transition-all hover:bg-white/10 hover:text-white">
           ← Voltar ao Dashboard
         </Link>
       </header>
 
-      <main className="pt-32 pb-20 px-10 max-w-[1400px] mx-auto animate-in fade-in slide-in-from-top-4 duration-700">
+      <main className="relative z-10 pt-32 pb-20 px-4 lg:px-10 max-w-[1400px] mx-auto animate-in fade-in slide-in-from-top-4 duration-700">
         
         {/* Seção 01: Configuração de tempo */}
-        <section className="bg-white p-10 rounded-[40px] border border-slate-100 shadow-sm mb-10 relative overflow-hidden group">
-           <div className="absolute top-0 left-0 w-2 h-full bg-cyan-500" />
+        <section className="bg-white/78 p-6 lg:p-10 rounded-[32px] border border-white/70 shadow-2xl shadow-slate-200/60 backdrop-blur-xl mb-10 relative overflow-hidden group">
+           <div className="absolute top-0 left-0 w-2 h-full bg-linear-to-b from-cyan-500 to-emerald-400" />
            <p className="text-cyan-600 text-[10px] font-black uppercase tracking-[0.4em] mb-4">01. Configuração de Tempo</p>
            <div className="flex flex-col md:flex-row gap-12 items-center">
              <div className="flex-1 w-full">
@@ -145,10 +177,10 @@ export default function PlanejamentoEditais() {
                  </div>
                </div>
              </div>
-             <div className="flex items-center gap-8 bg-slate-50 p-8 rounded-[32px] border border-slate-100 min-w-[320px]">
+             <div className="flex items-center gap-8 bg-slate-950 p-8 rounded-[28px] border border-white/10 min-w-[320px] shadow-xl shadow-sky-200/40">
                 <div className="text-center">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Estimativa Semanal</span>
-                  <p className="text-4xl font-black text-[#082040] italic tracking-tighter">{(horasDiarias * 7).toFixed(1)}h</p>
+                  <span className="text-[9px] font-black text-sky-200/70 uppercase tracking-widest block mb-1">Estimativa Semanal</span>
+                  <p className="text-4xl font-black text-white italic tracking-tighter">{(horasDiarias * 7).toFixed(1)}h</p>
                 </div>
              </div>
            </div>
@@ -163,7 +195,7 @@ export default function PlanejamentoEditais() {
               placeholder="PESQUISAR EDITAL..." 
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              className="px-6 py-2 rounded-xl border border-slate-200 text-[10px] font-black uppercase outline-none focus:border-cyan-500"
+              className="px-6 py-2 rounded-2xl border border-white/70 bg-white/80 shadow-sm text-[10px] font-black uppercase outline-none focus:border-cyan-500"
             />
           </div>
           
@@ -186,8 +218,9 @@ export default function PlanejamentoEditais() {
                    * 🎯 Extrai disciplinas da estrutura:
                    * concurso → edital → cargo → disciplina
                    */
-                  const disciplinas = data.edital?.[0]?.cargo?.flatMap((cargo: any) =>
-                    cargo.disciplina.map((d: any) => d.nome)
+                  const detalhe = data as ConcursoDetalhe
+                  const disciplinas = detalhe.edital?.[0]?.cargo?.flatMap((cargo) =>
+                    cargo.disciplina.map((d) => d.nome)
                   ) || []
 
                   /**
@@ -209,7 +242,7 @@ export default function PlanejamentoEditais() {
 
                 }
               }} 
-                className={`cursor-pointer bg-white p-6 rounded-[32px] border-2 transition-all flex flex-col justify-between ${editalSelecionado?.id === edital.id ? 'border-cyan-500 shadow-xl' : 'border-slate-100 hover:border-slate-200'}`}
+                className={`cursor-pointer bg-white/78 p-6 rounded-[28px] border transition-all shadow-lg shadow-slate-200/50 backdrop-blur-xl flex flex-col justify-between ${editalSelecionado?.id === edital.id ? 'border-cyan-500 ring-4 ring-cyan-200/60' : 'border-white/70 hover:border-cyan-200 hover:-translate-y-0.5'}`}
               >
                 <div className="flex justify-between items-start">
                   <span className={`text-[8px] font-black uppercase px-3 py-1 rounded-full ${edital.status === 'ABERTO' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>{edital.status}</span>
@@ -233,13 +266,13 @@ export default function PlanejamentoEditais() {
         </section>
 
         {/* Seção 03: Configuração de Dificuldade */}
-        {etapa === 2 && (
-          <section className="animate-in slide-in-from-bottom-8 duration-700 bg-[#082040] p-12 rounded-[48px] text-white shadow-2xl relative overflow-hidden w-full">
+        {etapa === 2 && editalSelecionado && (
+          <section className="animate-in slide-in-from-bottom-8 duration-700 bg-linear-to-br from-slate-950 via-sky-950 to-sky-700 p-6 lg:p-12 rounded-[36px] text-white shadow-2xl shadow-sky-200/50 border border-white/20 relative overflow-hidden w-full">
             <div className="relative z-10">
               <h3 className="text-3xl font-black italic uppercase text-white mb-10">Nível de Domínio: <span className="text-cyan-400">{editalSelecionado.nome}</span></h3>
               <div className="grid grid-cols-2 gap-4 mb-12">
                 {editalSelecionado.disciplinas?.map((disc: string) => (
-                  <div key={disc} className="bg-white/5 border border-white/10 p-6 rounded-2xl flex items-center justify-between">
+                  <div key={disc} className="bg-white/10 border border-white/15 p-6 rounded-2xl flex items-center justify-between backdrop-blur">
                     <span className="text-sm font-bold uppercase">{disc}</span>
                     <div className="flex gap-2">
                       {['Baixo', 'Médio', 'Alto'].map((nivel) => (

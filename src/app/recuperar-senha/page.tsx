@@ -47,17 +47,16 @@ export default function RecuperarSenhaPage() {
 
       console.log('LINK:', data.link);
 
-    } catch (err) {
+    } catch {
       setIsLoading(false);
       setErrorMsg('Não foi possível conectar ao servidor. Tente novamente.');
     }
   };
 
   return (
-    <div className="h-screen bg-linear-to-br from-cyan-50/50 via-white to-indigo-50/50 flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
+    <div className="h-screen bg-[linear-gradient(135deg,#eef9ff_0%,#f8fafc_34%,#f4f7ff_68%,#ecfdf5_100%)] flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
 
-      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-cyan-300 rounded-full blur-[120px] opacity-15" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-indigo-300 rounded-full blur-[100px] opacity-15" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(14,165,233,0.08)_0%,transparent_28%,rgba(16,185,129,0.07)_58%,transparent_100%)]" />
 
       <div className="w-full max-w-md z-10">
         <div className="text-center mb-8">
@@ -70,7 +69,7 @@ export default function RecuperarSenhaPage() {
           </p>
         </div>
 
-        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-100 shadow-xl">
+        <div className="bg-white/80 p-6 sm:p-8 rounded-3xl border border-white/70 shadow-2xl shadow-slate-200/60 backdrop-blur-xl">
           {!isSent ? (
             <form onSubmit={handleRecover} noValidate className="space-y-5">
 

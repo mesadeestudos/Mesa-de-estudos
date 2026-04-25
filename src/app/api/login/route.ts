@@ -4,8 +4,8 @@ import { NextResponse } from "next/server"
 // função de login que criamos no service
 import { loginService } from "@/service/user.auth.service"
 
-// função de loginSchema que criamos no schema
-import { loginSchema } from "@/schema/login.schema"
+const getErrorMessage = (err: unknown) =>
+  err instanceof Error ? err.message : "Erro ao fazer login"
 
 // função que responde requisições POST
 export async function POST(req: Request) {
@@ -21,11 +21,11 @@ export async function POST(req: Request) {
     // retorna resposta de sucesso
     return NextResponse.json(resultado)
 
-  } catch (err: any) {
+  } catch (err: unknown) {
 
     // se der erro, retorna mensagem
     return NextResponse.json(
-      { message: err.message },
+      { message: getErrorMessage(err) },
       { status: 400 }
     )
 

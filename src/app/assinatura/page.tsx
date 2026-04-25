@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 
 const CheckIcon = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
@@ -70,10 +69,10 @@ export default function AssinaturaPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-white py-20 px-6 relative overflow-hidden text-slate-900">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-gradient-to-b from-blue-50/50 to-transparent -z-10" />
+    <div className="min-h-screen bg-[linear-gradient(135deg,#eef9ff_0%,#f8fafc_34%,#f4f7ff_68%,#ecfdf5_100%)] py-20 px-6 relative overflow-hidden text-slate-900">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(14,165,233,0.08)_0%,transparent_28%,rgba(16,185,129,0.07)_58%,transparent_100%)]" />
 
-      <div className="max-w-7xl mx-auto text-center mb-16">
+      <div className="relative z-10 max-w-7xl mx-auto text-center mb-16">
         <h1 className="text-4xl md:text-6xl font-black tracking-tighter mb-4">
           Escolha seu plano de <span className="text-cyan-600">Alta Performance</span>
         </h1>
@@ -82,14 +81,14 @@ export default function AssinaturaPage() {
         </p>
       </div>
 
-      <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8">
+      <div className="relative z-10 max-w-6xl mx-auto grid md:grid-cols-3 gap-8">
         {plans.map((plan) => (
           <div 
             key={plan.name}
             className={`relative p-8 rounded-[40px] flex flex-col transition-all duration-500 hover:scale-[1.02] ${
               plan.highlight 
               ? 'bg-slate-900 text-white shadow-2xl shadow-blue-200 ring-4 ring-blue-500/10' 
-              : 'bg-white border border-slate-100 shadow-xl shadow-slate-200/50'
+              : 'bg-white/78 border border-white/70 shadow-xl shadow-slate-200/50 backdrop-blur-xl'
             }`}
           >
             <div className="mb-auto">
@@ -155,7 +154,7 @@ export default function AssinaturaPage() {
         ))}
       </div>
 
-      <div className="mt-20 text-center">
+      <div className="relative z-10 mt-20 text-center">
         <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] mb-6">
           Assinatura Segura • Cancele a qualquer momento
         </p>

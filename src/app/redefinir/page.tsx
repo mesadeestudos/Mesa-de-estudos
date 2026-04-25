@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation'; // ✅ pegar token da URL
 
@@ -20,7 +20,7 @@ const EyeIcon = ({ visible }: { visible: boolean }) => (
   )
 );
 
-export default function RedefinirSenhaPage() {
+function RedefinirSenhaContent() {
 
   const params = useSearchParams();
   const token = params.get("token"); // ✅ token vindo do link
@@ -87,7 +87,7 @@ export default function RedefinirSenhaPage() {
       setSucesso(true);
       setIsLoading(false);
 
-    } catch (err) {
+    } catch {
       setIsLoading(false);
       setErrorMsg('Não foi possível conectar ao servidor. Tente novamente.');
     }
@@ -96,10 +96,9 @@ export default function RedefinirSenhaPage() {
 
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-cyan-50/50 via-white to-indigo-50/50 flex items-center justify-center p-4 relative overflow-hidden text-left">
+    <div className="min-h-screen bg-[linear-gradient(135deg,#eef9ff_0%,#f8fafc_34%,#f4f7ff_68%,#ecfdf5_100%)] flex items-center justify-center p-4 relative overflow-hidden text-left">
 
-      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-cyan-300 rounded-full blur-[120px] opacity-15" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-indigo-300 rounded-full blur-[100px] opacity-15" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(14,165,233,0.08)_0%,transparent_28%,rgba(16,185,129,0.07)_58%,transparent_100%)]" />
 
       <div className="w-full max-w-md z-10">
         <div className="text-center mb-5">
@@ -114,7 +113,7 @@ export default function RedefinirSenhaPage() {
           </p>
         </div>
 
-        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-100 shadow-xl">
+        <div className="bg-white/80 p-5 sm:p-6 rounded-3xl border border-white/70 shadow-2xl shadow-slate-200/60 backdrop-blur-xl">
           {!sucesso ? (
             <form
               onSubmit={handleReset}
@@ -266,6 +265,14 @@ export default function RedefinirSenhaPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RedefinirSenhaPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-linear-to-br from-cyan-50/50 via-white to-indigo-50/50" />}>
+      <RedefinirSenhaContent />
+    </Suspense>
   );
 }
 

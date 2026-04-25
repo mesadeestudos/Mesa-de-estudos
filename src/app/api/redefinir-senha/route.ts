@@ -6,6 +6,8 @@ import {
   resetPasswordService
 } from "@/service/user.auth.service"
 
+const getErrorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : "Erro ao redefinir senha"
 
 
 /*
@@ -38,12 +40,12 @@ export async function POST(
     })
 
 
-  } catch (error: any) {
+  } catch (error: unknown) {
 
     // erro de validação ou token inválido
     return NextResponse.json(
 
-      { error: error.message },
+      { error: getErrorMessage(error) },
 
       { status: 400 }
 

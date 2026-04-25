@@ -14,9 +14,6 @@ import { sendEmail } from "@/service/email.service"
 // geração de token seguro (reset)
 import crypto from "crypto"
 
-// geração de id (compatibilidade)
-import { randomUUID } from "crypto"
-
 // DTOs
 import { LoginDTO } from "@/dto/login.dto"
 import { CadastroDTO } from "@/dto/cadastro.dto"
@@ -47,11 +44,13 @@ import {
 const SECRET =
   process.env.JWT_SECRET || "secret"
 
+type AuthUser = NonNullable<Awaited<ReturnType<typeof findUserByEmail>>>
+
 
 // ========================
 // GERAR TOKEN JWT
 // ========================
-function createToken(user: any) {
+function createToken(user: AuthUser) {
 
   return jwt.sign(
     {

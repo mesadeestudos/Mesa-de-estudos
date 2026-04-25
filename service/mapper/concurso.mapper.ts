@@ -1,4 +1,18 @@
-export function toConcursoDTO(concurso: any) {
+import { Prisma } from "@/src/generated/prisma/client"
+
+type ConcursoComRelacionamentos = Prisma.concursoGetPayload<{
+  include: {
+    orgao: true
+    edital: {
+      include: {
+        banca: true
+        cargo: true
+      }
+    }
+  }
+}>
+
+export function toConcursoDTO(concurso: ConcursoComRelacionamentos) {
 
   const edital = concurso.edital?.[0]
   const cargo = edital?.cargo?.[0]

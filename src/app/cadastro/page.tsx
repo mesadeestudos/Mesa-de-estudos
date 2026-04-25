@@ -4,11 +4,24 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from "next/navigation";
 
+type CadastroFormField = keyof CadastroFormData;
+
+type CadastroFormData = {
+  nome: string;
+  email: string;
+  senha: string;
+  confirmPassword: string;
+  aceite: boolean;
+};
+
+const getErrorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : "Erro ao realizar cadastro";
+
 export default function CadastroPage() {
 
   const router = useRouter();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<CadastroFormData>({
     nome: '',
     email: '',
     senha: '',
@@ -24,7 +37,7 @@ export default function CadastroPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const updateField = (field: string, value: any) => {
+  const updateField = <T extends CadastroFormField>(field: T, value: CadastroFormData[T]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
     // Mapeamento de erro para garantir que o campo volte à cor normal ao digitar
@@ -40,7 +53,7 @@ export default function CadastroPage() {
     if (apiError) setApiError('');
   };
 
-  const validateField = (field: string, value: any) => {
+  const validateField = (field: Exclude<CadastroFormField, 'aceite'>, value: string) => {
     const errorKey = field === 'senha' ? 'password' : field;
     let error = '';
 
@@ -91,7 +104,7 @@ export default function CadastroPage() {
     e.preventDefault();
     setIsLoading(true);
     
-    let newErrors: Record<string, string> = {};
+    const newErrors: Record<string, string> = {};
 
     // VALIDAÇÃO DO NOME (RESTAURADA E REFORÇADA)
     if (!formData.nome || formData.nome.trim() === '') {
@@ -160,9 +173,10 @@ export default function CadastroPage() {
         router.push("/login");
       }, 3000); // Aguarda 3 segundos exibindo a mensagem
 
-    } catch (error: any) {
-      if (error.message !== "E-mail duplicado") {
-        setApiError(error.message);
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      if (message !== "E-mail duplicado") {
+        setApiError(message);
       }
     } finally {
       setIsLoading(false);
@@ -195,11 +209,10 @@ export default function CadastroPage() {
   );
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-cyan-50/50 via-white to-indigo-50/50 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-[linear-gradient(135deg,#eef9ff_0%,#f8fafc_34%,#f4f7ff_68%,#ecfdf5_100%)] flex items-center justify-center p-4 relative overflow-hidden">
 
 
-      <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-cyan-300 rounded-full blur-[120px] opacity-15 pointer-events-none" />
-      <div className="absolute bottom-[-10%] left-[-10%] w-[400px] h-[400px] bg-indigo-300 rounded-full blur-[100px] opacity-15 pointer-events-none" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(14,165,233,0.08)_0%,transparent_28%,rgba(16,185,129,0.07)_58%,transparent_100%)]" />
 
       <div className="w-full max-w-md z-10">
 
@@ -211,7 +224,7 @@ export default function CadastroPage() {
           <p className="text-slate-400 font-medium text-xs mt-1">Preencha os dados para começar</p>
         </div>
 
-        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-100 shadow-xl transition-all">
+        <div className="bg-white/80 p-5 sm:p-6 rounded-3xl border border-white/70 shadow-2xl shadow-slate-200/60 backdrop-blur-xl transition-all">
 
           {showSuccess ? (
             <div className="flex flex-col items-center justify-center py-10 text-center animate-in fade-in zoom-in duration-300">

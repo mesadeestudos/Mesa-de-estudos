@@ -6,6 +6,8 @@ import {
   requestResetService
 } from "@/service/user.auth.service"
 
+const getErrorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : "Erro ao solicitar recuperação"
 
 
 /*
@@ -40,12 +42,12 @@ export async function POST(
     })
 
 
-  } catch (error: any) {
+  } catch (error: unknown) {
 
     // erro de validação ou regra
     return NextResponse.json(
 
-      { error: error.message },
+      { error: getErrorMessage(error) },
 
       { status: 400 }
 

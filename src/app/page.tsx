@@ -3,14 +3,13 @@ import Link from 'next/link';
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen flex flex-col bg-linear-to-br from-cyan-50/50 via-white to-indigo-50/50 font-sans text-slate-900 selection:bg-cyan-100">
+    <div className="min-h-screen flex flex-col bg-[linear-gradient(135deg,#eef9ff_0%,#f8fafc_34%,#f4f7ff_68%,#ecfdf5_100%)] font-sans text-slate-900 selection:bg-cyan-100">
 
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-cyan-300 rounded-full blur-[120px] opacity-15" />
-        <div className="absolute bottom-[5%] left-[-5%] w-[400px] h-[400px] bg-indigo-300 rounded-full blur-[100px] opacity-15" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(14,165,233,0.08)_0%,transparent_28%,rgba(16,185,129,0.07)_58%,transparent_100%)]" />
       </div>
 
-      <nav className="shrink-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-slate-100">
+      <nav className="shrink-0 z-50 w-full bg-white/70 backdrop-blur-xl border-b border-white/70 shadow-sm shadow-slate-200/50">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-10">
             <img
@@ -72,7 +71,7 @@ export default function HomePage() {
 
           <div className="flex justify-center items-center h-full">
             <div
-              className="relative w-full overflow-hidden bg-white rounded-3xl border border-slate-100 shadow-sm"
+              className="relative w-full overflow-hidden bg-white/78 rounded-[32px] border border-white/70 shadow-2xl shadow-slate-200/60 backdrop-blur-xl"
               style={{ maxHeight: 'calc(100vh - 15.5rem)' }}
             >
               <img

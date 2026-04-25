@@ -50,11 +50,7 @@ export async function proxy(request: NextRequest) {
 
   try {
 
-    const secretKey = process.env.JWT_SECRET
-
-    if (!secretKey) {
-      throw new Error('JWT_SECRET não definido')
-    }
+    const secretKey = process.env.JWT_SECRET || 'secret'
 
     const secret = new TextEncoder().encode(secretKey)
 
@@ -62,7 +58,7 @@ export async function proxy(request: NextRequest) {
 
     return NextResponse.next()
 
-  } catch (error) {
+  } catch {
 
     return NextResponse.redirect(
       new URL('/login', request.url)
@@ -76,6 +72,7 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     '/dashboard/:path*',
+    '/minha-mesa/:path*',
     '/editais/:path*',
 
     // fluxo

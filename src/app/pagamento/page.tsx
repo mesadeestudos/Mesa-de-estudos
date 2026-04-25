@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense, useEffect } from 'react';
+import React, { useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -37,7 +37,8 @@ function PaymentContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B] font-sans relative overflow-hidden">
+    <div className="min-h-screen bg-[linear-gradient(135deg,#eef9ff_0%,#f8fafc_34%,#f4f7ff_68%,#ecfdf5_100%)] text-[#1E293B] font-sans relative overflow-hidden">
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(90deg,rgba(14,165,233,0.08)_0%,transparent_28%,rgba(16,185,129,0.07)_58%,transparent_100%)]" />
       
       {/* MODAL DE SUCESSO (CUSTOM TAILWIND) */}
       {showSuccessModal && (
@@ -71,7 +72,7 @@ function PaymentContent() {
       )}
 
       {/* HEADER QUANTUM */}
-      <header className="h-20 bg-[#082040] fixed top-0 w-full z-50 px-10 flex items-center justify-between shadow-lg">
+      <header className="fixed top-0 z-50 mx-4 mt-4 flex h-20 w-[calc(100%-2rem)] items-center justify-between rounded-[28px] border border-white/20 bg-slate-950/90 px-6 shadow-2xl shadow-slate-950/20 backdrop-blur-xl lg:px-10">
         <div className="flex items-center gap-5">
           <h1 className="text-[11px] font-black uppercase tracking-[0.4em] text-white">
             Checkout <span className="text-cyan-400">Seguro</span>
@@ -88,7 +89,7 @@ function PaymentContent() {
           
           {/* LADO ESQUERDO: FORMULÁRIO */}
           <div className="col-span-12 lg:col-span-7 space-y-6">
-            <div className="bg-white p-8 md:p-10 rounded-[40px] border border-slate-100 shadow-xl shadow-slate-200/50">
+            <div className="bg-white/78 p-8 md:p-10 rounded-[32px] border border-white/70 shadow-2xl shadow-slate-200/60 backdrop-blur-xl">
               
               <div className="flex items-center gap-4 mb-10">
                 <Link href="/" className="h-10 w-10 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100 hover:bg-slate-100 transition-all">
@@ -187,8 +188,7 @@ function PaymentContent() {
 
           {/* LADO DIREITO: RESUMO DO PEDIDO */}
           <div className="col-span-12 lg:col-span-5 space-y-6 sticky top-32">
-            <div className="bg-gradient-to-br from-[#082040] to-[#164F73] p-10 rounded-[40px] text-white shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 blur-[80px] rounded-full translate-x-1/2 -translate-y-1/2" />
+            <div className="bg-linear-to-br from-slate-950 via-sky-950 to-sky-700 p-10 rounded-[32px] text-white shadow-2xl shadow-sky-200/50 border border-white/20 relative overflow-hidden">
               <p className="text-cyan-400 text-[10px] font-black uppercase tracking-[0.3em] mb-6">Plano Selecionado</p>
               <h3 className="text-3xl font-black italic tracking-tighter uppercase mb-2 leading-none">
                 {planoNome}
@@ -216,12 +216,12 @@ function PaymentContent() {
 
               <div className="mt-8 p-5 bg-white/5 rounded-[24px] border border-white/10 backdrop-blur-sm">
                 <p className="text-[10px] text-slate-200 font-bold italic leading-relaxed">
-                  "{planoSubtext}"
+                  &quot;{planoSubtext}&quot;
                 </p>
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm flex items-center gap-5">
+            <div className="bg-white/78 p-6 rounded-[28px] border border-white/70 shadow-xl shadow-slate-200/50 backdrop-blur-xl flex items-center gap-5">
                <div className="h-12 w-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">🛡️</div>
                <div>
                  <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight">Compra Segura</p>
@@ -232,8 +232,6 @@ function PaymentContent() {
         </div>
       </main>
 
-      {/* BACKGROUND DECORATIVO */}
-      <div className="absolute top-[20%] left-[-10%] w-[500px] h-[500px] bg-cyan-500/5 rounded-full blur-[120px] -z-10" />
     </div>
   );
 }

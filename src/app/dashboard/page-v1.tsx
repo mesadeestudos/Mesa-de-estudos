@@ -3,13 +3,46 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 
+type TopicoStatus = 'pendente' | 'estudando' | 'revisar' | 'concluido';
+
+type Topico = {
+  id: number;
+  nome: string;
+  tempoSec: number;
+  status: TopicoStatus;
+};
+
+type Disciplina = {
+  id: number;
+  nome: string;
+  dificuldade: string;
+  prioridade: number;
+  cor: string;
+  metaHoras: number;
+  topicos: Topico[];
+};
+
+type PlanejamentoSalvo = {
+  edital: {
+    disciplinas: string[];
+  };
+  niveisDificuldade: Record<string, string>;
+  horasDiarias: number;
+};
+
+type TopicoComMateria = Topico & {
+  discId: number;
+  nomeMateria: string;
+  corMateria: string;
+};
+
 export default function DashboardQuantumV23() {
   const [isRunning, setIsRunning] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
   const [enviado, setEnviado] = useState(false);
   const [seconds, setSeconds] = useState(0);
-  const [disciplinas, setDisciplinas] = useState<any[]>([]);
+  const [disciplinas, setDisciplinas] = useState<Disciplina[]>([]);
   const [idDiscAtiva, setIdDiscAtiva] = useState<number | null>(null);
   const [idTopicoAtivo, setIdTopicoAtivo] = useState<number | null>(null);
 
@@ -30,10 +63,10 @@ export default function DashboardQuantumV23() {
     const dadosSalvos = localStorage.getItem('meu_planejamento');
     if (dadosSalvos) {
       try {
-        const planejamento = JSON.parse(dadosSalvos);
+        const planejamento = JSON.parse(dadosSalvos) as PlanejamentoSalvo;
         const { edital, niveisDificuldade, horasDiarias } = planejamento;
 
-        const listaMapeada = edital.disciplinas.map((nomeDisc: string, index: number) => {
+        const listaMapeada: Disciplina[] = edital.disciplinas.map((nomeDisc: string, index: number) => {
           const dificuldade = niveisDificuldade[nomeDisc] || 'Médio';
           const peso = dificuldade === 'Alto' ? 3 : (dificuldade === 'Médio' ? 2 : 1);
           const corSugerida = dificuldade === 'Alto' ? '#EF4444' : (dificuldade === 'Baixo' ? '#10B981' : '#0284C7');
@@ -53,13 +86,15 @@ export default function DashboardQuantumV23() {
           };
         });
 
-        const listaOrdenada = listaMapeada.sort((a: any, b: any) => b.prioridade - a.prioridade);
-        setDisciplinas(listaOrdenada);
+        const listaOrdenada = listaMapeada.sort((a, b) => b.prioridade - a.prioridade);
+        queueMicrotask(() => {
+          setDisciplinas(listaOrdenada);
 
-        if (listaOrdenada.length > 0) {
-          setIdDiscAtiva(listaOrdenada[0].id);
-          setIdTopicoAtivo(listaOrdenada[0].topicos[0].id);
-        }
+          if (listaOrdenada.length > 0) {
+            setIdDiscAtiva(listaOrdenada[0].id);
+            setIdTopicoAtivo(listaOrdenada[0].topicos[0].id);
+          }
+        });
       } catch (e) { console.error(e); }
     }
   }, []);
@@ -74,12 +109,12 @@ export default function DashboardQuantumV23() {
   const moverParaRevisao = useCallback((idTop: number) => {
     setDisciplinas(prev => prev.map(d => ({
       ...d,
-      topicos: d.topicos.map((t: any) => t.id === idTop ? { ...t, status: t.status === 'revisar' ? 'concluido' : 'revisar' } : t)
+      topicos: d.topicos.map((t) => t.id === idTop ? { ...t, status: t.status === 'revisar' ? 'concluido' : 'revisar' } : t)
     })));
   }, []);
 
   useEffect(() => {
-    let interval: any = null;
+    let interval: ReturnType<typeof setInterval> | null = null;
     if (isRunning && idTopicoAtivo) {
       interval = setInterval(() => {
         setSeconds(prev => {
@@ -92,16 +127,18 @@ export default function DashboardQuantumV23() {
         });
         setDisciplinas(prev => prev.map(d => ({
           ...d,
-          topicos: d.topicos.map((t: any) => t.id === idTopicoAtivo ? { ...t, tempoSec: t.tempoSec + 1, status: 'estudando' } : t)
+          topicos: d.topicos.map((t) => t.id === idTopicoAtivo ? { ...t, tempoSec: t.tempoSec + 1, status: 'estudando' } : t)
         })));
       }, 1000);
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [isRunning, idTopicoAtivo, moverParaRevisao]);
 
   const discAtual = disciplinas.find(d => d.id === idDiscAtiva);
-  const topicoAtivo = discAtual?.topicos.find((t: any) => t.id === idTopicoAtivo);
-  const todosOsTopicos = disciplinas.flatMap(d => d.topicos.map((t: any) => ({ ...t, discId: d.id, nomeMateria: d.nome, corMateria: d.cor })));
+  const topicoAtivo = discAtual?.topicos.find((t) => t.id === idTopicoAtivo);
+  const todosOsTopicos: TopicoComMateria[] = disciplinas.flatMap(d => d.topicos.map((t) => ({ ...t, discId: d.id, nomeMateria: d.nome, corMateria: d.cor })));
   const radarRevisao = todosOsTopicos.filter(t => t.status === 'revisar');
   const proximoSugerido = todosOsTopicos.find(t => t.status === 'pendente') || { nome: "Concluido", nomeMateria: "Parabéns", discId: null, id: null };
   const porcentagemSaude = todosOsTopicos.length > 0 ? Math.round((todosOsTopicos.filter(t => t.status !== 'pendente').length / todosOsTopicos.length) * 100) : 0;
@@ -163,13 +200,13 @@ export default function DashboardQuantumV23() {
               <div className="w-1.5 h-7 rounded-full" style={{ background: disc.cor }} />
               <div className="flex flex-col">
                 <span className="text-sm font-black uppercase text-slate-800 tracking-tight">{disc.nome}</span>
-                <span className="text-[9px] text-cyan-600 font-bold uppercase">Total: {formatarTempo(disc.topicos.reduce((acc: any, t: any) => acc + t.tempoSec, 0))}</span>
+                <span className="text-[9px] text-cyan-600 font-bold uppercase">Total: {formatarTempo(disc.topicos.reduce((acc, t) => acc + t.tempoSec, 0))}</span>
               </div>
             </div>
           </button>
           {idDiscAtiva === disc.id && (
             <div className="px-5 pb-5 space-y-2">
-              {disc.topicos.map((t: any) => (
+              {disc.topicos.map((t) => (
                 <div key={t.id} onClick={() => setIdTopicoAtivo(t.id)} className={`p-4 rounded-2xl border transition-all cursor-pointer ${idTopicoAtivo === t.id ? 'bg-slate-50 border-slate-200 shadow-inner' : 'bg-transparent border-transparent'}`}>
                   <div className="flex justify-between items-start mb-4">
                     <p className="text-[11px] font-bold text-slate-600 leading-tight w-2/3">{t.nome}</p>
@@ -225,7 +262,7 @@ export default function DashboardQuantumV23() {
       <div className="bg-slate-50 rounded-[40px] p-8 border border-slate-200 min-h-[400px]">
         <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.4em] mb-8">Fila de revisões</h3>
         <div className="space-y-4">
-          {radarRevisao.map((item: any, i) => (
+          {radarRevisao.map((item, i) => (
             <div key={i} className="bg-white p-6 rounded-[28px] border border-slate-200 relative overflow-hidden shadow-sm">
               <div className="absolute top-0 left-0 h-full w-1" style={{ background: item.corMateria }} />
               <span className="text-[8px] font-black text-slate-400 uppercase mb-1 block">{item.nomeMateria}</span>

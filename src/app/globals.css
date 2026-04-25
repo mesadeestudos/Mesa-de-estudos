@@ -3,6 +3,8 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --font-plus-jakarta: "Plus Jakarta Sans", "Segoe UI", Arial, sans-serif;
+  --font-geist-mono: "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
 }
 
 @theme inline {
@@ -15,6 +17,8 @@
 body {
   background: #ffffff;
   color: #171717;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   font-family: var(--font-sans), sans-serif;
 }
 

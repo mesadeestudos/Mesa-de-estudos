@@ -116,7 +116,7 @@ export async function findByToken(token: string) {
 
   const credencial = await prisma.credencial.findFirst({
     where: {
-      reset_token: token
+      reset_token: tokenLimpo
     },
     include: {
       usuario: true

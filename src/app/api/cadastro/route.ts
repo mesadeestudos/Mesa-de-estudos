@@ -4,8 +4,8 @@ import { NextResponse } from "next/server"
 // função de cadastro que criamos no service
 import { cadastroService } from "@/service/user.auth.service"
 
-// função de cadastroSchema que criamos no schema
-import { cadastroSchema } from "@/schema/cadastro.schema"
+const getErrorMessage = (err: unknown) =>
+  err instanceof Error ? err.message : "Erro ao realizar cadastro"
 
 // função que responde requisições POST
 export async function POST(req: Request) {
@@ -21,11 +21,11 @@ export async function POST(req: Request) {
     // retorna usuário criado
     return NextResponse.json(newUser, { status: 201 })
 
-  } catch (err: any) {
+  } catch (err: unknown) {
 
     // se ocorrer erro, retorna mensagem
     return NextResponse.json(
-      { message: err.message },
+      { message: getErrorMessage(err) },
       { status: 400 }
     )
 

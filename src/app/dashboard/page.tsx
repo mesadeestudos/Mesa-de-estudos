@@ -44,8 +44,10 @@ export default function PainelEstudante() {
   const handleLogout = () => { deleteCookie('authorization'); router.push('/login'); };
 
   useEffect(() => {
-    setMounted(true);
-    setNomeUsuario(getNomeUsuario());
+    queueMicrotask(() => {
+      setMounted(true);
+      setNomeUsuario(getNomeUsuario());
+    });
     fetch('/api/ciclos')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
@@ -76,7 +78,9 @@ export default function PainelEstudante() {
   const pctAtivacao = Math.round((passosConcluidos / totalPassos) * 100);
 
   return (
-    <div className="h-screen w-full flex bg-slate-50 text-[#475569] font-sans overflow-hidden">
+    <div className="relative h-screen w-full overflow-hidden bg-[linear-gradient(135deg,#eef9ff_0%,#f8fafc_34%,#f4f7ff_68%,#ecfdf5_100%)] text-[#475569] font-sans">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(14,165,233,0.08)_0%,transparent_28%,rgba(16,185,129,0.07)_58%,transparent_100%)]" />
+      <div className="relative flex h-full w-full overflow-hidden">
 
       {/* Overlay mobile */}
       {sidebarAberta && (
@@ -84,14 +88,16 @@ export default function PainelEstudante() {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 h-screen transition-transform duration-300 lg:translate-x-0 ${sidebarAberta ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed lg:static inset-y-0 left-0 z-40 w-64 border-r border-white/30 bg-slate-950/90 text-white shadow-2xl shadow-slate-950/20 backdrop-blur-xl flex flex-col shrink-0 h-screen transition-transform duration-300 lg:translate-x-0 ${sidebarAberta ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex flex-col items-center grow overflow-y-auto min-h-0">
-          <div className="flex items-center justify-center py-6 px-4 shrink-0">
-            <img src="/logo_azul.png" alt="Logo" className="h-24 w-auto" />
+          <div className="w-full px-4 pt-5 pb-4 shrink-0">
+            <div className="rounded-[24px] border border-white/10 bg-white/95 px-4 py-3 shadow-xl shadow-sky-950/20">
+              <img src="/logo_azul.png" alt="Logo" className="h-20 w-auto mx-auto" />
+            </div>
           </div>
-          <nav className="space-y-1 w-full px-2">
+          <nav className="space-y-1 w-full px-3">
             <MenuItem icon={<LayoutDashboard size={18} />} label="Dashboard"        active={abaAtiva === 'Dashboard'}   onClick={() => { setAbaAtiva('Dashboard');   setSidebarAberta(false); }} />
-            <MenuItem icon={<BookOpen size={18} />}        label="Minha Mesa"       active={abaAtiva === 'Minha Mesa'}  onClick={() => { setAbaAtiva('Minha Mesa'); setSidebarAberta(false); }} />
+            <MenuItem icon={<BookOpen size={18} />}        label="Minha Mesa"       active={false}                      onClick={() => { router.push('/minha-mesa'); setSidebarAberta(false); }} />
             <MenuItem icon={<RefreshCw size={18} />}       label="Ciclos de estudo" active={abaAtiva === 'Ciclos'}      onClick={() => { router.push('/ciclos');    setSidebarAberta(false); }} />
             <MenuItem icon={<LineChart size={18} />}       label="Desempenho"       active={abaAtiva === 'Desempenho'}  onClick={() => { setAbaAtiva('Desempenho'); setSidebarAberta(false); }} />
             <MenuItem icon={<Calendar size={18} />}        label="Revisões"         active={abaAtiva === 'Revisões'}    onClick={() => { setAbaAtiva('Revisões');   setSidebarAberta(false); }} />
@@ -99,9 +105,9 @@ export default function PainelEstudante() {
             <MenuItem icon={<User size={18} />}            label="Perfil"           active={abaAtiva === 'Perfil'}      onClick={() => { setAbaAtiva('Perfil');     setSidebarAberta(false); }} />
           </nav>
         </div>
-        <div className="p-4 border-t border-slate-100 shrink-0">
-          <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all w-full font-bold text-sm group">
-            <div className="p-1.5 rounded-lg bg-slate-50 group-hover:bg-red-100 transition-colors"><LogOut size={18} /></div>
+        <div className="p-4 shrink-0">
+          <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:text-red-200 hover:bg-red-500/15 rounded-xl transition-all w-full font-bold text-sm group">
+            <div className="p-1.5 rounded-lg bg-white/10 group-hover:bg-red-500/20 transition-colors"><LogOut size={18} /></div>
             <span>Sair</span>
           </button>
         </div>
@@ -111,7 +117,7 @@ export default function PainelEstudante() {
       <main className="flex-1 flex flex-col min-w-0 p-4 lg:p-6 overflow-y-auto">
 
         {/* Header */}
-        <header className="flex justify-between items-center mb-6 shrink-0">
+        <header className="mb-6 flex shrink-0 items-center justify-between rounded-[28px] border border-white/70 bg-white/70 px-4 py-3 shadow-xl shadow-slate-200/50 backdrop-blur-xl lg:px-5">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarAberta(true)}
@@ -119,7 +125,10 @@ export default function PainelEstudante() {
             >
               <Menu size={20} />
             </button>
-            <h1 className="text-lg font-bold text-slate-700">Dashboard</h1>
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-sky-500">Mesa de Estudos</p>
+              <h1 className="truncate text-lg font-black text-slate-800">Dashboard</h1>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex gap-4 border-r pr-6 border-slate-200">
@@ -128,8 +137,8 @@ export default function PainelEstudante() {
             </div>
             <div className="flex items-center gap-3">
               <div className="p-0.5 rounded-full bg-linear-to-tr from-sky-400 to-sky-100 shadow-sm border border-white cursor-pointer" onClick={() => setAbaAtiva('Perfil')}>
-                <div className="w-9 h-9 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center">
-                  <User size={20} className="text-slate-400" />
+                <div className="w-9 h-9 rounded-full border-2 border-white bg-linear-to-br from-sky-100 to-emerald-100 flex items-center justify-center">
+                  <User size={20} className="text-sky-600" />
                 </div>
               </div>
             </div>
@@ -160,7 +169,7 @@ export default function PainelEstudante() {
 
         {/* Alerta — só sem ciclo */}
         {!carregandoCiclo && !temCiclo && (
-          <div className="bg-white border border-slate-200 rounded-xl p-3 mb-6 flex items-center justify-between shadow-sm border-l-4 border-l-sky-500 shrink-0 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="mb-6 flex shrink-0 items-center justify-between rounded-2xl border border-white/70 border-l-4 border-l-sky-500 bg-white/78 p-3 shadow-lg shadow-sky-100/40 backdrop-blur-xl animate-in fade-in slide-in-from-top-4 duration-500">
             <div className="flex items-center gap-3">
               <Info size={16} className="text-sky-500" />
               <p className="text-xs text-slate-600 font-medium">Crie seu ciclo de estudos para desbloquear as funções.</p>
@@ -190,20 +199,20 @@ export default function PainelEstudante() {
             {temCiclo && ciclo ? (
               <>
                 {/* Hero — próxima sessão */}
-                <div className="bg-white rounded-2xl p-6 shadow-md border border-slate-100 animate-in fade-in duration-500">
+                <div className="relative overflow-hidden rounded-[32px] border border-white/70 bg-linear-to-br from-slate-950 via-sky-950 to-sky-700 p-6 text-white shadow-2xl shadow-sky-200/50 animate-in fade-in duration-500">
                   <div className="flex items-start justify-between gap-4 mb-5">
                     <div className="min-w-0">
                       <p className="text-[10px] font-black text-sky-500 uppercase tracking-widest mb-1">Próxima na fila</p>
-                      <h3 className="text-xl font-bold text-slate-800 truncate">
+                      <h3 className="text-xl font-bold text-white truncate">
                         {ciclo.proximaSessao?.nome ?? '—'}
                       </h3>
-                      <p className="text-xs text-slate-400 mt-0.5 truncate">
+                      <p className="text-xs text-sky-100/75 mt-0.5 truncate">
                         {[ciclo.cargoNome, ciclo.concursoNome || ciclo.bancaSigla].filter(Boolean).join(' · ')}
                       </p>
                     </div>
                     {ciclo.proximaSessao && (
-                      <span className={`text-[11px] font-black uppercase px-2.5 py-1 rounded-full shrink-0 ${
-                        ciclo.proximaSessao.categoria === 'R' ? 'bg-violet-50 text-violet-600' : 'bg-amber-50 text-amber-600'
+                      <span className={`text-[11px] font-black uppercase px-2.5 py-1 rounded-full shrink-0 ring-1 ring-white/20 ${
+                        ciclo.proximaSessao.categoria === 'R' ? 'bg-violet-400/20 text-violet-100' : 'bg-amber-300/20 text-amber-100'
                       }`}>
                         {ciclo.proximaSessao.categoria === 'R' ? 'Raciocínio' : 'Memorização'}
                       </span>
@@ -212,13 +221,13 @@ export default function PainelEstudante() {
 
                   {/* Progresso na fila */}
                   <div className="mb-5">
-                    <div className="flex justify-between text-[10px] font-bold text-slate-400 mb-1.5">
+                    <div className="flex justify-between text-[10px] font-bold text-sky-100/80 mb-1.5 [&>span:last-child]:text-white">
                       <span>Posição na fila</span>
                       <span className="text-slate-600">#{ciclo.posicaoAtual} de {ciclo.totalSlots} · {progresso}%</span>
                     </div>
-                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-linear-to-r from-sky-400 to-blue-500 rounded-full transition-all duration-700"
+                        className="h-full bg-linear-to-r from-emerald-300 to-sky-300 rounded-full transition-all duration-700"
                         style={{ width: `${progresso}%` }}
                       />
                     </div>
@@ -227,11 +236,11 @@ export default function PainelEstudante() {
                   <div className="flex gap-3">
                     <button
                       onClick={() => router.push('/ciclos')}
-                      className="flex items-center gap-2 px-5 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-bold text-sm transition-all shadow-sm"
+                      className="flex items-center gap-2 px-5 py-2.5 bg-white text-sky-700 hover:bg-sky-50 rounded-xl font-bold text-sm transition-all shadow-sm"
                     >
                       <RefreshCw size={14} /> Ver ciclo
                     </button>
-                    <button className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-sm transition-all shadow-sm">
+                    <button onClick={() => router.push('/minha-mesa')} className="flex items-center gap-2 px-5 py-2.5 bg-emerald-400 hover:bg-emerald-300 text-slate-950 rounded-xl font-bold text-sm transition-all shadow-sm">
                       <Zap size={14} /> Minha Mesa
                     </button>
                   </div>
@@ -260,7 +269,7 @@ export default function PainelEstudante() {
               </>
             ) : (
               /* ══ SEM CICLO — Onboarding ══ */
-              <div className="bg-white rounded-2xl py-10 px-8 shadow-sm border border-slate-100 text-center flex flex-col items-center">
+              <div className="rounded-[32px] border border-white/70 bg-white/78 py-10 px-8 text-center shadow-2xl shadow-slate-200/60 backdrop-blur-xl flex flex-col items-center">
                 <div className="mb-6">
                   <h3 className="text-xl font-bold text-slate-800 mb-2">Para começar, crie o seu ciclo de estudos.</h3>
                   <p className="text-slate-400 text-sm italic">É rápido, fácil e personalizado para o seu edital.</p>
@@ -282,7 +291,7 @@ export default function PainelEstudante() {
 
           {/* ── Sidebar direita ── */}
           <div className="hidden lg:flex col-span-3">
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col w-full h-fit sticky top-6">
+            <div className="rounded-[28px] border border-white/70 bg-white/78 p-6 shadow-xl shadow-slate-200/60 backdrop-blur-xl flex flex-col w-full h-fit sticky top-6">
               <h3 className="font-bold text-slate-800 mb-1 text-sm">
                 {temCiclo ? 'Próximos marcos' : 'Progresso de ativação'}
               </h3>
@@ -315,6 +324,7 @@ export default function PainelEstudante() {
 
       </main>
     </div>
+    </div>
   );
 }
 
@@ -322,8 +332,8 @@ export default function PainelEstudante() {
 
 function MenuItem({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
   return (
-    <div onClick={onClick} className={`flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition-all group ${active ? 'text-sky-600 bg-sky-50 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}>
-      <div className={`shrink-0 transition-all ${active ? 'p-1.5 rounded-lg bg-sky-100' : 'group-hover:text-sky-500'}`}>{icon}</div>
+    <div onClick={onClick} className={`flex items-center gap-3 px-3 py-2.5 rounded-2xl cursor-pointer transition-all group ${active ? 'text-white bg-white/16 font-bold shadow-sm ring-1 ring-white/15' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}>
+      <div className={`shrink-0 transition-all ${active ? 'p-1.5 rounded-xl bg-sky-400 text-white' : 'text-slate-400 group-hover:text-sky-200'}`}>{icon}</div>
       <span className="text-[13px] truncate">{label}</span>
     </div>
   );
@@ -345,7 +355,7 @@ function StatCard({ icon, label, valor, cor }: { icon: React.ReactNode; label: s
     slate:   { icon: 'text-slate-400',   text: 'text-slate-700' },
   }[cor];
   return (
-    <div className="rounded-2xl p-4 border border-slate-100 bg-white shadow-sm flex flex-col gap-2">
+    <div className="rounded-[24px] border border-white/70 bg-white/78 p-4 shadow-lg shadow-slate-200/50 backdrop-blur-xl flex flex-col gap-2">
       <div className={s.icon}>{icon}</div>
       <p className={`text-xl font-black ${s.text}`}>{valor}</p>
       <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
@@ -355,7 +365,7 @@ function StatCard({ icon, label, valor, cor }: { icon: React.ReactNode; label: s
 
 function PlaceholderCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
   return (
-    <div className="bg-white rounded-2xl p-5 border border-dashed border-slate-200 flex flex-col gap-3">
+    <div className="rounded-[24px] border border-white/70 bg-white/70 p-5 shadow-lg shadow-slate-200/50 backdrop-blur-xl flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <div className="text-slate-300">{icon}</div>
         <h4 className="text-sm font-bold text-slate-500">{title}</h4>
@@ -368,7 +378,7 @@ function PlaceholderCard({ icon, title, description }: { icon: React.ReactNode; 
 
 function FeatureItem({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
   return (
-    <div className="flex flex-col items-center p-3 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 text-center">
+    <div className="flex flex-col items-center p-3 rounded-2xl border border-white/70 bg-white/70 text-center shadow-sm shadow-slate-200/60">
       <div className="text-sky-500 mb-2">{icon}</div>
       <h4 className="text-[11px] lg:text-[12px] font-bold text-slate-700 leading-tight">{title}</h4>
       <p className="text-[10px] text-slate-400 italic mt-1 leading-tight">{description}</p>

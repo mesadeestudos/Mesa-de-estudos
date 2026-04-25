@@ -110,10 +110,10 @@ interface ConcursoDetalheApi {
 }
 
 const STEPS = [
-  { num: 1, label: 'Carga horária' },
-  { num: 2, label: 'Edital e cargo' },
-  { num: 3, label: 'Método' },
-  { num: 4, label: 'Organização' },
+  { num: 1, label: 'Tempo', title: 'Defina sua disponibilidade', description: 'Informe quantas sessões cabem no seu dia.' },
+  { num: 2, label: 'Edital', title: 'Escolha edital e cargo', description: 'O cargo define as disciplinas disponíveis.' },
+  { num: 3, label: 'Método', title: 'Escolha o nível de controle', description: 'Deixe o sistema decidir ou personalize as prioridades.' },
+  { num: 4, label: 'Resumo', title: 'Revise e crie o ciclo', description: 'Confira a composição antes de finalizar.' },
 ];
 
 const getTipoDisciplinaLabel = (tipo?: string | null) => {
@@ -539,7 +539,7 @@ export default function CiclosEstudo() {
 
   const navItems = [
     { icon: <LayoutDashboard size={18} />, label: 'Dashboard',        active: false, href: '/dashboard' },
-    { icon: <BookOpen size={18} />,        label: 'Minha Mesa',       active: false, href: '/dashboard' },
+    { icon: <BookOpen size={18} />,        label: 'Minha Mesa',       active: false, href: '/minha-mesa' },
     { icon: <RefreshCw size={18} />,       label: 'Ciclos de estudo', active: true,  href: '/ciclos' },
     { icon: <LineChart size={18} />,       label: 'Desempenho',       active: false, href: '/dashboard' },
     { icon: <Calendar size={18} />,        label: 'Revisões',         active: false, href: '/dashboard' },
@@ -549,9 +549,14 @@ export default function CiclosEstudo() {
 
   if (!mounted) return <div className="min-h-screen w-full bg-slate-50" />;
 
+  const etapaAtual = STEPS.find(step => step.num === etapa) ?? STEPS[0];
+  const progressoEtapas = ((etapa - 1) / (STEPS.length - 1)) * 100;
+
   /* ═══════════════════════════════════════════════════════ RENDER */
   return (
-    <div className="h-screen w-full flex bg-slate-50 text-[#475569] font-sans overflow-hidden">
+    <div className="relative h-screen w-full overflow-hidden bg-[linear-gradient(135deg,#eef9ff_0%,#f8fafc_34%,#f4f7ff_68%,#ecfdf5_100%)] text-[#475569] font-sans">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(14,165,233,0.08)_0%,transparent_28%,rgba(16,185,129,0.07)_58%,transparent_100%)]" />
+      <div className="relative flex h-full w-full overflow-hidden">
 
       {/* ── Modal de confirmação de edição ── */}
       {confirmandoEdicao && (
@@ -861,12 +866,14 @@ export default function CiclosEstudo() {
       )}
 
       {/* ── Sidebar ── */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 h-screen transition-transform duration-300 lg:translate-x-0 ${sidebarAberta ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed lg:static inset-y-0 left-0 z-40 w-64 border-r border-white/30 bg-slate-950/90 text-white shadow-2xl shadow-slate-950/20 backdrop-blur-xl flex flex-col shrink-0 h-screen transition-transform duration-300 lg:translate-x-0 ${sidebarAberta ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex flex-col items-center grow overflow-y-auto min-h-0">
-          <div className="flex items-center justify-center py-6 px-4 shrink-0">
-            <Image src="/logo_azul.png" alt="Logo" width={160} height={96} className="h-24 w-auto" priority />
+          <div className="w-full px-4 pt-5 pb-4 shrink-0">
+            <div className="rounded-[24px] border border-white/10 bg-white/95 px-4 py-3 shadow-xl shadow-sky-950/20">
+              <Image src="/logo_azul.png" alt="Logo" width={160} height={96} className="h-20 w-auto mx-auto" priority />
+            </div>
           </div>
-          <nav className="space-y-1 w-full px-2">
+          <nav className="space-y-1 w-full px-3">
             {navItems.map(item => (
               <MenuItem
                 key={item.label}
@@ -876,9 +883,9 @@ export default function CiclosEstudo() {
             ))}
           </nav>
         </div>
-        <div className="p-4 border-t border-slate-100 shrink-0">
-          <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all w-full font-bold text-sm group">
-            <div className="p-1.5 rounded-lg bg-slate-50 group-hover:bg-red-100 transition-colors"><LogOut size={18} /></div>
+        <div className="p-4 shrink-0">
+          <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:text-red-200 hover:bg-red-500/15 rounded-xl transition-all w-full font-bold text-sm group">
+            <div className="p-1.5 rounded-lg bg-white/10 group-hover:bg-red-500/20 transition-colors"><LogOut size={18} /></div>
             <span>Sair</span>
           </button>
         </div>
@@ -888,15 +895,18 @@ export default function CiclosEstudo() {
       <main className="flex-1 flex flex-col min-w-0 p-4 lg:p-6 overflow-y-auto">
 
         {/* Header */}
-        <header className="flex justify-between items-center mb-6 shrink-0">
-          <div className="flex items-center gap-3">
+        <header className="mb-6 flex shrink-0 items-center justify-between rounded-[28px] border border-white/70 bg-white/70 px-4 py-3 shadow-xl shadow-slate-200/50 backdrop-blur-xl lg:px-5">
+          <div className="flex min-w-0 items-center gap-3">
             <button
               onClick={() => setSidebarAberta(true)}
               className="lg:hidden p-2 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors"
             >
               <Menu size={20} />
             </button>
-            <h1 className="text-lg font-bold text-slate-700">Ciclos de Estudo</h1>
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-sky-500">Mesa de Estudos</p>
+              <h1 className="truncate text-lg font-black text-slate-800">Ciclos de estudo</h1>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex gap-4 border-r pr-6 border-slate-200">
@@ -905,8 +915,8 @@ export default function CiclosEstudo() {
             </div>
             <div className="flex items-center gap-3">
               <div className="p-0.5 rounded-full bg-linear-to-tr from-sky-400 to-sky-100 shadow-sm border border-white cursor-pointer">
-                <div className="w-9 h-9 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center">
-                  <User size={20} className="text-slate-400" />
+                <div className="w-9 h-9 rounded-full border-2 border-white bg-linear-to-br from-sky-100 to-emerald-100 flex items-center justify-center">
+                  <User size={20} className="text-sky-600" />
                 </div>
               </div>
             </div>
@@ -935,96 +945,82 @@ export default function CiclosEstudo() {
                   {/* Grade principal */}
                   <div className="grid grid-cols-12 items-start gap-4">
 
-                    {/* ── Cabeçalho ── */}
-                    <div className="col-span-12 rounded-lg border border-slate-100 bg-white px-6 py-4 shadow-sm flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-                      <div className="min-w-0 max-w-2xl">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-[11px] font-black uppercase tracking-wide">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
-                            Ciclo Ativo
+                    {/* ── Cabeçalho compacto ── */}
+                    <div className="col-span-12 rounded-[24px] border border-white/70 bg-white/78 px-4 py-3 shadow-lg shadow-slate-200/50 backdrop-blur-xl">
+                      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                        <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+                          <span className="flex w-fit shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-100">
+                            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            Ciclo ativo
                           </span>
-                          <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[11px] font-black uppercase tracking-wide">
-                            {cicloAtivo.totalSlots} sessões
-                          </span>
+                          <div className="min-w-0">
+                            <h2 className="truncate text-base font-black text-slate-800">{cicloAtivo.cargoNome}</h2>
+                            {(cicloAtivo.concursoNome || cicloAtivo.bancaSigla) && (
+                              <p className="truncate text-xs font-semibold text-slate-400">
+                                {[cicloAtivo.concursoNome, cicloAtivo.bancaSigla].filter(Boolean).join(' · ')}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <h2 className="text-xl font-bold text-slate-800 truncate">{cicloAtivo.cargoNome}</h2>
-                        {(cicloAtivo.concursoNome || cicloAtivo.bancaSigla) && (
-                          <p className="text-sm text-slate-400 mt-0.5 truncate">
-                            {[cicloAtivo.concursoNome, cicloAtivo.bancaSigla].filter(Boolean).join(' · ')}
-                          </p>
-                        )}
-                        <p className="text-sm text-slate-500 mt-2 leading-relaxed">
-                          Continue pela próxima sessão e acompanhe a estrutura completa do seu ciclo.
-                        </p>
-                      </div>
-                      <div className="flex flex-col sm:flex-row lg:flex-col gap-2 shrink-0">
-                        <button
-                          onClick={() => setConfirmandoEdicao(true)}
-                          aria-label="Editar ciclo"
-                          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border-2 border-slate-200 text-slate-600 hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50 transition-all text-sm font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2"
-                        >
-                          <Pencil size={13} /> Editar ciclo
-                        </button>
-                      </div>
-                    </div>
 
-                    <div className="col-span-12 flex min-w-0 flex-col gap-4">
-
-                      {/* ── Sessão atual ── */}
-                      <div className="relative overflow-hidden rounded-lg border border-sky-100 bg-linear-to-br from-sky-50 via-white to-white px-5 py-4 shadow-sm">
-                        <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-sky-100/70" />
                         {cicloAtivo.hojeSlots[0] && (() => {
                           const s = cicloAtivo.hojeSlots[0];
-                          const proximaSessao = visualizacaoProximasSessoes[1];
                           const tipoLabel = getTipoDisciplinaLabel(s.tipo);
-                          const nivelCores: Record<string, string> = { ALTO: 'bg-red-100 text-red-700', MEDIO: 'bg-amber-100 text-amber-700', BAIXO: 'bg-emerald-100 text-emerald-700' };
-                          const nivelLabel: Record<string, string> = { ALTO: 'Alto', MEDIO: 'Médio', BAIXO: 'Baixo' };
+                          const nivelCores: Record<string, string> = {
+                            ALTO: 'bg-red-50 text-red-700 ring-red-100',
+                            MEDIO: 'bg-amber-50 text-amber-700 ring-amber-100',
+                            BAIXO: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+                          };
+                          const nivelLabel: Record<string, string> = {
+                            ALTO: 'Alto',
+                            MEDIO: 'Médio',
+                            BAIXO: 'Baixo',
+                          };
 
                           return (
-                            <div className="relative flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                              <div className="min-w-0">
-                                <p className="mb-1.5 text-[11px] font-black uppercase tracking-[0.22em] text-sky-700">Sessão atual</p>
-                                <h3 className="text-[30px] font-black leading-tight text-slate-900">{s.nome}</h3>
-                                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm font-bold text-slate-600">
-                                  <span>Você está na sessão {cicloAtivo.posicaoAtual} de {cicloAtivo.totalSlots}</span>
-                                  <span className="text-slate-300">·</span>
-                                  <span>1h</span>
+                            <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-center">
+                              <div className="min-w-0 rounded-2xl border border-sky-100 bg-sky-50/70 px-3 py-2">
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-700">Sessão atual</p>
+                                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
+                                  <p className="max-w-[360px] truncate text-sm font-black text-slate-900">{s.nome}</p>
+                                  <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-slate-600">
+                                    {cicloAtivo.posicaoAtual}/{cicloAtivo.totalSlots}
+                                  </span>
                                   {tipoLabel && (
-                                    <>
-                                      <span className="text-slate-300">·</span>
-                                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">
-                                        {tipoLabel}
-                                      </span>
-                                    </>
+                                    <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-slate-600">
+                                      {tipoLabel}
+                                    </span>
                                   )}
                                   {s.nivel && (
-                                    <>
-                                      <span className="text-slate-300">·</span>
-                                      <span className={`rounded-full px-2 py-0.5 text-xs font-black uppercase ${nivelCores[s.nivel] ?? 'bg-slate-100 text-slate-600'}`}>
-                                        {nivelLabel[s.nivel] ?? s.nivel}
-                                      </span>
-                                    </>
-                                    )}
-                                  </div>
-                                <p className="mt-2 text-sm font-semibold text-slate-500">
-                                  {proximaSessao
-                                    ? `Ao concluir, você avança para a disciplina: ${proximaSessao.nome}.`
-                                    : 'Depois desta sessão, o ciclo avança para a próxima disciplina.'}
-                                </p>
+                                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-black uppercase ring-1 ${nivelCores[s.nivel] ?? 'bg-white text-slate-600 ring-slate-100'}`}>
+                                      {nivelLabel[s.nivel] ?? s.nivel}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <div className="shrink-0">
+                              <div className="flex shrink-0 gap-2">
                                 <button
-                                  onClick={() => router.push('/dashboard')}
+                                  onClick={() => router.push('/minha-mesa')}
                                   aria-label="Estudar sessão atual na Minha Mesa"
-                                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-sky-500 px-6 py-3 text-sm font-black text-white shadow-md shadow-sky-100 transition-all hover:bg-sky-600 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2"
+                                  className="flex items-center justify-center gap-2 rounded-2xl bg-sky-500 px-4 py-2.5 text-xs font-black text-white shadow-md shadow-sky-100 transition-all hover:bg-sky-600 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2"
                                 >
-                                  Estudar na Minha Mesa <ChevronRight size={15} />
+                                  Estudar <ChevronRight size={14} />
+                                </button>
+                                <button
+                                  onClick={() => setConfirmandoEdicao(true)}
+                                  aria-label="Editar ciclo"
+                                  className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black text-slate-600 transition-all hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2"
+                                >
+                                  <Pencil size={13} /> Editar
                                 </button>
                               </div>
                             </div>
                           );
                         })()}
                       </div>
+                    </div>
+
+                    <div className="col-span-12 flex min-w-0 flex-col gap-4">
 
                       {/* ── Visualização do ciclo ── */}
                       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(460px,1.02fr)_minmax(380px,0.98fr)] xl:items-stretch">
@@ -1297,38 +1293,80 @@ export default function CiclosEstudo() {
               <>
                 <div className="flex-1 min-w-0 flex flex-col">
 
+                  <div className="mb-5 overflow-hidden rounded-[32px] border border-white/70 bg-white/72 shadow-xl shadow-sky-100/50 backdrop-blur-xl">
+                    <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_300px] lg:p-6">
+                      <div className="min-w-0">
+                        <div className="mb-3 flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-sky-50 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-sky-700">
+                            Etapa {etapa} de {STEPS.length}
+                          </span>
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-600">
+                            {etapaAtual.label}
+                          </span>
+                        </div>
+                        <h2 className="text-2xl font-black tracking-tight text-slate-900 lg:text-3xl">
+                          {etapaAtual.title}
+                        </h2>
+                        <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-slate-500">
+                          {etapaAtual.description}
+                        </p>
+                      </div>
+                      <div className="relative overflow-hidden rounded-[24px] border border-white/70 bg-linear-to-br from-sky-500 to-emerald-400 p-4 text-white shadow-lg shadow-sky-200/60">
+                        <div className="absolute inset-y-0 right-0 w-28 opacity-35">
+                          <Image src="/imagem_home.png" alt="Rotina de estudos" fill className="object-cover" sizes="112px" />
+                        </div>
+                        <div className="relative">
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="text-xs font-black uppercase tracking-widest text-white/75">Progresso</span>
+                          <span className="text-sm font-black text-white">{Math.round(progressoEtapas)}%</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-white/30">
+                          <div className="h-full rounded-full bg-white transition-all duration-500" style={{ width: `${progressoEtapas}%` }} />
+                        </div>
+                        <p className="mt-3 text-xs font-medium leading-snug text-white/85">
+                          Avance pelas etapas para gerar um ciclo pronto para uso na Minha Mesa.
+                        </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* ── Indicador de etapas ── */}
-                  <div className="bg-white rounded-2xl px-8 py-5 shadow-sm border border-slate-100 mb-6">
-                    <div className="flex">
-                      {STEPS.map((step, idx) => {
+                  <div className="mb-5 rounded-[28px] border border-white/70 bg-white/70 px-3 py-3 shadow-lg shadow-slate-200/50 backdrop-blur-xl sm:px-5">
+                    <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                      {STEPS.map((step) => {
                         const concluida = etapa > step.num;
                         const atual     = etapa === step.num;
                         const clicavel  = concluida;
                         return (
-                          <div key={step.num} className="flex items-center flex-1 last:flex-none">
-                            <div
-                              className={`flex flex-col items-center gap-1.5 shrink-0 ${clicavel ? 'cursor-pointer group' : ''}`}
-                              onClick={() => clicavel && irParaEtapa(step.num)}
-                              title={clicavel ? `Voltar para ${step.label}` : undefined}
-                            >
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all ${
-                                concluida ? 'bg-emerald-500 text-white group-hover:bg-emerald-400 group-hover:scale-110' :
-                                atual     ? 'bg-sky-500 text-white shadow-md shadow-sky-200' :
-                                            'bg-slate-100 text-slate-400'
-                              }`}>
-                                {concluida ? <Check size={14} /> : step.num}
-                              </div>
-                              <span className={`text-[11px] font-bold uppercase tracking-wider whitespace-nowrap ${
-                                atual     ? 'text-sky-600' :
-                                concluida ? 'text-emerald-600 group-hover:text-emerald-500' : 'text-slate-400'
-                              }`}>{step.label}</span>
+                          <button
+                            key={step.num}
+                            type="button"
+                            disabled={!clicavel}
+                            onClick={() => clicavel && irParaEtapa(step.num)}
+                            title={clicavel ? `Voltar para ${step.label}` : undefined}
+                            className={`flex min-h-[76px] items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-all ${
+                              atual
+                                ? 'border-sky-200 bg-sky-50 shadow-sm'
+                                : concluida
+                                  ? 'border-emerald-100 bg-emerald-50/70 hover:border-emerald-200'
+                                  : 'border-slate-100 bg-slate-50/70 opacity-70'
+                            }`}
+                          >
+                            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-xs font-black ${
+                              concluida ? 'bg-emerald-500 text-white' :
+                              atual     ? 'bg-sky-500 text-white shadow-sm shadow-sky-100' :
+                                          'bg-white text-slate-400'
+                            }`}>
+                              {concluida ? <Check size={14} /> : step.num}
                             </div>
-                            {idx < STEPS.length - 1 && (
-                              <div className={`flex-1 h-0.5 mx-3 self-start mt-4 rounded-full transition-all duration-500 ${
-                                etapa > step.num ? 'bg-sky-500' : 'bg-slate-100'
-                              }`} />
-                            )}
-                          </div>
+                            <div className="min-w-0">
+                              <p className={`truncate text-sm font-black ${atual ? 'text-sky-800' : concluida ? 'text-emerald-700' : 'text-slate-500'}`}>
+                                {step.label}
+                              </p>
+                              <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-slate-500">{step.description}</p>
+                            </div>
+                          </button>
                         );
                       })}
                     </div>
@@ -1336,29 +1374,29 @@ export default function CiclosEstudo() {
 
                   {/* ══ ETAPA 1 ══ */}
                   {etapa === 1 && (
-                    <div key="etapa1" className={`bg-white rounded-2xl p-8 shadow-sm border border-slate-100 ${animClass}`}>
-                      <p className="text-[10px] font-black text-sky-500 uppercase tracking-[0.3em] mb-2">Etapa 1 de 4</p>
-                      <h2 className="text-2xl font-bold text-slate-800 mb-1">Defina sua meta diária de estudo</h2>
-                      <p className="text-sm text-slate-400 mb-8">Escolha quantas horas você pretende estudar por dia. O ciclo será montado a partir dessa disponibilidade.</p>
+                    <div key="etapa1" className={`rounded-[32px] border border-white/70 bg-white/78 p-6 shadow-xl shadow-slate-200/60 backdrop-blur-xl lg:p-8 ${animClass}`}>
+                      <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-500">Disponibilidade diária</p>
+                      <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-900">Quantas sessões cabem no seu dia?</h2>
+                      <p className="mt-2 mb-8 max-w-2xl text-sm font-medium leading-relaxed text-slate-500">Cada hora vira uma sessão de estudo. A partir disso, o sistema calcula quantas disciplinas entram no ciclo.</p>
 
                       <div className="grid w-full gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)] xl:items-stretch">
                         <div className="min-w-0">
-                          <div className="mb-5 rounded-2xl border border-sky-100 bg-sky-50 p-5">
-                            <p className="text-xs font-bold uppercase tracking-widest text-sky-700">Meta diária</p>
+                          <div className="mb-5 overflow-hidden rounded-[28px] border border-sky-100 bg-linear-to-br from-sky-500 to-cyan-400 p-5 text-white shadow-lg shadow-sky-200/50">
+                            <p className="text-xs font-bold uppercase tracking-widest text-white/75">Meta diária</p>
                             <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                              <p className="text-3xl font-black text-sky-700">
+                              <p className="text-3xl font-black text-white">
                                 {horasDiariasLimitadas} {horasDiariasLimitadas === 1 ? 'hora' : 'horas'} por dia
                               </p>
-                              <p className="text-sm font-semibold text-sky-700">
+                              <p className="text-sm font-semibold text-white/85">
                                 {horasDiariasLimitadas} {horasDiariasLimitadas === 1 ? 'sessão' : 'sessões'} por dia
                               </p>
                             </div>
-                            <p className="mt-3 text-xs font-semibold text-sky-700">
+                            <p className="mt-3 text-xs font-semibold text-white/80">
                               Cada sessão é um bloco de estudo de 1h.
                             </p>
                           </div>
 
-                          <div className="rounded-2xl border border-slate-100 bg-white p-5">
+                          <div className="rounded-[28px] border border-slate-200/70 bg-white/86 p-5 shadow-sm backdrop-blur">
                             <div className="flex items-center justify-between mb-3">
                               <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Ajuste sua disponibilidade</label>
                               <span className="text-sm font-black text-sky-600">{horasDiariasLimitadas}h</span>
@@ -1402,7 +1440,7 @@ export default function CiclosEstudo() {
                           </div>
                         </div>
 
-                        <div className="flex min-w-0 flex-col rounded-2xl border border-slate-100 bg-slate-50 p-5">
+                        <div className="flex min-w-0 flex-col rounded-[28px] border border-white/70 bg-white/62 p-5 shadow-sm backdrop-blur">
                           <p className="text-sm font-black text-slate-700">Impacto da escolha</p>
                           <p className="mb-3 mt-1 text-xs font-medium text-slate-500">
                             Com essa meta, seu ciclo será calculado para {horasDiariasLimitadas} {horasDiariasLimitadas === 1 ? 'sessão' : 'sessões'} por dia.
@@ -1444,10 +1482,10 @@ export default function CiclosEstudo() {
 
                   {/* ══ ETAPA 2 ══ */}
                   {etapa === 2 && (
-                    <div key="etapa2" className={`bg-white rounded-2xl p-8 shadow-sm border border-slate-100 ${animClass}`}>
-                      <p className="text-[10px] font-black text-sky-500 uppercase tracking-[0.3em] mb-2">Etapa 2 de 4</p>
-                      <h2 className="text-2xl font-bold text-slate-800 mb-1">Escolha seu edital e cargo</h2>
-                      <p className="text-sm text-slate-400 mb-6">O cargo define quais disciplinas poderão entrar no ciclo.</p>
+                    <div key="etapa2" className={`rounded-[32px] border border-white/70 bg-white/78 p-6 shadow-xl shadow-slate-200/60 backdrop-blur-xl lg:p-8 ${animClass}`}>
+                      <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-500">Base do ciclo</p>
+                      <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-900">Qual edital você está estudando?</h2>
+                      <p className="mt-2 mb-6 max-w-2xl text-sm font-medium leading-relaxed text-slate-500">Escolha o edital e depois o cargo. Essa seleção carrega exatamente as disciplinas que poderão entrar no ciclo.</p>
 
                       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)] xl:items-start">
                         <div className="min-w-0">
@@ -1518,7 +1556,7 @@ export default function CiclosEstudo() {
                           )}
                         </div>
 
-                        <div className="min-w-0 rounded-2xl border border-slate-100 bg-slate-50 p-5">
+                        <div className="min-w-0 rounded-[28px] border border-white/70 bg-white/64 p-5 shadow-sm backdrop-blur">
                           <p className="text-base font-black text-slate-800">Agora escolha o cargo</p>
                           <p className="mt-1 text-sm text-slate-500">Depois do edital, selecione o cargo para carregar as disciplinas corretas.</p>
 
@@ -1611,10 +1649,10 @@ export default function CiclosEstudo() {
 
                   {/* ══ ETAPA 3 ══ */}
                   {etapa === 3 && (
-                    <div key="etapa3" className={`bg-white rounded-2xl p-8 shadow-sm border border-slate-100 ${animClass}`}>
-                      <p className="text-[10px] font-black text-sky-500 uppercase tracking-[0.3em] mb-2">Etapa 3 de 4</p>
-                      <h2 className="text-2xl font-bold text-slate-800 mb-1">Quanto controle você quer ter?</h2>
-                      <p className="text-sm text-slate-500 mb-2">
+                    <div key="etapa3" className={`rounded-[32px] border border-white/70 bg-white/78 p-6 shadow-xl shadow-slate-200/60 backdrop-blur-xl lg:p-8 ${animClass}`}>
+                      <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-500">Método de criação</p>
+                      <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-900">Você quer rapidez ou controle?</h2>
+                      <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
                         Escolha se o sistema deve montar o ciclo por você ou se prefere selecionar as disciplinas manualmente.
                       </p>
                       <p className="text-sm text-slate-400 mb-6">
@@ -1697,17 +1735,17 @@ export default function CiclosEstudo() {
 
                   {/* ══ ETAPA 4 ══ */}
                     {etapa === 4 && (
-                      <div key="etapa4" className={`relative bg-white rounded-2xl p-8 pb-32 shadow-sm border border-slate-100 lg:pb-8 ${animClass}`}>
-                        <p className="text-[10px] font-black text-sky-500 uppercase tracking-[0.3em] mb-2">Etapa 4 de 4</p>
-                        <h2 className="text-2xl font-bold text-slate-800 mb-1">
+                      <div key="etapa4" className={`relative rounded-[32px] border border-white/70 bg-white/78 p-6 pb-32 shadow-xl shadow-slate-200/60 backdrop-blur-xl lg:p-8 lg:pb-8 ${animClass}`}>
+                        <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-500">Revisão final</p>
+                        <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-900">
                           {modoCiclo === 'automatico'
                             ? 'Revise seu ciclo automático'
                             : 'Organize as disciplinas do ciclo'}
                         </h2>
-                        <p className="text-sm text-slate-400 mb-6">
+                        <p className="mt-2 mb-6 max-w-2xl text-sm font-medium leading-relaxed text-slate-500">
                           {modoCiclo === 'automatico'
-                            ? 'Confira as disciplinas selecionadas pelo sistema antes de finalizar.'
-                            : 'Escolha as disciplinas e defina o nível de dificuldade antes de finalizar.'}
+                            ? 'O sistema já preparou uma sugestão. Revise a composição e finalize quando estiver pronto.'
+                            : 'Selecione as disciplinas, defina o nível de dificuldade e finalize quando tudo estiver completo.'}
                         </p>
 
                         {disciplinas.length === 0 ? (
@@ -2020,26 +2058,27 @@ export default function CiclosEstudo() {
                 </div>
 
                 {/* Painel lateral direito — criação */}
-                <div className="hidden lg:flex w-72 shrink-0 flex-col gap-4 sticky top-6">
+                <div className="hidden lg:flex w-80 shrink-0 flex-col gap-4 sticky top-6">
                   {etapa === 1 && (
                     <>
-                      <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                        <p className="text-[11px] font-black text-sky-500 uppercase tracking-widest mb-3">Por que ciclos funcionam?</p>
-                        <div className="space-y-3">
+                      <div className="rounded-[24px] border border-slate-200/70 bg-white p-5 shadow-sm">
+                        <p className="text-[11px] font-black uppercase tracking-[0.22em] text-sky-500">O que acontece depois</p>
+                        <p className="mt-2 text-sm font-black text-slate-800">Sua meta diária vira a regra do ciclo.</p>
+                        <div className="mt-4 space-y-3">
                           {[
-                            { e: '🧠', t: 'Memória ativa', d: 'Alternar disciplinas evita a fadiga cognitiva e melhora a retenção.' },
-                            { e: '🔁', t: 'Revisão natural', d: 'Ao voltar para uma disciplina, o cérebro reconsolida o conteúdo.' },
-                            { e: '⏱️', t: 'Sessões ideais', d: 'Blocos de 45–60 min por disciplina maximizam o aprendizado profundo.' },
+                            { t: 'Sessões por dia', d: 'Cada hora escolhida vira uma sessão de estudo.' },
+                            { t: 'Tamanho do ciclo', d: 'Quanto mais tempo disponível, mais disciplinas entram na rotação.' },
+                            { t: 'Rotina prática', d: 'Depois de criado, o dashboard mostra a próxima sessão automaticamente.' },
                           ].map(item => (
                             <div key={item.t} className="flex items-start gap-2">
-                              <span className="text-base">{item.e}</span>
-                              <p className="text-xs text-slate-600 leading-snug"><strong className="text-slate-800">{item.t}</strong> — {item.d}</p>
+                              <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-sky-500" />
+                              <p className="text-xs leading-snug text-slate-600"><strong className="text-slate-800">{item.t}</strong> — {item.d}</p>
                             </div>
                           ))}
                         </div>
                       </div>
-                      <div className="bg-sky-50 border border-sky-100 rounded-2xl p-5">
-                        <p className="text-[11px] font-black text-sky-500 uppercase tracking-widest mb-3">Seu ciclo estimado</p>
+                      <div className="rounded-[24px] border border-sky-100 bg-sky-50 p-5">
+                        <p className="text-[11px] font-black uppercase tracking-[0.22em] text-sky-600">Prévia rápida</p>
                         {[
                           { l: 'Sessões por dia',      v: horasDiariasLimitadas },
                           { l: 'Disciplinas no ciclo', v: maxDisciplinas },
@@ -2057,24 +2096,24 @@ export default function CiclosEstudo() {
                   {etapa === 2 && (
                     <>
                       {!editalSelecionado ? (
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                          <p className="text-[11px] font-black text-sky-500 uppercase tracking-widest mb-3">Dicas de seleção</p>
-                          <div className="space-y-3">
+                        <div className="rounded-[24px] border border-slate-200/70 bg-white p-5 shadow-sm">
+                          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-sky-500">Como escolher</p>
+                          <div className="mt-4 space-y-3">
                             {[
-                              { e: '🎯', t: 'Estudo ativo', d: 'Escolha o edital que você está ativamente estudando agora.' },
-                              { e: '📋', t: 'Cargo = disciplinas', d: 'O cargo define o conjunto de matérias do seu ciclo.' },
-                              { e: '🔍', t: 'Busca rápida', d: 'Use o campo de busca para encontrar editais específicos.' },
+                              { t: 'Edital atual', d: 'Use o edital que você pretende estudar agora.' },
+                              { t: 'Cargo correto', d: 'O cargo define as disciplinas que aparecem na próxima etapa.' },
+                              { t: 'Busca objetiva', d: 'Pesquise por nome ou banca para reduzir a lista.' },
                             ].map(item => (
                               <div key={item.t} className="flex items-start gap-2">
-                                <span className="text-base">{item.e}</span>
-                                <p className="text-xs text-slate-600 leading-snug"><strong className="text-slate-800">{item.t}</strong> — {item.d}</p>
+                                <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-sky-500" />
+                                <p className="text-xs leading-snug text-slate-600"><strong className="text-slate-800">{item.t}</strong> — {item.d}</p>
                               </div>
                             ))}
                           </div>
                         </div>
                       ) : (
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                          <p className="text-[11px] font-black text-sky-500 uppercase tracking-widest mb-3">Edital selecionado</p>
+                        <div className="rounded-[24px] border border-slate-200/70 bg-white p-5 shadow-sm">
+                          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-sky-500">Seleção atual</p>
                           <div className="flex items-center justify-between mb-3">
                             <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
                               editalSelecionado.status === 'ABERTO' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
@@ -2111,20 +2150,29 @@ export default function CiclosEstudo() {
 
                   {(etapa === 3 || etapa === 4) && (
                     <>
-                      <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                        <p className="text-[11px] font-black text-sky-500 uppercase tracking-widest mb-4">Resumo do ciclo</p>
+                      <div className="rounded-[24px] border border-slate-200/70 bg-white p-5 shadow-sm">
+                        <p className="text-[11px] font-black uppercase tracking-[0.22em] text-sky-500">Resumo até aqui</p>
                         <div className="space-y-3">
-                          <div><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Edital</p><p className="text-xs font-bold text-slate-700 leading-snug">{editalSelecionado?.nome}</p></div>
-                          <div><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Cargo</p><p className="text-xs font-bold text-slate-700">{cargoSelecionado?.nome}</p></div>
-                          <div className="flex gap-3">
-                            <div className="flex-1"><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Sessões por dia</p><p className="text-sm font-black text-sky-600">{horasDiariasLimitadas}</p></div>
+                          <div className="rounded-2xl bg-slate-50 px-3 py-3">
+                            <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Edital</p>
+                            <p className="mt-1 text-xs font-bold leading-snug text-slate-700">{editalSelecionado?.nome}</p>
+                          </div>
+                          <div className="rounded-2xl bg-slate-50 px-3 py-3">
+                            <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Cargo</p>
+                            <p className="mt-1 text-xs font-bold text-slate-700">{cargoSelecionado?.nome}</p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="rounded-2xl bg-sky-50 px-3 py-3">
+                              <p className="text-[11px] font-black uppercase tracking-widest text-sky-500">Sessões/dia</p>
+                              <p className="mt-1 text-xl font-black text-sky-700">{horasDiariasLimitadas}</p>
+                            </div>
+                            <div className="rounded-2xl bg-sky-50 px-3 py-3">
+                              <p className="text-[11px] font-black uppercase tracking-widest text-sky-500">Disciplinas</p>
+                              <p className="mt-1 text-xl font-black text-sky-700">{maxDisciplinas}</p>
+                            </div>
                           </div>
                           <div>
-                            <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Disciplinas no ciclo</p>
-                            <p className="text-sm font-black text-sky-600">{maxDisciplinas}</p>
-                          </div>
-                          <div>
-                            <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Modo</p>
+                            <p className="mb-1 text-[11px] font-black uppercase tracking-widest text-slate-400">Modo</p>
                             <span className={`text-[11px] font-black uppercase px-2 py-0.5 rounded-full ${modoCiclo === 'automatico' ? 'bg-sky-100 text-sky-600' : 'bg-violet-100 text-violet-600'}`}>
                               {modoCiclo === 'automatico' ? 'Automático' : 'Personalizado'}
                             </span>
@@ -2133,10 +2181,10 @@ export default function CiclosEstudo() {
                       </div>
 
                       {etapa === 4 && (
-                        <div className={`rounded-2xl p-4 shadow-sm border transition-colors ${
+                        <div className={`rounded-[24px] p-5 shadow-sm border transition-colors ${
                           podeFinalizar
-                            ? 'border-emerald-100 bg-emerald-50/60'
-                            : 'border-amber-100 bg-amber-50/60'
+                            ? 'border-emerald-100 bg-emerald-50'
+                            : 'border-amber-100 bg-amber-50'
                         }`}>
                           <p className={`text-[11px] font-black uppercase tracking-widest mb-1 ${
                             podeFinalizar ? 'text-emerald-600' : 'text-amber-600'
@@ -2232,6 +2280,7 @@ export default function CiclosEstudo() {
           </div>
         </div>
       </main>
+      </div>
     </div>
   );
 }
@@ -2248,9 +2297,13 @@ function MenuItem({ icon, label, active, onClick }: { icon: React.ReactNode; lab
       type="button"
       onClick={onClick}
       aria-label={label}
-      className={`flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition-all group w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-2 ${active ? 'text-sky-600 bg-sky-50 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}
+      className={`flex items-center gap-3 px-3 py-2.5 rounded-2xl cursor-pointer transition-all group w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-2 ${
+        active
+          ? 'text-white bg-white/16 font-bold shadow-sm ring-1 ring-white/15'
+          : 'text-slate-300 hover:bg-white/10 hover:text-white'
+      }`}
     >
-      <div className={`shrink-0 transition-all ${active ? 'p-1.5 rounded-lg bg-sky-100' : 'group-hover:text-sky-500'}`}>{icon}</div>
+      <div className={`shrink-0 transition-all ${active ? 'p-1.5 rounded-xl bg-sky-400 text-white' : 'text-slate-400 group-hover:text-sky-200'}`}>{icon}</div>
       <span className="text-[13px] truncate">{label}</span>
     </button>
   );

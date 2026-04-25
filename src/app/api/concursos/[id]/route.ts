@@ -86,7 +86,7 @@ export async function GET(
      */
     return NextResponse.json(concurso)
 
-  } catch (error) {
+  } catch {
 
     /**
      * Caso dê erro (ex: banco fora, id inválido, etc)
