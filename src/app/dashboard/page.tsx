@@ -6,7 +6,7 @@ import { deleteCookie } from 'cookies-next';
 import {
   Bell, Settings, User, LayoutDashboard, BookOpen, RefreshCw,
   LineChart, Calendar, LogOut, Clock, Target, TrendingUp,
-  ChevronRight, Info, CheckCircle2, Zap, BarChart3, Menu, Sparkles,
+  ChevronRight, Info, CheckCircle2, Zap, BarChart3, Menu,
 } from 'lucide-react';
 
 function getNomeUsuario(): string {
@@ -220,7 +220,7 @@ export default function PainelEstudante() {
             <div>
               <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                 <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-sky-50 text-sky-500 ring-1 ring-sky-100">
-                  <Sparkles size={20} />
+                  <span className="text-xl leading-none">👋</span>
                 </span>
                 Bem-vindo de volta, {nomeUsuario}!
               </h2>
