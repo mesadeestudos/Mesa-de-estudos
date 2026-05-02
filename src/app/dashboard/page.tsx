@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -6,7 +6,7 @@ import { deleteCookie } from 'cookies-next';
 import {
   Bell, Settings, User, LayoutDashboard, BookOpen, RefreshCw,
   LineChart, Calendar, LogOut, Clock, Target, TrendingUp,
-  ChevronRight, Info, CheckCircle2, Zap, BarChart3, Menu,
+  ChevronRight, Info, CheckCircle2, Zap, BarChart3, Menu, Sparkles,
 } from 'lucide-react';
 
 function getNomeUsuario(): string {
@@ -31,15 +31,28 @@ interface CicloResumo {
   proximaSessao: { nome: string; categoria: string } | null;
 }
 
+interface ResumoPainel {
+  revisoesPendentes: number;
+  revisoesAtrasadas: number;
+  sessoesConcluidas: number;
+  horasTotais: number;
+}
+
 export default function PainelEstudante() {
   const router = useRouter();
   const [temCiclo, setTemCiclo]         = useState(false);
   const [ciclo, setCiclo]               = useState<CicloResumo | null>(null);
   const [mounted, setMounted]           = useState(false);
   const [carregandoCiclo, setCarregandoCiclo] = useState(true);
-  const [abaAtiva, setAbaAtiva]         = useState('Dashboard');
+  const [abaAtiva, setAbaAtiva]         = useState('Visão Geral');
   const [nomeUsuario, setNomeUsuario]   = useState('');
   const [sidebarAberta, setSidebarAberta] = useState(false);
+  const [resumo, setResumo] = useState<ResumoPainel>({
+    revisoesPendentes: 0,
+    revisoesAtrasadas: 0,
+    sessoesConcluidas: 0,
+    horasTotais: 0,
+  });
 
   const handleLogout = () => { deleteCookie('authorization'); router.push('/login'); };
 
@@ -68,6 +81,24 @@ export default function PainelEstudante() {
       })
       .catch(() => {})
       .finally(() => setCarregandoCiclo(false));
+
+    Promise.all([
+      fetch('/api/revisoes').then(r => r.ok ? r.json() : null),
+      fetch('/api/desempenho').then(r => r.ok ? r.json() : null),
+      fetch('/api/perfil').then(r => r.ok ? r.json() : null),
+    ])
+      .then(([revisoes, desempenho, perfil]) => {
+        setResumo({
+          revisoesPendentes: revisoes?.resumo?.pendentes ?? 0,
+          revisoesAtrasadas: revisoes?.resumo?.atrasadas ?? 0,
+          sessoesConcluidas: desempenho?.resumo?.sessoesConcluidas ?? 0,
+          horasTotais: desempenho?.resumo?.horasTotais ?? 0,
+        });
+        if (perfil?.nomeCompleto) {
+          setNomeUsuario(perfil.nomeCompleto.split(' ').slice(0, 2).join(' '));
+        }
+      })
+      .catch(() => {});
   }, []);
 
   if (!mounted) return <div className="min-h-screen w-full bg-slate-50" />;
@@ -96,13 +127,13 @@ export default function PainelEstudante() {
             </div>
           </div>
           <nav className="space-y-1 w-full px-3">
-            <MenuItem icon={<LayoutDashboard size={18} />} label="Dashboard"        active={abaAtiva === 'Dashboard'}   onClick={() => { setAbaAtiva('Dashboard');   setSidebarAberta(false); }} />
+            <MenuItem icon={<LayoutDashboard size={18} />} label="Visão Geral"        active={abaAtiva === 'Visão Geral'}   onClick={() => { setAbaAtiva('Visão Geral');   setSidebarAberta(false); }} />
             <MenuItem icon={<BookOpen size={18} />}        label="Minha Mesa"       active={false}                      onClick={() => { router.push('/minha-mesa'); setSidebarAberta(false); }} />
             <MenuItem icon={<RefreshCw size={18} />}       label="Ciclos de estudo" active={abaAtiva === 'Ciclos'}      onClick={() => { router.push('/ciclos');    setSidebarAberta(false); }} />
-            <MenuItem icon={<LineChart size={18} />}       label="Desempenho"       active={abaAtiva === 'Desempenho'}  onClick={() => { setAbaAtiva('Desempenho'); setSidebarAberta(false); }} />
-            <MenuItem icon={<Calendar size={18} />}        label="Revisões"         active={abaAtiva === 'Revisões'}    onClick={() => { setAbaAtiva('Revisões');   setSidebarAberta(false); }} />
-            <MenuItem icon={<Settings size={18} />}        label="Configurações"    active={abaAtiva === 'Config'}      onClick={() => { setAbaAtiva('Config');     setSidebarAberta(false); }} />
-            <MenuItem icon={<User size={18} />}            label="Perfil"           active={abaAtiva === 'Perfil'}      onClick={() => { setAbaAtiva('Perfil');     setSidebarAberta(false); }} />
+            <MenuItem icon={<LineChart size={18} />}       label="Desempenho"       active={false}                      onClick={() => { router.push('/desempenho'); setSidebarAberta(false); }} />
+            <MenuItem icon={<Calendar size={18} />}        label="Revisões"         active={false}                      onClick={() => { router.push('/revisoes');   setSidebarAberta(false); }} />
+            <MenuItem icon={<Settings size={18} />}        label="Configurações"    active={abaAtiva === 'Config'}      onClick={() => { router.push('/configuracoes'); setSidebarAberta(false); }} />
+            <MenuItem icon={<User size={18} />}            label="Perfil"           active={abaAtiva === 'Perfil'}      onClick={() => { router.push('/perfil'); setSidebarAberta(false); }} />
           </nav>
         </div>
         <div className="p-4 shrink-0">
@@ -127,16 +158,16 @@ export default function PainelEstudante() {
             </button>
             <div className="min-w-0">
               <p className="text-[11px] font-black uppercase tracking-[0.22em] text-sky-500">Mesa de Estudos</p>
-              <h1 className="truncate text-lg font-black text-slate-800">Dashboard</h1>
+              <h1 className="truncate text-lg font-black text-slate-800">Visão Geral</h1>
             </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex gap-4 border-r pr-6 border-slate-200">
               <HeaderIcon icon={<Bell size={18} />}     label="Notificações" />
-              <HeaderIcon icon={<Settings size={18} />} label="Ajustes" onClick={() => setAbaAtiva('Config')} />
+              <HeaderIcon icon={<Settings size={18} />} label="Ajustes" onClick={() => router.push('/configuracoes')} />
             </div>
             <div className="flex items-center gap-3">
-              <div className="p-0.5 rounded-full bg-linear-to-tr from-sky-400 to-sky-100 shadow-sm border border-white cursor-pointer" onClick={() => setAbaAtiva('Perfil')}>
+              <div className="p-0.5 rounded-full bg-linear-to-tr from-sky-400 to-sky-100 shadow-sm border border-white cursor-pointer" onClick={() => router.push('/perfil')}>
                 <div className="w-9 h-9 rounded-full border-2 border-white bg-linear-to-br from-sky-100 to-emerald-100 flex items-center justify-center">
                   <User size={20} className="text-sky-600" />
                 </div>
@@ -188,7 +219,10 @@ export default function PainelEstudante() {
             {/* Saudação */}
             <div>
               <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                <span className="text-3xl leading-none">👋</span> Bem-vindo de volta, {nomeUsuario}!
+                <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-sky-50 text-sky-500 ring-1 ring-sky-100">
+                  <Sparkles size={20} />
+                </span>
+                Bem-vindo de volta, {nomeUsuario}!
               </h2>
               <p className="text-slate-400 text-xs italic ml-1 mt-0.5">
                 {temCiclo ? 'Seu ciclo está ativo e pronto para continuar.' : 'Seu painel ainda está se preparando.'}
@@ -253,17 +287,27 @@ export default function PainelEstudante() {
                   <StatCard icon={<Clock size={16} />}     label="Por sessão"       valor="60 min"                              cor="slate" />
                 </div>
 
-                {/* Placeholders de funcionalidades futuras */}
+                {/* Resumos de acompanhamento */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <PlaceholderCard
-                    icon={<BarChart3 size={20} />}
-                    title="Desempenho"
-                    description="Taxa de acerto por disciplina, evolução ao longo do tempo e pontos de melhoria."
-                  />
-                  <PlaceholderCard
+                  <ResumoCard
                     icon={<Calendar size={20} />}
-                    title="Revisões"
-                    description="Revisões espaçadas baseadas no seu histórico de estudo, no momento certo."
+                    title="Revisões pendentes"
+                    value={String(resumo.revisoesPendentes)}
+                    description={resumo.revisoesAtrasadas > 0
+                      ? `${resumo.revisoesAtrasadas} atrasadas pedem atenção hoje.`
+                      : 'Sua fila de revisões está sob controle.'}
+                    actionLabel="Ver revisões"
+                    onClick={() => router.push('/revisoes')}
+                    tone="sky"
+                  />
+                  <ResumoCard
+                    icon={<BarChart3 size={20} />}
+                    title="Sessões concluídas"
+                    value={String(resumo.sessoesConcluidas)}
+                    description={`${resumo.horasTotais}h registradas no histórico de estudos.`}
+                    actionLabel="Ver desempenho"
+                    onClick={() => router.push('/desempenho')}
+                    tone="emerald"
                   />
                 </div>
               </>
@@ -277,7 +321,7 @@ export default function PainelEstudante() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 w-full max-w-2xl">
                   <FeatureItem icon={<Clock size={20} />}      title="Organize seu tempo"     description="Defina quantas horas por dia você pode estudar." />
                   <FeatureItem icon={<Target size={20} />}     title="Foque no que importa"   description="Disciplinas e pesos automáticos baseados no edital." />
-                  <FeatureItem icon={<TrendingUp size={20} />} title="Acompanhe sua evolução" description="Dashboard, metas e revisões inteligentes." />
+                  <FeatureItem icon={<TrendingUp size={20} />} title="Acompanhe sua evolução" description="Visão Geral, metas e revisões inteligentes." />
                 </div>
                 <button
                   onClick={() => router.push('/ciclos')}
@@ -363,16 +407,53 @@ function StatCard({ icon, label, valor, cor }: { icon: React.ReactNode; label: s
   );
 }
 
-function PlaceholderCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
+function ResumoCard({
+  icon,
+  title,
+  value,
+  description,
+  actionLabel,
+  onClick,
+  tone,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  value: string;
+  description: string;
+  actionLabel: string;
+  onClick: () => void;
+  tone: 'sky' | 'emerald';
+}) {
+  const colors = {
+    sky: {
+      icon: 'text-sky-500 bg-sky-50',
+      value: 'text-sky-600',
+      button: 'text-sky-700 bg-sky-50 hover:bg-sky-100',
+    },
+    emerald: {
+      icon: 'text-emerald-500 bg-emerald-50',
+      value: 'text-emerald-600',
+      button: 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100',
+    },
+  }[tone];
+
   return (
-    <div className="rounded-[24px] border border-white/70 bg-white/70 p-5 shadow-lg shadow-slate-200/50 backdrop-blur-xl flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <div className="text-slate-300">{icon}</div>
-        <h4 className="text-sm font-bold text-slate-500">{title}</h4>
-        <span className="ml-auto text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full">Em breve</span>
+    <button
+      onClick={onClick}
+      className="group rounded-[24px] border border-white/70 bg-white/78 p-5 text-left shadow-lg shadow-slate-200/50 backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:shadow-xl"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-2xl ${colors.icon}`}>{icon}</div>
+          <h4 className="text-sm font-black text-slate-800">{title}</h4>
+        </div>
+        <p className={`text-4xl font-black leading-none ${colors.value}`}>{value}</p>
       </div>
-      <p className="text-xs text-slate-400 leading-relaxed">{description}</p>
-    </div>
+      <p className="mt-3 min-h-8 text-xs font-semibold leading-relaxed text-slate-400">{description}</p>
+      <span className={`mt-4 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest transition-colors ${colors.button}`}>
+        {actionLabel} <ChevronRight size={12} />
+      </span>
+    </button>
   );
 }
 
@@ -399,3 +480,4 @@ function CheckStep({ label, done = false, active = false, onClick }: { label: st
     </div>
   );
 }
+

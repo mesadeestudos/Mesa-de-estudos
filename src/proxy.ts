@@ -74,6 +74,11 @@ export const config = {
     '/dashboard/:path*',
     '/minha-mesa/:path*',
     '/editais/:path*',
+    '/ciclos/:path*',
+    '/desempenho/:path*',
+    '/revisoes/:path*',
+    '/perfil/:path*',
+    '/configuracoes/:path*',
 
     // fluxo
     '/pagamento',

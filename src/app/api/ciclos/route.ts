@@ -1,29 +1,11 @@
-import { NextResponse } from 'next/server';
-import { cookies }       from 'next/headers';
-import jwt               from 'jsonwebtoken';
+﻿import { NextResponse } from 'next/server';
 import { criarCicloService, buscarCicloService, desativarCicloService, avancarCicloService } from '@/service/ciclo.service';
-
-const SECRET = process.env.JWT_SECRET || 'secret';
-
-async function autenticar() {
-  const cookieStore = await cookies();
-  const token       = cookieStore.get('authorization')?.value;
-  if (!token) throw Object.assign(new Error('Não autenticado.'), { status: 401 });
-  const payload = jwt.verify(token, SECRET) as { id: number };
-  return BigInt(payload.id);
-}
-
-function toHttpError(err: unknown): { status: number; message: string } {
-  const e = err as { status?: number; name?: string; message?: string };
-  const status  = e?.status ?? (e?.name === 'JsonWebTokenError' || e?.name === 'TokenExpiredError' ? 401 : 500);
-  const message = e?.message ?? String(e) ?? 'Erro desconhecido';
-  return { status, message };
-}
+import { autenticarUsuario, toHttpError } from '@/lib/auth';
 
 export async function GET() {
   try {
-    const idUsuario = await autenticar();
-    const ciclo     = await buscarCicloService(idUsuario);
+    const idUsuario = await autenticarUsuario();
+    const ciclo = await buscarCicloService(idUsuario);
     return NextResponse.json(ciclo);
   } catch (err) {
     console.error('[GET /api/ciclos] erro:', err);
@@ -34,8 +16,8 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const idUsuario = await autenticar();
-    const body      = await req.json();
+    const idUsuario = await autenticarUsuario();
+    const body = await req.json();
     const resultado = await criarCicloService(body, idUsuario);
     return NextResponse.json(resultado, { status: 201 });
   } catch (err) {
@@ -47,7 +29,7 @@ export async function POST(req: Request) {
 
 export async function PATCH() {
   try {
-    const idUsuario = await autenticar();
+    const idUsuario = await autenticarUsuario();
     const resultado = await avancarCicloService(idUsuario);
     return NextResponse.json(resultado);
   } catch (err) {
@@ -59,7 +41,7 @@ export async function PATCH() {
 
 export async function DELETE() {
   try {
-    const idUsuario = await autenticar();
+    const idUsuario = await autenticarUsuario();
     await desativarCicloService(idUsuario);
     return NextResponse.json({ ok: true });
   } catch (err) {

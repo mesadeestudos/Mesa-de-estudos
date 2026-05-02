@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -145,13 +145,13 @@ export default function MinhaMesaPage() {
               </div>
             </div>
             <nav className="w-full space-y-1 px-3">
-              <MenuItem icon={<LayoutDashboard size={18} />} label="Dashboard" active={false} onClick={() => router.push('/dashboard')} />
+              <MenuItem icon={<LayoutDashboard size={18} />} label="Visão Geral" active={false} onClick={() => router.push('/dashboard')} />
               <MenuItem icon={<BookOpen size={18} />} label="Minha Mesa" active onClick={() => setSidebarAberta(false)} />
               <MenuItem icon={<RefreshCw size={18} />} label="Ciclos de estudo" active={false} onClick={() => router.push('/ciclos')} />
-              <MenuItem icon={<LineChart size={18} />} label="Desempenho" active={false} onClick={() => router.push('/dashboard')} />
-              <MenuItem icon={<Calendar size={18} />} label="Revisões" active={false} onClick={() => router.push('/dashboard')} />
-              <MenuItem icon={<Settings size={18} />} label="Configurações" active={false} onClick={() => router.push('/dashboard')} />
-              <MenuItem icon={<User size={18} />} label="Perfil" active={false} onClick={() => router.push('/dashboard')} />
+              <MenuItem icon={<LineChart size={18} />} label="Desempenho" active={false} onClick={() => router.push('/desempenho')} />
+              <MenuItem icon={<Calendar size={18} />} label="Revisões" active={false} onClick={() => router.push('/revisoes')} />
+              <MenuItem icon={<Settings size={18} />} label="Configurações" active={false} onClick={() => router.push('/configuracoes')} />
+              <MenuItem icon={<User size={18} />} label="Perfil" active={false} onClick={() => router.push('/perfil')} />
             </nav>
           </div>
           <div className="shrink-0 p-4">
@@ -360,3 +360,4 @@ function MiniStat({ icon, label, value }: { icon: React.ReactNode; label: string
     </div>
   );
 }
+

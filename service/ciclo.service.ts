@@ -220,15 +220,109 @@ export async function avancarCicloService(idUsuario: bigint) {
   if (!ciclo) throw Object.assign(new Error('Nenhum ciclo ativo.'), { status: 404 });
 
   const totalSlots = ciclo.ciclo_disciplina.length;
+  if (totalSlots === 0) throw Object.assign(new Error('Ciclo sem disciplinas.'), { status: 400 });
+
   const posicaoAtual = ciclo.ciclo_execucao?.posicao_atual ?? 1;
   const novaPosicao = (posicaoAtual % totalSlots) + 1;
+  const slotAtual = ciclo.ciclo_disciplina[(posicaoAtual - 1) % totalSlots];
+  const agora = new Date();
+  const minutos = Math.max(1, Math.round(Number(slotAtual.horas_planejadas) * 60));
 
-  await prisma.ciclo_execucao.update({
-    where: { id_ciclo: ciclo.id_ciclo },
-    data: { posicao_atual: novaPosicao, data_ultima_execucao: new Date() },
+  await prisma.$transaction(async (tx) => {
+    const topicoPendente = await tx.topico.findFirst({
+      where: {
+        id_disciplina: slotAtual.id_disciplina,
+        OR: [
+          { topico_progresso: { none: { id_usuario: idUsuario } } },
+          { topico_progresso: { some: { id_usuario: idUsuario, concluido: false } } },
+        ],
+      },
+      orderBy: [{ ordem: 'asc' }, { id_topico: 'asc' }],
+    });
+
+    const topico = topicoPendente ?? await tx.topico.findFirst({
+      where: { id_disciplina: slotAtual.id_disciplina },
+      orderBy: [{ ordem: 'asc' }, { id_topico: 'asc' }],
+    });
+
+    if (topico) {
+      await tx.sessao_estudo.create({
+        data: {
+          id_usuario: idUsuario,
+          id_disciplina: slotAtual.id_disciplina,
+          id_topico: topico.id_topico,
+          inicio: new Date(agora.getTime() - minutos * 60_000),
+          fim: agora,
+          duracao_minutos: minutos,
+          status: 'CONCLUIDA',
+        },
+      });
+
+      await tx.topico_progresso.upsert({
+        where: {
+          id_usuario_id_topico: {
+            id_usuario: idUsuario,
+            id_topico: topico.id_topico,
+          },
+        },
+        update: { concluido: true, data_conclusao: agora },
+        create: {
+          id_usuario: idUsuario,
+          id_topico: topico.id_topico,
+          concluido: true,
+          data_conclusao: agora,
+        },
+      });
+
+      const [totalTopicos, topicosConcluidos] = await Promise.all([
+        tx.topico.count({ where: { id_disciplina: slotAtual.id_disciplina } }),
+        tx.topico_progresso.count({
+          where: {
+            id_usuario: idUsuario,
+            concluido: true,
+            topico: { id_disciplina: slotAtual.id_disciplina },
+          },
+        }),
+      ]);
+
+      const percentual = totalTopicos > 0
+        ? Number(((topicosConcluidos / totalTopicos) * 100).toFixed(2))
+        : 0;
+
+      await tx.disciplina_progresso.upsert({
+        where: {
+          id_usuario_id_disciplina: {
+            id_usuario: idUsuario,
+            id_disciplina: slotAtual.id_disciplina,
+          },
+        },
+        update: {
+          topicos_concluidos: topicosConcluidos,
+          percentual,
+          concluida: totalTopicos > 0 && topicosConcluidos >= totalTopicos,
+        },
+        create: {
+          id_usuario: idUsuario,
+          id_disciplina: slotAtual.id_disciplina,
+          topicos_concluidos: topicosConcluidos,
+          percentual,
+          concluida: totalTopicos > 0 && topicosConcluidos >= totalTopicos,
+        },
+      });
+    }
+
+    await tx.ciclo_execucao.update({
+      where: { id_ciclo: ciclo.id_ciclo },
+      data: { posicao_atual: novaPosicao, data_ultima_execucao: agora },
+    });
   });
 
-  return { posicaoAtual: novaPosicao, totalSlots };
+  return {
+    posicaoAtual: novaPosicao,
+    totalSlots,
+    sessaoRegistrada: true,
+    revisoesAgendadas: true,
+  };
 }
 
 export async function desativarCicloService(idUsuario: bigint) {

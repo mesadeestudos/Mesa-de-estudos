@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import Link from 'next/link';
 
 export default function HomePage() {
@@ -76,7 +76,7 @@ export default function HomePage() {
             >
               <img
                 src="/imagem_home.png"
-                alt="Dashboard Preview"
+                alt="Visão Geral Preview"
                 className="w-full h-auto drop-shadow-xl animate-float"
               />
             </div>
@@ -102,3 +102,4 @@ export default function HomePage() {
     </div>
   );
 }
+

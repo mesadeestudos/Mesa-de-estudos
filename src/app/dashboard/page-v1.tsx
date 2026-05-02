@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
@@ -149,15 +149,15 @@ export default function DashboardQuantumV23() {
         <header className="h-20 bg-[#082040] fixed top-0 w-full z-50 px-10 flex items-center justify-between shadow-lg">
           <div className="flex items-center gap-5">
             <img src="/logo_azul.png" alt="Logo" className="h-40 w-auto" />
-            <h1 className="text-[11px] font-black uppercase tracking-[0.4em] text-white">Dashboard <span className="text-cyan-400">Inteligente</span></h1>
+            <h1 className="text-[11px] font-black uppercase tracking-[0.4em] text-white">Visão Geral <span className="text-cyan-400">Inteligente</span></h1>
           </div>
           <div className="flex items-center gap-8">
             <Link href="/editais" className="flex items-center gap-3 group border-r border-white/10 pr-6">
-              <div className="h-9 w-9 rounded-xl bg-white/5 flex items-center justify-center text-base border border-white/10 group-hover:bg-cyan-500/20 transition-all">📝</div>
+              <div className="h-9 w-9 rounded-xl bg-white/5 flex items-center justify-center text-base border border-white/10 group-hover:bg-cyan-500/20 transition-all"></div>
               <div className="flex flex-col"><span className="text-[10px] font-black text-white uppercase tracking-widest">Editais</span><span className="text-[7px] font-bold text-slate-400 uppercase tracking-tight">Gestão</span></div>
             </Link>
             <Link href="/radar" className="flex items-center gap-3 group">
-              <div className="h-9 w-9 rounded-xl bg-white/5 flex items-center justify-center text-base border border-white/10 group-hover:bg-emerald-500/20 transition-all">📊</div>
+              <div className="h-9 w-9 rounded-xl bg-white/5 flex items-center justify-center text-base border border-white/10 group-hover:bg-emerald-500/20 transition-all"></div>
               <div className="flex flex-col"><span className="text-[10px] font-black text-white uppercase tracking-widest">Radar</span><span className="text-[7px] font-bold text-slate-400 uppercase tracking-tight">Desempenho</span></div>
             </Link>
             <div className="flex items-center gap-3 px-4 py-2 bg-white/5 rounded-full border border-white/10">
@@ -274,7 +274,7 @@ export default function DashboardQuantumV23() {
         <div className="pt-8 border-t border-slate-200 mt-8">
           <button onClick={() => setIsFeedbackOpen(true)} className="w-full bg-white p-5 rounded-[28px] border-2 border-dashed border-slate-200 hover:border-cyan-400 transition-all text-left">
             <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-cyan-100 flex items-center justify-center text-sm">💡</div>
+              <div className="h-8 w-8 rounded-full bg-cyan-100 flex items-center justify-center text-sm"></div>
               <div><h4 className="text-[10px] font-black text-slate-800 uppercase tracking-tight">Sugestões MVP</h4><p className="text-[9px] text-slate-400 font-medium">Envie sua ideia agora</p></div>
             </div>
           </button>
@@ -297,7 +297,7 @@ export default function DashboardQuantumV23() {
                       <h3 className="text-2xl font-black text-slate-900 italic uppercase">Sugestões <span className="text-cyan-600">MVP</span></h3>
                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Sua ideia é fundamental</p>
                     </div>
-                    <button onClick={() => setIsFeedbackOpen(false)} className="text-slate-300 hover:text-slate-500 transition-colors">✕</button>
+                    <button onClick={() => setIsFeedbackOpen(false)} className="text-slate-300 hover:text-slate-500 transition-colors">×</button>
                   </div>
                   <textarea
                     value={feedbackText}
@@ -314,7 +314,7 @@ export default function DashboardQuantumV23() {
                 </>
               ) : (
                 <div className="py-12 text-center animate-pulse">
-                  <div className="text-6xl mb-4">🚀</div>
+                  <div className="text-6xl mb-4"></div>
                   <h3 className="text-2xl font-black italic text-slate-900 uppercase">Sugestão Enviada!</h3>
                   <p className="text-slate-400 text-sm mt-2">Obrigado por colaborar.</p>
                 </div>
@@ -346,3 +346,4 @@ export default function DashboardQuantumV23() {
     </div>
   );
 }
+

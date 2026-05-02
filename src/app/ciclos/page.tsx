@@ -538,13 +538,13 @@ export default function CiclosEstudo() {
   };
 
   const navItems = [
-    { icon: <LayoutDashboard size={18} />, label: 'Dashboard',        active: false, href: '/dashboard' },
+    { icon: <LayoutDashboard size={18} />, label: 'Visão Geral',        active: false, href: '/dashboard' },
     { icon: <BookOpen size={18} />,        label: 'Minha Mesa',       active: false, href: '/minha-mesa' },
     { icon: <RefreshCw size={18} />,       label: 'Ciclos de estudo', active: true,  href: '/ciclos' },
-    { icon: <LineChart size={18} />,       label: 'Desempenho',       active: false, href: '/dashboard' },
-    { icon: <Calendar size={18} />,        label: 'Revisões',         active: false, href: '/dashboard' },
-    { icon: <Settings size={18} />,        label: 'Configurações',    active: false, href: '/dashboard' },
-    { icon: <User size={18} />,            label: 'Perfil',            active: false, href: '/dashboard' },
+    { icon: <LineChart size={18} />,       label: 'Desempenho',       active: false, href: '/desempenho' },
+    { icon: <Calendar size={18} />,        label: 'Revisões',         active: false, href: '/revisoes' },
+    { icon: <Settings size={18} />,        label: 'Configurações',    active: false, href: '/configuracoes' },
+    { icon: <User size={18} />,            label: 'Perfil',            active: false, href: '/perfil' },
   ];
 
   if (!mounted) return <div className="min-h-screen w-full bg-slate-50" />;
@@ -552,13 +552,13 @@ export default function CiclosEstudo() {
   const etapaAtual = STEPS.find(step => step.num === etapa) ?? STEPS[0];
   const progressoEtapas = ((etapa - 1) / (STEPS.length - 1)) * 100;
 
-  /* ═══════════════════════════════════════════════════════ RENDER */
+  /* ------------------------------------------------------- RENDER */
   return (
     <div className="relative h-screen w-full overflow-hidden bg-[linear-gradient(135deg,#eef9ff_0%,#f8fafc_34%,#f4f7ff_68%,#ecfdf5_100%)] text-[#475569] font-sans">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(14,165,233,0.08)_0%,transparent_28%,rgba(16,185,129,0.07)_58%,transparent_100%)]" />
       <div className="relative flex h-full w-full overflow-hidden">
 
-      {/* ── Modal de confirmação de edição ── */}
+      {/* -- Modal de confirmação de edição -- */}
       {confirmandoEdicao && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full mx-4 animate-in fade-in zoom-in-95 duration-200">
@@ -860,12 +860,12 @@ export default function CiclosEstudo() {
         </div>
       )}
 
-      {/* ── Overlay mobile ── */}
+      {/* -- Overlay mobile -- */}
       {sidebarAberta && (
         <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setSidebarAberta(false)} />
       )}
 
-      {/* ── Sidebar ── */}
+      {/* -- Sidebar -- */}
       <aside className={`fixed lg:static inset-y-0 left-0 z-40 w-64 border-r border-white/30 bg-slate-950/90 text-white shadow-2xl shadow-slate-950/20 backdrop-blur-xl flex flex-col shrink-0 h-screen transition-transform duration-300 lg:translate-x-0 ${sidebarAberta ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex flex-col items-center grow overflow-y-auto min-h-0">
           <div className="w-full px-4 pt-5 pb-4 shrink-0">
@@ -891,7 +891,7 @@ export default function CiclosEstudo() {
         </div>
       </aside>
 
-      {/* ── Main ── */}
+      {/* -- Main -- */}
       <main className="flex-1 flex flex-col min-w-0 p-4 lg:p-6 overflow-y-auto">
 
         {/* Header */}
@@ -923,11 +923,11 @@ export default function CiclosEstudo() {
           </div>
         </header>
 
-        {/* ── Conteúdo principal ── */}
+        {/* -- Conteúdo principal -- */}
         <div className="flex justify-center flex-1">
           <div className="flex gap-6 w-full max-w-7xl items-start">
 
-            {/* ── LOADING ── */}
+            {/* -- LOADING -- */}
             {estado === 'loading' && (
               <div className="flex-1 flex flex-col items-center justify-center py-24 gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-sky-50 flex items-center justify-center">
@@ -937,7 +937,7 @@ export default function CiclosEstudo() {
               </div>
             )}
 
-            {/* ── VISUALIZAÇÃO ── */}
+            {/* -- VISUALIZAÇÃO -- */}
             {estado === 'visualizacao' && cicloAtivo && (
               <>
                 <div className="flex-1 min-w-0 animate-in fade-in slide-in-from-bottom-2 duration-400">
@@ -945,7 +945,7 @@ export default function CiclosEstudo() {
                   {/* Grade principal */}
                   <div className="grid grid-cols-12 items-start gap-4">
 
-                    {/* ── Cabeçalho compacto ── */}
+                    {/* -- Cabeçalho compacto -- */}
                     <div className="col-span-12 rounded-[24px] border border-white/70 bg-white/78 px-4 py-3 shadow-lg shadow-slate-200/50 backdrop-blur-xl">
                       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                         <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
@@ -1022,7 +1022,7 @@ export default function CiclosEstudo() {
 
                     <div className="col-span-12 flex min-w-0 flex-col gap-4">
 
-                      {/* ── Visualização do ciclo ── */}
+                      {/* -- Visualização do ciclo -- */}
                       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(460px,1.02fr)_minmax(380px,0.98fr)] xl:items-stretch">
                         <div className="overflow-hidden rounded-[28px] border border-sky-100 bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.18),_transparent_38%),radial-gradient(circle_at_bottom,_rgba(59,130,246,0.10),_transparent_42%),linear-gradient(180deg,#ffffff_0%,#f6fbff_100%)] p-5 shadow-sm transition-all duration-300 sm:p-6 lg:rounded-[32px] lg:p-7 hover:shadow-md">
                           <div className="flex h-full flex-col gap-4">
@@ -1230,7 +1230,7 @@ export default function CiclosEstudo() {
                         </div>
                       </div>
 
-                      {/* ── Plano de hoje ── */}
+                      {/* -- Plano de hoje -- */}
                       <div className="rounded-lg border border-slate-100 bg-white p-5 shadow-sm">
                         <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                           <div>
@@ -1288,7 +1288,7 @@ export default function CiclosEstudo() {
               </>
             )}
 
-            {/* ── CRIAÇÃO ── */}
+            {/* -- CRIAÇÃO -- */}
             {estado === 'criacao' && (
               <>
                 <div className="flex-1 min-w-0 flex flex-col">
@@ -1331,7 +1331,7 @@ export default function CiclosEstudo() {
                     </div>
                   </div>
 
-                  {/* ── Indicador de etapas ── */}
+                  {/* -- Indicador de etapas -- */}
                   <div className="mb-5 rounded-[28px] border border-white/70 bg-white/70 px-3 py-3 shadow-lg shadow-slate-200/50 backdrop-blur-xl sm:px-5">
                     <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
                       {STEPS.map((step) => {
@@ -1372,7 +1372,7 @@ export default function CiclosEstudo() {
                     </div>
                   </div>
 
-                  {/* ══ ETAPA 1 ══ */}
+                  {/* -- ETAPA 1 -- */}
                   {etapa === 1 && (
                     <div key="etapa1" className={`rounded-[32px] border border-white/70 bg-white/78 p-6 shadow-xl shadow-slate-200/60 backdrop-blur-xl lg:p-8 ${animClass}`}>
                       <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-500">Disponibilidade diária</p>
@@ -1480,7 +1480,7 @@ export default function CiclosEstudo() {
                     </div>
                   )}
 
-                  {/* ══ ETAPA 2 ══ */}
+                  {/* -- ETAPA 2 -- */}
                   {etapa === 2 && (
                     <div key="etapa2" className={`rounded-[32px] border border-white/70 bg-white/78 p-6 shadow-xl shadow-slate-200/60 backdrop-blur-xl lg:p-8 ${animClass}`}>
                       <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-500">Base do ciclo</p>
@@ -1628,7 +1628,7 @@ export default function CiclosEstudo() {
 
                       <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row">
                         <button onClick={() => irParaEtapa(1)} className="w-full px-6 py-3 border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all sm:w-auto">
-                          ← Voltar
+                          ? Voltar
                         </button>
                         <button
                           onClick={() => irParaEtapa(3)} disabled={!podeContinuarEtapa2}
@@ -1647,7 +1647,7 @@ export default function CiclosEstudo() {
                     </div>
                   )}
 
-                  {/* ══ ETAPA 3 ══ */}
+                  {/* -- ETAPA 3 -- */}
                   {etapa === 3 && (
                     <div key="etapa3" className={`rounded-[32px] border border-white/70 bg-white/78 p-6 shadow-xl shadow-slate-200/60 backdrop-blur-xl lg:p-8 ${animClass}`}>
                       <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-500">Método de criação</p>
@@ -1721,7 +1721,7 @@ export default function CiclosEstudo() {
 
                       <div className="flex flex-col-reverse gap-3 sm:flex-row">
                         <button onClick={() => irParaEtapa(2)} className="w-full px-6 py-3 border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all sm:w-auto">
-                          ← Voltar
+                          ? Voltar
                         </button>
                         <button
                           onClick={() => irParaEtapa(4)}
@@ -1733,7 +1733,7 @@ export default function CiclosEstudo() {
                     </div>
                   )}
 
-                  {/* ══ ETAPA 4 ══ */}
+                  {/* -- ETAPA 4 -- */}
                     {etapa === 4 && (
                       <div key="etapa4" className={`relative rounded-[32px] border border-white/70 bg-white/78 p-6 pb-32 shadow-xl shadow-slate-200/60 backdrop-blur-xl lg:p-8 lg:pb-8 ${animClass}`}>
                         <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-500">Revisão final</p>
@@ -2036,7 +2036,7 @@ export default function CiclosEstudo() {
                           </div>
                           <div className="flex flex-col-reverse gap-3 sm:flex-row">
                             <button onClick={() => irParaEtapa(3)} disabled={salvando} className="w-full px-6 py-3 border-2 border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all disabled:opacity-50 sm:w-auto">
-                              ← Voltar
+                              ? Voltar
                             </button>
                             <button
                               onClick={handleFinalizar} disabled={!podeFinalizar || salvando}
@@ -2068,7 +2068,7 @@ export default function CiclosEstudo() {
                           {[
                             { t: 'Sessões por dia', d: 'Cada hora escolhida vira uma sessão de estudo.' },
                             { t: 'Tamanho do ciclo', d: 'Quanto mais tempo disponível, mais disciplinas entram na rotação.' },
-                            { t: 'Rotina prática', d: 'Depois de criado, o dashboard mostra a próxima sessão automaticamente.' },
+                            { t: 'Rotina prática', d: 'Depois de criado, a Visão Geral mostra a próxima sessão automaticamente.' },
                           ].map(item => (
                             <div key={item.t} className="flex items-start gap-2">
                               <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-sky-500" />
@@ -2230,7 +2230,7 @@ export default function CiclosEstudo() {
                               disabled={salvando}
                               className="flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-bold text-slate-500 transition-all hover:bg-slate-50 hover:text-slate-700 disabled:opacity-50"
                             >
-                              ← Voltar
+                              ? Voltar
                             </button>
                           </div>
                         </div>
@@ -2285,11 +2285,11 @@ export default function CiclosEstudo() {
   );
 }
 
-/* ── Paleta e roda do ciclo ── */
+/* -- Paleta e roda do ciclo -- */
 
 const WHEEL_COLORS = ['#0f9bd7','#14b87a','#7c5cff','#f39c12','#ef476f','#00b8d9','#ff7a00','#7cb518','#4361ee','#d946ef','#2a9d8f','#ff595e'];
 
-/* ── Componentes de suporte ── */
+/* -- Componentes de suporte -- */
 
 function MenuItem({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
   return (
@@ -2330,3 +2330,6 @@ function StatCard({ cor, label, valor }: { cor: 'sky' | 'slate'; label: string; 
     </div>
   );
 }
+
+
+

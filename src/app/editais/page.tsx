@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
@@ -59,7 +59,7 @@ export default function PlanejamentoEditais() {
         // Converte para JSON
         const data = await response.json()
 
-        console.log('DADOS DA API:', data) // 👈 importante pra debug
+        console.log('DADOS DA API:', data) //  importante pra debug
 
         // Adaptando dados da API para o formato do frontend
         const editaisFormatados = (data as ConcursoResumo[]).map((concurso) => ({
@@ -69,7 +69,7 @@ export default function PlanejamentoEditais() {
 
           descricao: concurso.descricao || '',
 
-          // 👇 GARANTINDO valores válidos
+          //  GARANTINDO valores válidos
           data: concurso.data
           ? concurso.data.split('T')[0].split('-').reverse().join('/')
           : 'A definir',
@@ -79,7 +79,7 @@ export default function PlanejamentoEditais() {
           banca: concurso.banca || '',
 
           /**
-          * 📌 STATUS REAL
+          *  STATUS REAL
           */
        status: concurso.status ? concurso.status.toUpperCase() : 'PREVISTO',
 
@@ -156,7 +156,7 @@ export default function PlanejamentoEditais() {
           </h1>
         </div>
         <Link href="/dashboard" className="rounded-full border border-white/10 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white/70 transition-all hover:bg-white/10 hover:text-white">
-          ← Voltar ao Dashboard
+          ← Voltar à Visão Geral
         </Link>
       </header>
 
@@ -206,7 +206,7 @@ export default function PlanejamentoEditais() {
                 onClick={async () => {
                 try {
                   /**
-                   * 🔍 Busca detalhes do concurso pelo ID
+                   *  Busca detalhes do concurso pelo ID
                    */
                   const response = await fetch(`/api/concursos/${edital.id}`)
 
@@ -215,7 +215,7 @@ export default function PlanejamentoEditais() {
                   console.log('DETALHE DO CONCURSO:', data)
 
                   /**
-                   * 🎯 Extrai disciplinas da estrutura:
+                   *  Extrai disciplinas da estrutura:
                    * concurso → edital → cargo → disciplina
                    */
                   const detalhe = data as ConcursoDetalhe
@@ -246,18 +246,18 @@ export default function PlanejamentoEditais() {
               >
                 <div className="flex justify-between items-start">
                   <span className={`text-[8px] font-black uppercase px-3 py-1 rounded-full ${edital.status === 'ABERTO' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>{edital.status}</span>
-                  <div className="text-2xl">📄</div>
+                  <div className="text-2xl"></div>
                 </div>
                 <div>
                   {/* NOME */}
                   <h4 className="text-md font-black text-slate-800 italic uppercase tracking-tighter">{edital.nome}</h4>
-                  {/* 📅 DATA */}
+                  {/*  DATA */}
                   <p className="text-[10px] font-black text-cyan-600 bg-cyan-50 px-2 py-0.5 rounded-md inline-block mt-2">{edital.data}</p>
-                  {/* 🏢 BANCA */}
+                  {/*  BANCA */}
                   <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">{edital.banca}</p>
                   {/*  DESCRIÇÃO */}
                   <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1 leading-tight">{edital.descricao}</p>
-                  {/* 🎯 CARGO */}
+                  {/*  CARGO */}
                   <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">{edital.cargo}</p>
                 </div>
               </div>
@@ -289,7 +289,7 @@ export default function PlanejamentoEditais() {
   onClick={finalizarPlanejamento}
   className="block w-full text-center bg-cyan-500 text-[#082040] py-6 rounded-2xl font-black uppercase text-[12px] tracking-[0.4em] hover:bg-cyan-400 transition-colors"
 >
-  Finalizar e Gerar Dashboard
+  Finalizar e Gerar Visão Geral
 </button>
             </div>
           </section>
@@ -298,3 +298,5 @@ export default function PlanejamentoEditais() {
     </div>
   );
 }
+
+
