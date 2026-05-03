@@ -1,5 +1,13 @@
 ﻿import { NextResponse } from 'next/server';
-import { criarCicloService, buscarCicloService, desativarCicloService, avancarCicloService } from '@/service/ciclo.service';
+import {
+  criarCicloService,
+  buscarCicloService,
+  desativarCicloService,
+  avancarCicloService,
+  rebalancearCicloService,
+  pularSessaoCicloService,
+  remarcarSessaoCicloService,
+} from '@/service/ciclo.service';
 import { autenticarUsuario, toHttpError } from '@/lib/auth';
 
 export async function GET() {
@@ -27,10 +35,19 @@ export async function POST(req: Request) {
   }
 }
 
-export async function PATCH() {
+export async function PATCH(req: Request) {
   try {
     const idUsuario = await autenticarUsuario();
-    const resultado = await avancarCicloService(idUsuario);
+    const rawBody = await req.text();
+    const body = rawBody ? JSON.parse(rawBody) as { acao?: string } : null;
+    const resultado =
+      body?.acao === 'rebalancear'
+        ? await rebalancearCicloService(idUsuario)
+        : body?.acao === 'pular'
+          ? await pularSessaoCicloService(idUsuario)
+          : body?.acao === 'remarcar'
+            ? await remarcarSessaoCicloService(idUsuario)
+            : await avancarCicloService(idUsuario);
     return NextResponse.json(resultado);
   } catch (err) {
     console.error('[PATCH /api/ciclos] erro:', err);

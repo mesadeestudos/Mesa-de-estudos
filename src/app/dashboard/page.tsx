@@ -7,6 +7,7 @@ import {
   Bell, Settings, User, LayoutDashboard, BookOpen, RefreshCw,
   LineChart, Calendar, LogOut, Clock, Target, TrendingUp,
   ChevronRight, Info, CheckCircle2, Zap, BarChart3, Menu,
+  ClipboardCheck, CalendarDays,
 } from 'lucide-react';
 
 function getNomeUsuario(): string {
@@ -130,6 +131,8 @@ export default function PainelEstudante() {
             <MenuItem icon={<LayoutDashboard size={18} />} label="Visão Geral"        active={abaAtiva === 'Visão Geral'}   onClick={() => { setAbaAtiva('Visão Geral');   setSidebarAberta(false); }} />
             <MenuItem icon={<BookOpen size={18} />}        label="Minha Mesa"       active={false}                      onClick={() => { router.push('/minha-mesa'); setSidebarAberta(false); }} />
             <MenuItem icon={<RefreshCw size={18} />}       label="Ciclos de estudo" active={abaAtiva === 'Ciclos'}      onClick={() => { router.push('/ciclos');    setSidebarAberta(false); }} />
+            <MenuItem icon={<ClipboardCheck size={18} />}  label="Questões"         active={false}                      onClick={() => { router.push('/questoes'); setSidebarAberta(false); }} />
+            <MenuItem icon={<CalendarDays size={18} />}    label="Agenda"           active={false}                      onClick={() => { router.push('/agenda'); setSidebarAberta(false); }} />
             <MenuItem icon={<LineChart size={18} />}       label="Desempenho"       active={false}                      onClick={() => { router.push('/desempenho'); setSidebarAberta(false); }} />
             <MenuItem icon={<Calendar size={18} />}        label="Revisões"         active={false}                      onClick={() => { router.push('/revisoes');   setSidebarAberta(false); }} />
             <MenuItem icon={<Settings size={18} />}        label="Configurações"    active={abaAtiva === 'Config'}      onClick={() => { router.push('/configuracoes'); setSidebarAberta(false); }} />

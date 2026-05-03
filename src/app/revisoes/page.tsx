@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { deleteCookie } from 'cookies-next';
 import {
   BookOpen, Calendar, CheckCircle2, LayoutDashboard, LineChart, LogOut,
-  Menu, RefreshCw, Settings, User, Clock, AlertTriangle,
+  Menu, RefreshCw, Settings, User, Clock, AlertTriangle, ClipboardCheck, CalendarDays,
 } from 'lucide-react';
 
 interface RevisaoItem {
@@ -82,6 +82,8 @@ export default function RevisoesPage() {
               <MenuItem icon={<LayoutDashboard size={18} />} label="Visão Geral" onClick={() => router.push('/dashboard')} />
               <MenuItem icon={<BookOpen size={18} />} label="Minha Mesa" onClick={() => router.push('/minha-mesa')} />
               <MenuItem icon={<RefreshCw size={18} />} label="Ciclos de estudo" onClick={() => router.push('/ciclos')} />
+              <MenuItem icon={<ClipboardCheck size={18} />} label="Questões" onClick={() => router.push('/questoes')} />
+              <MenuItem icon={<CalendarDays size={18} />} label="Agenda" onClick={() => router.push('/agenda')} />
               <MenuItem icon={<LineChart size={18} />} label="Desempenho" onClick={() => router.push('/desempenho')} />
               <MenuItem icon={<Calendar size={18} />} label="Revisões" active onClick={() => setSidebarAberta(false)} />
               <MenuItem icon={<Settings size={18} />} label="Configurações" onClick={() => router.push('/configuracoes')} />

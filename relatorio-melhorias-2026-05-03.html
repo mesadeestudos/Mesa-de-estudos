@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Relatório de Melhorias - Mesa de Estudos</title>
+  <style>
+    @page { size: A4; margin: 18mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #1f2937;
+      background: #ffffff;
+      line-height: 1.45;
+      font-size: 12px;
+    }
+    h1, h2, h3 { margin: 0; color: #0f172a; }
+    h1 { font-size: 28px; line-height: 1.1; }
+    h2 { font-size: 18px; margin-top: 26px; padding-bottom: 6px; border-bottom: 1px solid #dbeafe; }
+    h3 { font-size: 14px; margin-top: 16px; }
+    p { margin: 7px 0; }
+    ul { margin: 7px 0 10px 18px; padding: 0; }
+    li { margin: 4px 0; }
+    code {
+      font-family: Consolas, "Courier New", monospace;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      padding: 1px 4px;
+      font-size: 11px;
+    }
+    pre {
+      white-space: pre-wrap;
+      background: #0f172a;
+      color: #e5e7eb;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 10.5px;
+      line-height: 1.45;
+      overflow: hidden;
+    }
+    .cover {
+      border: 1px solid #dbeafe;
+      border-radius: 16px;
+      padding: 24px;
+      background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 52%, #ecfdf5 100%);
+      margin-bottom: 22px;
+    }
+    .subtitle { color: #475569; font-size: 13px; margin-top: 10px; max-width: 620px; }
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .meta div, .card {
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 10px;
+    }
+    .label {
+      display: block;
+      color: #0284c7;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-weight: 700;
+      font-size: 9px;
+      margin-bottom: 3px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .note {
+      border-left: 4px solid #0ea5e9;
+      background: #f0f9ff;
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin: 10px 0;
+    }
+    .warn {
+      border-left-color: #f59e0b;
+      background: #fffbeb;
+    }
+    .ok {
+      border-left-color: #10b981;
+      background: #ecfdf5;
+    }
+    .break { page-break-before: always; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 11px;
+    }
+    th, td {
+      border: 1px solid #e2e8f0;
+      padding: 7px;
+      vertical-align: top;
+      text-align: left;
+    }
+    th { background: #f8fafc; color: #0f172a; }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <h1>Relatório de Melhorias Implementadas</h1>
+    <p class="subtitle">
+      Sistema Mesa de Estudos: evolução do ciclo de estudos para uma experiência mais inteligente,
+      com assistente, agenda, questões, revisão adaptativa e recomendações automáticas.
+    </p>
+    <div class="meta">
+      <div><span class="label">Data</span>03/05/2026</div>
+      <div><span class="label">Projeto</span>Mesa de Estudos</div>
+      <div><span class="label">Ambiente</span>Next.js + Prisma + PostgreSQL</div>
+    </div>
+  </section>
+
+  <h2>1. Resumo Executivo</h2>
+  <p>
+    As melhorias feitas hoje criam uma camada de inteligência sobre o sistema existente. Antes,
+    o sistema já organizava ciclos, revisões e desempenho. Agora, ele passa a interpretar sinais
+    do usuário e sugerir a próxima melhor ação, aproximando a experiência de um assistente de estudos.
+  </p>
+  <div class="note ok">
+    <strong>Objetivo alcançado:</strong> reduzir o trabalho manual do usuário e deixar o sistema
+    mais proativo na organização do estudo.
+  </div>
+
+  <h2>2. Melhorias Implementadas</h2>
+
+  <h3>2.1 Ciclo adaptativo e rebalanceamento</h3>
+  <p><strong>Arquivos principais:</strong> <code>lib/cicloAlgorithm.ts</code>, <code>service/ciclo.service.ts</code>, <code>src/app/api/ciclos/route.ts</code>.</p>
+  <ul>
+    <li>O algoritmo passou a aceitar um fator de <code>desempenho</code> por disciplina.</li>
+    <li>Disciplinas com baixo avanço, poucos registros ou muitos dias sem estudo ganham prioridade.</li>
+    <li>Disciplinas quase concluídas recebem menor prioridade.</li>
+    <li>Foi criado o botão <strong>Rebalancear</strong> na tela de Ciclos de estudo.</li>
+    <li>O rebalanceamento é manual e conservador, evitando mudar a fila de forma agressiva.</li>
+  </ul>
+  <p><strong>Valor para o usuário:</strong> o ciclo deixa de ser apenas estático e passa a reagir ao progresso real do estudante.</p>
+
+  <h3>2.2 Minha Mesa com ações imediatas</h3>
+  <p><strong>Arquivo principal:</strong> <code>src/app/minha-mesa/page.tsx</code>.</p>
+  <ul>
+    <li>Adição da meta do dia.</li>
+    <li>Exibição de sessões concluídas hoje.</li>
+    <li>Exibição de revisões pendentes e atrasadas.</li>
+    <li>Novas ações: <strong>Pular</strong> e <strong>Remarcar</strong>.</li>
+    <li>Concluir sessão continua marcando tópico como concluído.</li>
+    <li>Pular/remarcar avançam a fila sem concluir tópico.</li>
+  </ul>
+  <p><strong>Valor para o usuário:</strong> a tela vira um centro de execução diária, não apenas um cronômetro.</p>
+
+  <h3>2.3 Desempenho como central de inteligência</h3>
+  <p><strong>Arquivos principais:</strong> <code>src/app/api/desempenho/route.ts</code>, <code>src/app/desempenho/page.tsx</code>.</p>
+  <ul>
+    <li>Criação de tendência semanal: ritmo subindo, estável ou caindo.</li>
+    <li>Identificação de pontos fracos por disciplina.</li>
+    <li>Recomendações automáticas com base nos sinais do usuário.</li>
+    <li>Bloco de desempenho por tópico.</li>
+    <li>Integração com dados de questões quando disponíveis.</li>
+  </ul>
+  <p><strong>Valor para o usuário:</strong> o painel passa a explicar onde focar, em vez de apenas mostrar números.</p>
+
+  <h3>2.4 Assistente de Estudo</h3>
+  <p><strong>Arquivos principais:</strong> <code>service/assistente-estudo.service.ts</code>, <code>src/app/api/assistente/route.ts</code>.</p>
+  <ul>
+    <li>Criação de um serviço central para decidir a próxima melhor ação.</li>
+    <li>O assistente avalia revisões, ciclo, prioridades, desempenho e questões.</li>
+    <li>Ele pode recomendar revisão, ciclo, reforço, questões ou criação de ciclo.</li>
+    <li>A orientação aparece na Minha Mesa e na Agenda.</li>
+  </ul>
+  <p><strong>Valor para o usuário:</strong> o sistema começa a responder “o que eu devo fazer agora?”.</p>
+
+  <h3>2.5 Motor de prioridades</h3>
+  <p><strong>Arquivo principal:</strong> <code>service/prioridade.service.ts</code>.</p>
+  <ul>
+    <li>Calcula score de prioridade por disciplina.</li>
+    <li>Considera percentual concluído, tempo registrado, sessões feitas e dias sem estudo.</li>
+    <li>Gera motivos explicáveis, como “baixo avanço” ou “7 dias sem estudo”.</li>
+  </ul>
+  <p><strong>Valor para o usuário:</strong> as recomendações deixam de parecer aleatórias e passam a ter justificativa.</p>
+
+  <h3>2.6 Revisão adaptativa</h3>
+  <p><strong>Arquivos principais:</strong> <code>service/revisao-adaptativa.service.ts</code>, <code>src/app/api/revisoes/route.ts</code>.</p>
+  <ul>
+    <li>Revisões agora aceitam resultado: <code>facil</code>, <code>medio</code>, <code>dificil</code> ou <code>errei</code>.</li>
+    <li>O próximo intervalo muda conforme o resultado.</li>
+    <li>Foram criados status específicos: <code>REVISAO_FACIL</code>, <code>REVISAO_MEDIO</code>, <code>REVISAO_DIFICIL</code> e <code>REVISAO_ERREI</code>.</li>
+  </ul>
+  <p><strong>Valor para o usuário:</strong> o sistema revisa mais cedo o que foi difícil e espaça melhor o que foi fácil.</p>
+
+  <h3>2.7 Módulo Questões</h3>
+  <p><strong>Arquivos principais:</strong> <code>service/questoes.service.ts</code>, <code>src/app/api/questoes/route.ts</code>, <code>src/app/questoes/page.tsx</code>.</p>
+  <ul>
+    <li>Novo menu <strong>Questões</strong>.</li>
+    <li>Nova página para registrar baterias de questões.</li>
+    <li>Registro de total de questões, acertos, erros e percentual.</li>
+    <li>Diagnóstico de disciplina crítica.</li>
+    <li>Histórico recente de baterias.</li>
+    <li>Integração com Desempenho, Agenda e Assistente de Estudo.</li>
+  </ul>
+  <p><strong>Valor para o usuário:</strong> o sistema passa a saber se o aluno realmente aprendeu, não apenas se estudou.</p>
+
+  <h3>2.8 Agenda inteligente</h3>
+  <p><strong>Arquivos principais:</strong> <code>service/agenda.service.ts</code>, <code>src/app/api/agenda/route.ts</code>, <code>src/app/agenda/page.tsx</code>.</p>
+  <ul>
+    <li>Novo menu <strong>Agenda</strong>.</li>
+    <li>Plano do dia.</li>
+    <li>Sessões previstas.</li>
+    <li>Revisões vencidas e futuras.</li>
+    <li>Questões recomendadas.</li>
+    <li>Histórico por dia.</li>
+    <li>Identificação de dias sem estudo.</li>
+    <li>Meta semanal.</li>
+    <li>Previsão de conclusão do edital.</li>
+    <li>Destaque de prova/data do edital.</li>
+    <li>Opção de remarcar a sessão atual.</li>
+  </ul>
+  <p><strong>Valor para o usuário:</strong> a agenda responde “quando faço?” e organiza a semana de forma prática.</p>
+
+  <h2 class="break">3. Novas APIs Criadas ou Alteradas</h2>
+  <table>
+    <thead>
+      <tr><th>Endpoint</th><th>Função</th><th>Observação</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>GET /api/assistente</code></td><td>Retorna a próxima melhor ação do usuário.</td><td>Usado por Minha Mesa e Agenda.</td></tr>
+      <tr><td><code>GET /api/agenda</code></td><td>Consolida plano do dia, semana, revisões, questões e edital.</td><td>Usado pela nova página Agenda.</td></tr>
+      <tr><td><code>GET /api/questoes</code></td><td>Retorna resumo, tópicos críticos e histórico de questões.</td><td>Funciona quando a tabela existe.</td></tr>
+      <tr><td><code>POST /api/questoes</code></td><td>Registra uma bateria de questões.</td><td>Requer tabela <code>questao_treino</code>.</td></tr>
+      <tr><td><code>PATCH /api/ciclos</code></td><td>Agora aceita ações: concluir, pular, remarcar e rebalancear.</td><td>Sem corpo mantém o comportamento de concluir sessão.</td></tr>
+      <tr><td><code>POST /api/revisoes</code></td><td>Aceita resultado da revisão.</td><td>Permite revisão adaptativa.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4. O Que Precisa Existir no Banco Real</h2>
+
+  <h3>4.1 Tabela obrigatória para o módulo Questões</h3>
+  <p>
+    Para que o menu <strong>Questões</strong>, a Agenda, o Desempenho e o Assistente usem acertos/erros sem erro,
+    é necessário criar a tabela abaixo no schema <code>planejamento</code>.
+  </p>
+  <div class="note warn">
+    O código não tenta mais criar essa tabela automaticamente, porque o usuário atual do banco não tem permissão
+    de <code>CREATE</code> no schema <code>planejamento</code>. O SQL deve ser executado por um usuário com permissão.
+  </div>
+  <pre>CREATE TABLE IF NOT EXISTS planejamento.questao_treino (
+  id_questao_treino BIGSERIAL PRIMARY KEY,
+  id_usuario BIGINT NOT NULL,
+  id_disciplina INT NOT NULL,
+  id_topico BIGINT NULL,
+  total_questoes INT NOT NULL,
+  total_acertos INT NOT NULL,
+  percentual NUMERIC(5,2) NOT NULL,
+  data_registro TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT questao_treino_total_check CHECK (total_questoes &gt; 0),
+  CONSTRAINT questao_treino_acertos_check CHECK (total_acertos &gt;= 0 AND total_acertos &lt;= total_questoes)
+);
+
+CREATE INDEX IF NOT EXISTS idx_questao_treino_usuario
+  ON planejamento.questao_treino (id_usuario);
+
+CREATE INDEX IF NOT EXISTS idx_questao_treino_disciplina
+  ON planejamento.questao_treino (id_usuario, id_disciplina);
+
+CREATE INDEX IF NOT EXISTS idx_questao_treino_topico
+  ON planejamento.questao_treino (id_usuario, id_topico);</pre>
+  <p><strong>Arquivo criado com esse SQL:</strong> <code>scripts/create-questoes-table.sql</code>.</p>
+
+  <h3>4.2 Coluna recomendada para alinhar Prisma e banco real</h3>
+  <p>
+    Foi identificado que o <code>schema.prisma</code> declara a coluna
+    <code>planejamento.sessao_estudo.id_ciclo_disciplina</code>, mas ela não existe no banco real.
+    Isso causou erro na Agenda quando o Prisma tentou ler a tabela inteira.
+  </p>
+  <p>
+    A Agenda já foi corrigida com SQL seletivo, mas para deixar o sistema perfeito e evitar erros futuros,
+    a recomendação é alinhar o banco real adicionando a coluna.
+  </p>
+  <pre>ALTER TABLE planejamento.sessao_estudo
+  ADD COLUMN IF NOT EXISTS id_ciclo_disciplina BIGINT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_sessao_estudo_ciclo_disciplina
+  ON planejamento.sessao_estudo (id_ciclo_disciplina);
+
+ALTER TABLE planejamento.sessao_estudo
+  ADD CONSTRAINT fk_sessao_estudo_ciclo_disciplina
+  FOREIGN KEY (id_ciclo_disciplina)
+  REFERENCES planejamento.ciclo_disciplina (id_ciclo_disciplina)
+  ON DELETE SET NULL;</pre>
+  <p><strong>Por que isso importa:</strong> essa coluna permite vincular uma sessão realizada ao slot exato do ciclo que a originou.</p>
+
+  <h3>4.3 Status novos usados pelo sistema</h3>
+  <p>
+    Se o banco tiver constraint rígida para <code>sessao_estudo.status</code>, ela precisa aceitar os novos valores:
+  </p>
+  <ul>
+    <li><code>CONCLUIDA</code></li>
+    <li><code>REVISAO</code></li>
+    <li><code>REVISAO_FACIL</code></li>
+    <li><code>REVISAO_MEDIO</code></li>
+    <li><code>REVISAO_DIFICIL</code></li>
+    <li><code>REVISAO_ERREI</code></li>
+    <li><code>PULADA</code></li>
+    <li><code>REMARCADA</code></li>
+  </ul>
+  <div class="note">
+    No <code>schema.prisma</code> há comentários indicando que algumas tabelas têm check constraints no banco.
+    Por isso, é importante conferir se a constraint de status existe no banco real.
+  </div>
+
+  <h3>4.4 Permissões necessárias</h3>
+  <p>O usuário da aplicação precisa ter permissões para:</p>
+  <ul>
+    <li><code>SELECT</code>, <code>INSERT</code> em <code>planejamento.questao_treino</code>;</li>
+    <li><code>SELECT</code>, <code>INSERT</code>, <code>UPDATE</code> em tabelas de progresso, sessões e ciclos;</li>
+    <li><code>SELECT</code> em tabelas de concurso, disciplina, tópico, cargo e edital;</li>
+    <li><code>USAGE</code> no schema <code>planejamento</code> e <code>concurso</code>.</li>
+  </ul>
+
+  <h2>5. Arquivos Criados Hoje</h2>
+  <ul>
+    <li><code>service/agenda.service.ts</code></li>
+    <li><code>service/assistente-estudo.service.ts</code></li>
+    <li><code>service/prioridade.service.ts</code></li>
+    <li><code>service/questoes.service.ts</code></li>
+    <li><code>service/revisao-adaptativa.service.ts</code></li>
+    <li><code>src/app/api/agenda/route.ts</code></li>
+    <li><code>src/app/api/assistente/route.ts</code></li>
+    <li><code>src/app/api/questoes/route.ts</code></li>
+    <li><code>src/app/agenda/page.tsx</code></li>
+    <li><code>src/app/questoes/page.tsx</code></li>
+    <li><code>scripts/create-questoes-table.sql</code></li>
+  </ul>
+
+  <h2>6. Arquivos Alterados Hoje</h2>
+  <ul>
+    <li><code>lib/cicloAlgorithm.ts</code></li>
+    <li><code>service/ciclo.service.ts</code></li>
+    <li><code>src/app/api/ciclos/route.ts</code></li>
+    <li><code>src/app/api/desempenho/route.ts</code></li>
+    <li><code>src/app/api/revisoes/route.ts</code></li>
+    <li><code>src/app/ciclos/page.tsx</code></li>
+    <li><code>src/app/configuracoes/page.tsx</code></li>
+    <li><code>src/app/dashboard/page.tsx</code></li>
+    <li><code>src/app/desempenho/page.tsx</code></li>
+    <li><code>src/app/minha-mesa/page.tsx</code></li>
+    <li><code>src/app/perfil/page.tsx</code></li>
+    <li><code>src/app/revisoes/page.tsx</code></li>
+  </ul>
+
+  <h2>7. Validações Realizadas</h2>
+  <ul>
+    <li><code>npx.cmd tsc --noEmit</code>: executado com sucesso.</li>
+    <li><code>npm.cmd run lint</code>: executado com sucesso, apenas com warnings antigos.</li>
+    <li>Servidor local continuou ativo em <code>http://localhost:3000</code>.</li>
+  </ul>
+
+  <h2>8. Próximos Passos Recomendados</h2>
+  <ol>
+    <li>Executar <code>scripts/create-questoes-table.sql</code> no banco real.</li>
+    <li>Adicionar <code>id_ciclo_disciplina</code> na tabela real <code>planejamento.sessao_estudo</code>.</li>
+    <li>Conferir constraints de <code>status</code> em <code>sessao_estudo</code>.</li>
+    <li>Depois disso, testar os fluxos: Questões, Agenda, Revisões, Minha Mesa e Rebalancear ciclo.</li>
+  </ol>
+
+  <div class="note ok">
+    <strong>Conclusão:</strong> com as tabelas e campos acima criados no banco real, o sistema fica preparado
+    para operar de forma mais inteligente, com recomendações automáticas e menos trabalho manual para o usuário.
+  </div>
+</body>
+</html>

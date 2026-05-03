@@ -12,7 +12,7 @@ import {
   Bell, Settings, User, LayoutDashboard, BookOpen, RefreshCw,
   LineChart, Calendar, LogOut, Search, ChevronDown, ChevronRight, Check,
   Lock, Zap, SlidersHorizontal, Info, CheckCircle2, Menu, AlertCircle,
-  Pencil,
+  Pencil, ClipboardCheck, CalendarDays,
 } from 'lucide-react';
 
 interface Edital      { id: number; nome: string; descricao: string; banca: string; status: string; data: string; }
@@ -150,6 +150,7 @@ export default function CiclosEstudo() {
   const [cicloAtivo, setCicloAtivo]               = useState<CicloAtivo | null>(null);
   const [confirmandoEdicao, setConfirmandoEdicao] = useState(false);
   const [encerrando, setEncerrando] = useState(false);
+  const [rebalanceando, setRebalanceando] = useState(false);
 
   // Etapa 1
   const [horasDiarias, setHorasDiarias] = useState(2);
@@ -537,10 +538,30 @@ export default function CiclosEstudo() {
     }
   };
 
+  const handleRebalancear = async () => {
+    setRebalanceando(true);
+    try {
+      const res = await fetch('/api/ciclos', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acao: 'rebalancear' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Não foi possível rebalancear o ciclo.');
+      await fetchCicloAtivo();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setRebalanceando(false);
+    }
+  };
+
   const navItems = [
     { icon: <LayoutDashboard size={18} />, label: 'Visão Geral',        active: false, href: '/dashboard' },
     { icon: <BookOpen size={18} />,        label: 'Minha Mesa',       active: false, href: '/minha-mesa' },
     { icon: <RefreshCw size={18} />,       label: 'Ciclos de estudo', active: true,  href: '/ciclos' },
+    { icon: <ClipboardCheck size={18} />,  label: 'Questões',         active: false, href: '/questoes' },
+    { icon: <CalendarDays size={18} />,    label: 'Agenda',           active: false, href: '/agenda' },
     { icon: <LineChart size={18} />,       label: 'Desempenho',       active: false, href: '/desempenho' },
     { icon: <Calendar size={18} />,        label: 'Revisões',         active: false, href: '/revisoes' },
     { icon: <Settings size={18} />,        label: 'Configurações',    active: false, href: '/configuracoes' },
@@ -1007,6 +1028,15 @@ export default function CiclosEstudo() {
                                   Estudar <ChevronRight size={14} />
                                 </button>
                                 <button
+                                  onClick={handleRebalancear}
+                                  disabled={rebalanceando}
+                                  aria-label="Rebalancear ciclo com base no desempenho"
+                                  className="flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-black text-emerald-700 transition-all hover:border-emerald-300 hover:bg-emerald-100 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2"
+                                >
+                                  <RefreshCw size={13} className={rebalanceando ? 'animate-spin' : ''} />
+                                  {rebalanceando ? 'Ajustando...' : 'Rebalancear'}
+                                </button>
+                                <button
                                   onClick={() => setConfirmandoEdicao(true)}
                                   aria-label="Editar ciclo"
                                   className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black text-slate-600 transition-all hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2"
@@ -1204,6 +1234,11 @@ export default function CiclosEstudo() {
                             const cor = WHEEL_COLORS[colorIndex % WHEEL_COLORS.length];
                             const tipoLabel = getTipoDisciplinaLabel(item.tipo);
                             const destaque = item.idDisciplina === visualizacaoDisciplinaAtivaId;
+                            const motivo = item.frequencia >= 3
+                              ? 'Alta prioridade no ciclo'
+                              : item.frequencia === 2
+                                ? 'Prioridade intermediária'
+                                : 'Presença de manutenção';
 
                             return (
                               <button
@@ -1223,6 +1258,7 @@ export default function CiclosEstudo() {
                                   <p className="mt-1 text-xs text-slate-500">
                                     {item.frequencia} {item.frequencia === 1 ? 'sessão' : 'sessões'}{tipoLabel ? ` · ${tipoLabel}` : ''}
                                   </p>
+                                  <p className="mt-1 text-[11px] font-bold text-sky-600">{motivo}</p>
                                 </div>
                               </button>
                             );

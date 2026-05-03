@@ -7,6 +7,7 @@ export interface DisciplinaAlgoritmo {
   tipo?: string | null;
   categoria_cognitiva?: string | null;
   dificuldade?: string | null;
+  desempenho?: number | null;
   qtd_questoes?: number | null;
   qtd_topicos?: number | null;
 }
@@ -63,6 +64,9 @@ const getI = (disciplina: DisciplinaAlgoritmo) => {
   return peso * (qtdQuestoes > 0 ? qtdQuestoes : Math.max(1, qtdTopicos));
 };
 
+const getDesempenho = (disciplina: DisciplinaAlgoritmo) =>
+  Math.min(1.45, Math.max(0.75, Number(disciplina.desempenho ?? 1)));
+
 export function calcularDiscsPorDiaAutomatico(horasDiarias: number): number {
   if (horasDiarias <= 1) return 1;
   if (horasDiarias === 2) return 2;
@@ -111,7 +115,10 @@ export function selecionarDisciplinas<T extends DisciplinaAlgoritmo>(
   const importancias = disciplinas.map(getI);
   const iMaxGlobal = Math.max(...importancias, 1);
   const scoresPool = new Map(
-    disciplinas.map((disciplina, indice) => [disciplina.id, calcularScore(disciplina, importancias[indice] / iMaxGlobal)]),
+    disciplinas.map((disciplina, indice) => [
+      disciplina.id,
+      calcularScore(disciplina, importancias[indice] / iMaxGlobal, getDesempenho(disciplina)),
+    ]),
   );
 
   const porScore = ordenarPorScore<T>(scoresPool);
@@ -504,7 +511,10 @@ export function gerarCicloEstrutural<T extends DisciplinaAlgoritmo>(
   const importancias = selecionadas.map(getI);
   const iMax = Math.max(...importancias, 1);
   const scores = new Map(
-    selecionadas.map((disciplina, indice) => [disciplina.id, calcularScore(disciplina, importancias[indice] / iMax)]),
+    selecionadas.map((disciplina, indice) => [
+      disciplina.id,
+      calcularScore(disciplina, importancias[indice] / iMax, getDesempenho(disciplina)),
+    ]),
   );
   const frequencias = calcularFrequenciasHibridas(selecionadas, scores);
   const cicloBase = montarCicloEstrutural(selecionadas, scores, frequencias, horasDiarias, ritmo);

@@ -1,8 +1,12 @@
 ﻿import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { autenticarUsuario, toHttpError } from '@/lib/auth';
-
-const INTERVALOS = [1, 7, 15, 30];
+import {
+  buscarStatusUltimaRevisao,
+  calcularIntervalosAdaptativos,
+  normalizarResultadoRevisao,
+  STATUS_REVISAO,
+} from '@/service/revisao-adaptativa.service';
 
 function adicionarDias(base: Date, dias: number) {
   const data = new Date(base);
@@ -29,7 +33,10 @@ export async function GET() {
         orderBy: { data_conclusao: 'desc' },
       }),
       prisma.sessao_estudo.findMany({
-        where: { id_usuario: idUsuario, status: 'REVISAO' },
+        where: {
+          id_usuario: idUsuario,
+          status: { in: ['REVISAO', 'REVISAO_FACIL', 'REVISAO_MEDIO', 'REVISAO_DIFICIL', 'REVISAO_ERREI'] },
+        },
         select: { id_topico: true, inicio: true },
       }),
     ]);
@@ -38,7 +45,8 @@ export async function GET() {
     for (const progresso of topicos) {
       if (!progresso.data_conclusao) continue;
 
-      for (const intervalo of INTERVALOS) {
+      const statusAnterior = await buscarStatusUltimaRevisao(idUsuario, progresso.id_topico);
+      for (const intervalo of calcularIntervalosAdaptativos(statusAnterior)) {
         const vencimento = inicioDoDia(adicionarDias(progresso.data_conclusao, intervalo));
         if (vencimento > limite) continue;
 
@@ -82,7 +90,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const idUsuario = await autenticarUsuario();
-    const body = await req.json() as { idTopico?: number; duracaoMinutos?: number };
+    const body = await req.json() as { idTopico?: number; duracaoMinutos?: number; resultado?: string };
     if (!body.idTopico) {
       return NextResponse.json({ message: 'Topico obrigatorio.' }, { status: 400 });
     }
@@ -97,6 +105,7 @@ export async function POST(req: Request) {
 
     const agora = new Date();
     const minutos = Math.max(5, body.duracaoMinutos ?? 20);
+    const resultado = normalizarResultadoRevisao(body.resultado);
 
     await prisma.$transaction(async (tx) => {
       await tx.sessao_estudo.create({
@@ -107,7 +116,7 @@ export async function POST(req: Request) {
           inicio: new Date(agora.getTime() - minutos * 60_000),
           fim: agora,
           duracao_minutos: minutos,
-          status: 'REVISAO',
+          status: STATUS_REVISAO[resultado],
         },
       });
 
@@ -118,7 +127,7 @@ export async function POST(req: Request) {
       });
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, resultado });
   } catch (err) {
     console.error('[POST /api/revisoes] erro:', err);
     const { status, message } = toHttpError(err);

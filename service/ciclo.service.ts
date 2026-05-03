@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma';
+import { Prisma } from '@/src/generated/prisma/client';
 import {
   calcularDiscsPorDia as calcularDiscsPorDiaAlgoritmo,
   calcularFrequenciasHibridas,
@@ -17,8 +18,14 @@ interface DisciplinaAlgo {
   tipo: string;
   categoria_cognitiva: string;
   dificuldade: string;
+  desempenho?: number;
   qtd_questoes: number;
   qtd_topicos: number;
+}
+
+interface SinalDisciplina {
+  id_disciplina: number;
+  ultima_sessao: Date | null;
 }
 
 const normalizarRitmo = (ritmo?: string | null): RitmoCiclo => {
@@ -26,6 +33,61 @@ const normalizarRitmo = (ritmo?: string | null): RitmoCiclo => {
   if (valor === 'focado' || valor === 'variado') return valor;
   return 'equilibrado';
 };
+
+const normalizarNivelParaDificuldade = (nivel?: string | null) => {
+  const valor = (nivel ?? '').toUpperCase();
+  if (valor === 'ALTO') return 'Alto';
+  if (valor === 'BAIXO') return 'Baixo';
+  return 'Médio';
+};
+
+async function calcularFatoresDesempenho(idUsuario: bigint, idsDisciplinas: number[]) {
+  if (idsDisciplinas.length === 0) return new Map<number, number>();
+
+  const [progressos, ultimasSessoes] = await Promise.all([
+    prisma.disciplina_progresso.findMany({
+      where: { id_usuario: idUsuario, id_disciplina: { in: idsDisciplinas } },
+      select: { id_disciplina: true, percentual: true, concluida: true },
+    }),
+    prisma.$queryRaw<SinalDisciplina[]>`
+      SELECT
+        id_disciplina,
+        MAX(inicio) AS ultima_sessao
+      FROM planejamento.sessao_estudo
+      WHERE id_usuario = ${idUsuario}
+        AND id_disciplina IN (${Prisma.join(idsDisciplinas)})
+        AND fim IS NOT NULL
+      GROUP BY id_disciplina
+    `,
+  ]);
+
+  const progressoMap = new Map(progressos.map(item => [item.id_disciplina, item]));
+  const ultimaSessaoMap = new Map(ultimasSessoes.map(item => [item.id_disciplina, item.ultima_sessao]));
+  const agora = Date.now();
+
+  return new Map(idsDisciplinas.map((idDisciplina) => {
+    const progresso = progressoMap.get(idDisciplina);
+    const percentual = Number(progresso?.percentual ?? 0);
+    const ultimaSessao = ultimaSessaoMap.get(idDisciplina);
+    let fator = 1;
+
+    if (!progresso || percentual < 15) fator += 0.18;
+    else if (percentual < 40) fator += 0.12;
+    else if (percentual < 65) fator += 0.06;
+    else if (percentual >= 90 || progresso.concluida) fator -= 0.14;
+
+    if (!ultimaSessao) {
+      fator += 0.12;
+    } else {
+      const diasSemEstudar = Math.floor((agora - ultimaSessao.getTime()) / 86_400_000);
+      if (diasSemEstudar >= 10) fator += 0.16;
+      else if (diasSemEstudar >= 5) fator += 0.09;
+      else if (diasSemEstudar >= 3) fator += 0.04;
+    }
+
+    return [idDisciplina, Number(Math.min(1.4, Math.max(0.8, fator)).toFixed(2))];
+  }));
+}
 
 export function calcularDiscsPorDia(horasDiarias: number, ritmo: string): number {
   return calcularDiscsPorDiaAlgoritmo(horasDiarias, normalizarRitmo(ritmo));
@@ -70,10 +132,13 @@ export async function criarCicloService(body: unknown, idUsuario: bigint) {
   const input = criarCicloSchema.parse(body);
 
   const idsDisciplinas = input.disciplinas.map(d => d.id);
-  const disciplinasBanco = await prisma.disciplina.findMany({
-    where: { id_disciplina: { in: idsDisciplinas } },
-    include: { _count: { select: { topico: true } } },
-  });
+  const [disciplinasBanco, desempenhoPorDisciplina] = await Promise.all([
+    prisma.disciplina.findMany({
+      where: { id_disciplina: { in: idsDisciplinas } },
+      include: { _count: { select: { topico: true } } },
+    }),
+    calcularFatoresDesempenho(idUsuario, idsDisciplinas),
+  ]);
 
   const dificuldadePorDisciplina = new Map(input.disciplinas.map(d => [d.id, d.dificuldade]));
 
@@ -84,6 +149,7 @@ export async function criarCicloService(body: unknown, idUsuario: bigint) {
     tipo: disciplina.tipo,
     categoria_cognitiva: disciplina.categoria_cognitiva,
     dificuldade: dificuldadePorDisciplina.get(disciplina.id_disciplina) ?? 'Médio',
+    desempenho: desempenhoPorDisciplina.get(disciplina.id_disciplina) ?? 1,
     qtd_questoes: disciplina.qtd_questoes ? Number(disciplina.qtd_questoes) : 0,
     qtd_topicos: disciplina._count.topico,
   }));
@@ -213,6 +279,126 @@ export async function buscarCicloService(idUsuario: bigint) {
     cicloSlots,
     disciplinas,
   };
+}
+
+export async function rebalancearCicloService(idUsuario: bigint) {
+  const ciclo = await buscarCicloAtivo(idUsuario);
+  if (!ciclo) throw Object.assign(new Error('Nenhum ciclo ativo.'), { status: 404 });
+
+  const idsDisciplinas = [...new Set(ciclo.ciclo_disciplina.map(slot => slot.id_disciplina))];
+  if (idsDisciplinas.length === 0) {
+    throw Object.assign(new Error('Ciclo sem disciplinas para rebalancear.'), { status: 400 });
+  }
+
+  const [disciplinasBanco, niveis, desempenhoPorDisciplina] = await Promise.all([
+    prisma.disciplina.findMany({
+      where: { id_disciplina: { in: idsDisciplinas } },
+      include: { _count: { select: { topico: true } } },
+    }),
+    prisma.disciplina_nivel_usuario.findMany({
+      where: { id_usuario: idUsuario, id_disciplina: { in: idsDisciplinas } },
+      select: { id_disciplina: true, nivel: true },
+    }),
+    calcularFatoresDesempenho(idUsuario, idsDisciplinas),
+  ]);
+
+  const nivelMap = new Map(niveis.map(nivel => [nivel.id_disciplina, nivel.nivel]));
+  const disciplinasAlgo: DisciplinaAlgo[] = disciplinasBanco.map(disciplina => ({
+    id: disciplina.id_disciplina,
+    nome: disciplina.nome,
+    peso: Number(disciplina.peso ?? 1),
+    tipo: disciplina.tipo,
+    categoria_cognitiva: disciplina.categoria_cognitiva,
+    dificuldade: normalizarNivelParaDificuldade(nivelMap.get(disciplina.id_disciplina)),
+    desempenho: desempenhoPorDisciplina.get(disciplina.id_disciplina) ?? 1,
+    qtd_questoes: disciplina.qtd_questoes ? Number(disciplina.qtd_questoes) : 0,
+    qtd_topicos: disciplina._count.topico,
+  }));
+
+  const horasPorDia = Number(ciclo.plano_estudo.horas_por_dia);
+  const ritmo = normalizarRitmo(ciclo.plano_estudo.ritmo);
+  const distribuicao = gerarDistribuicaoCiclo(disciplinasAlgo, horasPorDia, ritmo, true);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.ciclo_disciplina.deleteMany({
+      where: { id_ciclo: ciclo.id_ciclo },
+    });
+
+    await tx.ciclo_disciplina.createMany({
+      data: distribuicao.map(item => ({
+        id_ciclo: ciclo.id_ciclo,
+        id_disciplina: item.id,
+        ordem: item.ordem,
+        horas_planejadas: Number((item.minutosAlocados / 60).toFixed(2)),
+      })),
+    });
+
+    await tx.ciclo_execucao.update({
+      where: { id_ciclo: ciclo.id_ciclo },
+      data: { posicao_atual: 1, data_ultima_execucao: new Date() },
+    });
+  });
+
+  return {
+    idCiclo: Number(ciclo.id_ciclo),
+    totalSlots: distribuicao.length,
+    fatoresDesempenho: Object.fromEntries(desempenhoPorDisciplina),
+    distribuicao,
+  };
+}
+
+async function registrarSessaoSemConclusao(idUsuario: bigint, status: 'PULADA' | 'REMARCADA') {
+  const ciclo = await buscarCicloAtivo(idUsuario);
+  if (!ciclo) throw Object.assign(new Error('Nenhum ciclo ativo.'), { status: 404 });
+
+  const totalSlots = ciclo.ciclo_disciplina.length;
+  if (totalSlots === 0) throw Object.assign(new Error('Ciclo sem disciplinas.'), { status: 400 });
+
+  const posicaoAtual = ciclo.ciclo_execucao?.posicao_atual ?? 1;
+  const novaPosicao = (posicaoAtual % totalSlots) + 1;
+  const slotAtual = ciclo.ciclo_disciplina[(posicaoAtual - 1) % totalSlots];
+  const agora = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    const topico = await tx.topico.findFirst({
+      where: { id_disciplina: slotAtual.id_disciplina },
+      orderBy: [{ ordem: 'asc' }, { id_topico: 'asc' }],
+    });
+
+    if (topico) {
+      await tx.sessao_estudo.create({
+        data: {
+          id_usuario: idUsuario,
+          id_disciplina: slotAtual.id_disciplina,
+          id_topico: topico.id_topico,
+          inicio: agora,
+          fim: agora,
+          duracao_minutos: 0,
+          status,
+        },
+      });
+    }
+
+    await tx.ciclo_execucao.update({
+      where: { id_ciclo: ciclo.id_ciclo },
+      data: { posicao_atual: novaPosicao, data_ultima_execucao: agora },
+    });
+  });
+
+  return {
+    posicaoAtual: novaPosicao,
+    totalSlots,
+    sessaoRegistrada: Boolean(status),
+    status,
+  };
+}
+
+export async function pularSessaoCicloService(idUsuario: bigint) {
+  return registrarSessaoSemConclusao(idUsuario, 'PULADA');
+}
+
+export async function remarcarSessaoCicloService(idUsuario: bigint) {
+  return registrarSessaoSemConclusao(idUsuario, 'REMARCADA');
 }
 
 export async function avancarCicloService(idUsuario: bigint) {

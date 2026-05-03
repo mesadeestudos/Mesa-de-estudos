@@ -6,6 +6,7 @@ import { deleteCookie } from 'cookies-next';
 import {
   BarChart3, BookOpen, Calendar, Clock, LayoutDashboard, LineChart,
   LogOut, Menu, RefreshCw, Settings, Target, TrendingUp, User,
+  ClipboardCheck, CalendarDays,
 } from 'lucide-react';
 
 interface DesempenhoData {
@@ -26,6 +27,12 @@ interface DesempenhoData {
     minutos: number;
     sessoes: number;
   }>;
+  inteligencia: {
+    tendencia: 'SUBINDO' | 'CAINDO' | 'ESTAVEL';
+    pontosFracos: Array<{ idDisciplina: number; nome: string; percentual: number; motivo: string }>;
+    recomendacoes: string[];
+    topicos: Array<{ idTopico: number; disciplina: string; topico: string; concluidoEm: string | null }>;
+  };
   recentes: Array<{
     idSessao: number;
     disciplina: string;
@@ -36,19 +43,45 @@ interface DesempenhoData {
   }>;
 }
 
+interface QuestoesData {
+  disciplinas: Array<{
+    idDisciplina: number;
+    disciplina: string;
+    total: number;
+    acertos: number;
+    erros: number;
+    percentual: number;
+    sessoes: number;
+  }>;
+  topicos: Array<{
+    idTopico: number | null;
+    topico: string;
+    disciplina: string;
+    total: number;
+    acertos: number;
+    erros: number;
+    percentual: number;
+  }>;
+}
+
 export default function DesempenhoPage() {
   const router = useRouter();
   const [sidebarAberta, setSidebarAberta] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
   const [dados, setDados] = useState<DesempenhoData | null>(null);
+  const [questoes, setQuestoes] = useState<QuestoesData | null>(null);
 
   useEffect(() => {
-    fetch('/api/desempenho')
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Não foi possível carregar seu desempenho.');
+    Promise.all([
+      fetch('/api/desempenho'),
+      fetch('/api/questoes'),
+    ])
+      .then(async ([desempenhoRes, questoesRes]) => {
+        const data = await desempenhoRes.json();
+        if (!desempenhoRes.ok) throw new Error(data.message || 'Não foi possível carregar seu desempenho.');
         setDados(data);
+        if (questoesRes.ok) setQuestoes(await questoesRes.json());
       })
       .catch((error) => setErro(error instanceof Error ? error.message : 'Não foi possível carregar seu desempenho.'))
       .finally(() => setCarregando(false));
@@ -56,6 +89,11 @@ export default function DesempenhoPage() {
 
   const maiorMinutoSemana = useMemo(() => Math.max(1, ...(dados?.semana.map(dia => dia.minutos) ?? [1])), [dados]);
   const disciplinasCriticas = useMemo(() => [...(dados?.disciplinas ?? [])].sort((a, b) => a.percentual - b.percentual).slice(0, 4), [dados]);
+  const tendenciaTexto = {
+    SUBINDO: 'Ritmo subindo',
+    CAINDO: 'Ritmo caindo',
+    ESTAVEL: 'Ritmo estável',
+  }[dados?.inteligencia.tendencia ?? 'ESTAVEL'];
 
   const handleLogout = () => { deleteCookie('authorization'); router.push('/login'); };
 
@@ -75,6 +113,8 @@ export default function DesempenhoPage() {
               <MenuItem icon={<LayoutDashboard size={18} />} label="Visão Geral" onClick={() => router.push('/dashboard')} />
               <MenuItem icon={<BookOpen size={18} />} label="Minha Mesa" onClick={() => router.push('/minha-mesa')} />
               <MenuItem icon={<RefreshCw size={18} />} label="Ciclos de estudo" onClick={() => router.push('/ciclos')} />
+              <MenuItem icon={<ClipboardCheck size={18} />} label="Questões" onClick={() => router.push('/questoes')} />
+              <MenuItem icon={<CalendarDays size={18} />} label="Agenda" onClick={() => router.push('/agenda')} />
               <MenuItem icon={<LineChart size={18} />} label="Desempenho" active onClick={() => setSidebarAberta(false)} />
               <MenuItem icon={<Calendar size={18} />} label="Revisões" onClick={() => router.push('/revisoes')} />
               <MenuItem icon={<Settings size={18} />} label="Configurações" onClick={() => router.push('/configuracoes')} />
@@ -111,6 +151,39 @@ export default function DesempenhoPage() {
               <Metric icon={<BookOpen size={20} />} label="Tópicos concluídos" value={String(dados.resumo.topicosConcluidos)} />
               <Metric icon={<TrendingUp size={20} />} label="Disciplinas ativas" value={String(dados.resumo.disciplinasComProgresso)} />
 
+              <section className="col-span-12 rounded-[32px] border border-white/70 bg-slate-950 p-5 text-white shadow-xl shadow-sky-200/50 lg:col-span-5">
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-200">Central de inteligência</p>
+                <h2 className="mt-1 text-xl font-black">{tendenciaTexto}</h2>
+                <div className="mt-5 space-y-3">
+                  {(dados.inteligencia.recomendacoes.length > 0 ? dados.inteligencia.recomendacoes : ['Continue registrando sessões para gerar recomendações automáticas.']).map((item) => (
+                    <div key={item} className="rounded-2xl border border-white/10 bg-white/10 p-4">
+                      <p className="text-sm font-bold leading-relaxed text-slate-100">{item}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="col-span-12 rounded-[32px] border border-white/70 bg-white/80 p-5 shadow-xl shadow-slate-200/60 backdrop-blur-xl lg:col-span-7">
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Pontos fracos</p>
+                <h2 className="mt-1 text-xl font-black text-slate-800">Prioridades por disciplina</h2>
+                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                  {dados.inteligencia.pontosFracos.length === 0 ? <p className="text-sm font-semibold text-slate-500">Ainda não há pontos fracos suficientes para destacar.</p> : dados.inteligencia.pontosFracos.map((item) => (
+                    <div key={item.idDisciplina} className="rounded-2xl border border-slate-100 bg-white/80 p-4">
+                      <div className="mb-2 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-black text-slate-800">{item.nome}</p>
+                          <p className="text-xs font-semibold text-slate-400">{item.motivo}</p>
+                        </div>
+                        <span className="text-sm font-black text-amber-600">{item.percentual}%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div className="h-full rounded-full bg-linear-to-r from-amber-400 to-sky-400" style={{ width: `${Math.min(100, item.percentual)}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
               <section className="col-span-12 rounded-[32px] border border-white/70 bg-white/80 p-5 shadow-xl shadow-slate-200/60 backdrop-blur-xl lg:col-span-7">
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-500">Últimos 7 dias</p>
                 <h2 className="mt-1 text-xl font-black text-slate-800">Ritmo semanal</h2>
@@ -133,6 +206,42 @@ export default function DesempenhoPage() {
                 <div className="mt-5 space-y-3">
                   {disciplinasCriticas.length === 0 ? <p className="text-sm font-semibold text-slate-300">Conclua sessões para gerar este ranking.</p> : disciplinasCriticas.map((disciplina) => (
                     <ProgressRow key={disciplina.idDisciplina} nome={disciplina.nome} percentual={disciplina.percentual} detalhe={`${disciplina.topicosConcluidos} tópicos`} dark />
+                  ))}
+                </div>
+              </section>
+
+              <section className="col-span-12 rounded-[32px] border border-white/70 bg-white/80 p-5 shadow-xl shadow-slate-200/60 backdrop-blur-xl">
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Desempenho por tópico</p>
+                <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {dados.inteligencia.topicos.length === 0 ? <p className="text-sm font-semibold text-slate-500">Tópicos concluídos aparecerão aqui.</p> : dados.inteligencia.topicos.map((item) => (
+                    <div key={item.idTopico} className="rounded-2xl border border-slate-100 bg-white/80 p-4">
+                      <p className="text-sm font-black text-slate-800">{item.disciplina}</p>
+                      <p className="mt-1 line-clamp-2 text-xs font-semibold text-slate-500">{item.topico}</p>
+                      <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-emerald-600">
+                        {item.concluidoEm ? new Date(item.concluidoEm).toLocaleDateString('pt-BR') : 'Concluído'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="col-span-12 rounded-[32px] border border-white/70 bg-slate-950 p-5 text-white shadow-xl shadow-sky-200/50">
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-200">Questões</p>
+                <h2 className="mt-1 text-xl font-black">Aproveitamento por disciplina</h2>
+                <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {!questoes || questoes.disciplinas.length === 0 ? <p className="text-sm font-semibold text-slate-300">Registre questões pela API para o assistente calibrar recomendações.</p> : questoes.disciplinas.map((item) => (
+                    <div key={item.idDisciplina} className="rounded-2xl border border-white/10 bg-white/10 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-black text-white">{item.disciplina}</p>
+                          <p className="mt-1 text-xs font-semibold text-slate-300">{item.acertos}/{item.total} acertos · {item.erros} erros</p>
+                        </div>
+                        <span className={`text-sm font-black ${item.percentual < 65 ? 'text-amber-300' : 'text-emerald-300'}`}>{item.percentual}%</span>
+                      </div>
+                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/15">
+                        <div className="h-full rounded-full bg-linear-to-r from-amber-300 to-emerald-300" style={{ width: `${Math.min(100, item.percentual)}%` }} />
+                      </div>
+                    </div>
                   ))}
                 </div>
               </section>

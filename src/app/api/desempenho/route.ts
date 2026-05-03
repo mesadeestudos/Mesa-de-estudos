@@ -24,7 +24,7 @@ export async function GET() {
     inicioSemana.setDate(hoje.getDate() - 6);
     inicioSemana.setHours(0, 0, 0, 0);
 
-    const [sessoes, progressoDisciplinas, topicosConcluidos] = await Promise.all([
+    const [sessoes, progressoDisciplinas, topicosConcluidos, topicosProgresso] = await Promise.all([
       prisma.$queryRaw<SessaoDesempenho[]>`
         SELECT
           se.id_sessao,
@@ -48,6 +48,12 @@ export async function GET() {
         orderBy: { percentual: 'asc' },
       }),
       prisma.topico_progresso.count({ where: { id_usuario: idUsuario, concluido: true } }),
+      prisma.topico_progresso.findMany({
+        where: { id_usuario: idUsuario, concluido: true },
+        include: { topico: { include: { disciplina: true } } },
+        orderBy: { data_conclusao: 'desc' },
+        take: 80,
+      }),
     ]);
 
     const dias = Array.from({ length: 7 }, (_, index) => {
@@ -92,6 +98,37 @@ export async function GET() {
       sessoes: disciplinaMap.get(item.id_disciplina)?.sessoes ?? 0,
     }));
 
+    const minutosPrimeirosDias = dias.slice(0, 3).reduce((total, dia) => total + dia.minutos, 0);
+    const minutosUltimosDias = dias.slice(4).reduce((total, dia) => total + dia.minutos, 0);
+    const tendencia =
+      minutosUltimosDias > minutosPrimeirosDias * 1.15
+        ? 'SUBINDO'
+        : minutosUltimosDias < minutosPrimeirosDias * 0.85
+          ? 'CAINDO'
+          : 'ESTAVEL';
+
+    const pontosFracos = disciplinas
+      .filter(disciplina => !disciplina.concluida)
+      .sort((a, b) => a.percentual - b.percentual || a.minutos - b.minutos)
+      .slice(0, 5)
+      .map(disciplina => ({
+        idDisciplina: disciplina.idDisciplina,
+        nome: disciplina.nome,
+        percentual: disciplina.percentual,
+        motivo: disciplina.percentual < 30
+          ? 'Baixo avanço no edital'
+          : disciplina.minutos === 0
+            ? 'Sem tempo registrado'
+            : 'Precisa de reforço',
+      }));
+
+    const recomendacoes = [
+      pontosFracos[0] ? `Priorize ${pontosFracos[0].nome} na próxima sessão livre.` : null,
+      tendencia === 'CAINDO' ? 'Seu ritmo caiu nos últimos dias; reduza a meta e preserve consistência.' : null,
+      tendencia === 'SUBINDO' ? 'Seu ritmo está subindo; mantenha a sequência e proteja revisões.' : null,
+      topicosConcluidos === 0 ? 'Conclua o primeiro tópico para liberar revisões e leituras de desempenho.' : null,
+    ].filter((item): item is string => Boolean(item));
+
     return NextResponse.json({
       resumo: {
         minutosTotais,
@@ -102,6 +139,17 @@ export async function GET() {
       },
       semana: dias,
       disciplinas,
+      inteligencia: {
+        tendencia,
+        pontosFracos,
+        recomendacoes,
+        topicos: topicosProgresso.slice(0, 20).map(item => ({
+          idTopico: Number(item.id_topico),
+          disciplina: item.topico.disciplina?.nome ?? 'Disciplina',
+          topico: item.topico.descricao,
+          concluidoEm: item.data_conclusao?.toISOString() ?? null,
+        })),
+      },
       recentes: sessoes.slice(0, 12).map(sessao => ({
         idSessao: Number(sessao.id_sessao),
         disciplina: sessao.disciplina_nome,

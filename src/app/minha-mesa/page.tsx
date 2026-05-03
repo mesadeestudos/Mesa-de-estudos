@@ -6,7 +6,7 @@ import { deleteCookie } from 'cookies-next';
 import {
   Bell, Settings, User, LayoutDashboard, BookOpen, RefreshCw,
   LineChart, Calendar, LogOut, Menu, CheckCircle2, Clock, Target,
-  ChevronRight, AlertCircle, Play, Pause,
+  ChevronRight, AlertCircle, Play, Pause, ClipboardCheck, CalendarDays,
 } from 'lucide-react';
 
 interface HojeSlot {
@@ -29,6 +29,18 @@ interface CicloAtivo {
   totalSlots: number;
   hojeSlots: HojeSlot[];
   cicloSlots: HojeSlot[];
+}
+
+interface AssistenteEstudo {
+  tipo: string;
+  titulo: string;
+  mensagem: string;
+  destino: string;
+  sinais: {
+    revisoesPendentes: number;
+    revisoesAtrasadas: number;
+  };
+  recomendacoes: string[];
 }
 
 const getTipoDisciplinaLabel = (tipo?: string | null) => {
@@ -56,9 +68,16 @@ export default function MinhaMesaPage() {
   const [ciclo, setCiclo] = useState<CicloAtivo | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [concluindo, setConcluindo] = useState(false);
+  const [acaoSecundaria, setAcaoSecundaria] = useState<'pular' | 'remarcar' | null>(null);
   const [erro, setErro] = useState('');
   const [cronometroAtivo, setCronometroAtivo] = useState(false);
   const [segundosRestantes, setSegundosRestantes] = useState(60 * 60);
+  const [metaDia, setMetaDia] = useState({
+    sessoesConcluidas: 0,
+    revisoesPendentes: 0,
+    revisoesAtrasadas: 0,
+  });
+  const [assistente, setAssistente] = useState<AssistenteEstudo | null>(null);
 
   const handleLogout = () => { deleteCookie('authorization'); router.push('/login'); };
 
@@ -69,6 +88,20 @@ export default function MinhaMesaPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Não foi possível carregar sua mesa.');
       setCiclo(data);
+      const [desempenho, revisoes, assistenteData] = await Promise.all([
+        fetch('/api/desempenho').then(r => r.ok ? r.json() : null),
+        fetch('/api/revisoes').then(r => r.ok ? r.json() : null),
+        fetch('/api/assistente').then(r => r.ok ? r.json() : null),
+      ]);
+      setAssistente(assistenteData);
+      const hoje = new Date().toISOString().slice(0, 10);
+      setMetaDia({
+        sessoesConcluidas: desempenho?.recentes?.filter((sessao: { inicio: string; status: string }) =>
+          sessao.status === 'CONCLUIDA' && sessao.inicio.slice(0, 10) === hoje,
+        ).length ?? 0,
+        revisoesPendentes: revisoes?.resumo?.pendentes ?? 0,
+        revisoesAtrasadas: revisoes?.resumo?.atrasadas ?? 0,
+      });
     } catch (error) {
       setErro(error instanceof Error ? error.message : 'Não foi possível carregar sua mesa.');
       setCiclo(null);
@@ -91,12 +124,17 @@ export default function MinhaMesaPage() {
   const progressoCronometro = Math.min(100, Math.round((segundosEstudados / totalSegundosSessao) * 100));
   const chaveSessaoAtual = sessaoAtual ? `${ciclo?.idCiclo}-${ciclo?.posicaoAtual}-${sessaoAtual.idDisciplina}` : '';
 
-  const concluirSessao = useCallback(async () => {
+  const executarAcaoCiclo = useCallback(async (acao?: 'pular' | 'remarcar') => {
     setCronometroAtivo(false);
-    setConcluindo(true);
+    if (acao) setAcaoSecundaria(acao);
+    else setConcluindo(true);
     setErro('');
     try {
-      const res = await fetch('/api/ciclos', { method: 'PATCH' });
+      const res = await fetch('/api/ciclos', {
+        method: 'PATCH',
+        headers: acao ? { 'Content-Type': 'application/json' } : undefined,
+        body: acao ? JSON.stringify({ acao }) : undefined,
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Não foi possível avançar o ciclo.');
       await carregarCiclo();
@@ -104,8 +142,11 @@ export default function MinhaMesaPage() {
       setErro(error instanceof Error ? error.message : 'Não foi possível avançar o ciclo.');
     } finally {
       setConcluindo(false);
+      setAcaoSecundaria(null);
     }
   }, [carregarCiclo]);
+
+  const concluirSessao = useCallback(() => executarAcaoCiclo(), [executarAcaoCiclo]);
 
   useEffect(() => {
     setCronometroAtivo(false);
@@ -148,6 +189,8 @@ export default function MinhaMesaPage() {
               <MenuItem icon={<LayoutDashboard size={18} />} label="Visão Geral" active={false} onClick={() => router.push('/dashboard')} />
               <MenuItem icon={<BookOpen size={18} />} label="Minha Mesa" active onClick={() => setSidebarAberta(false)} />
               <MenuItem icon={<RefreshCw size={18} />} label="Ciclos de estudo" active={false} onClick={() => router.push('/ciclos')} />
+              <MenuItem icon={<ClipboardCheck size={18} />} label="Questões" active={false} onClick={() => router.push('/questoes')} />
+              <MenuItem icon={<CalendarDays size={18} />} label="Agenda" active={false} onClick={() => router.push('/agenda')} />
               <MenuItem icon={<LineChart size={18} />} label="Desempenho" active={false} onClick={() => router.push('/desempenho')} />
               <MenuItem icon={<Calendar size={18} />} label="Revisões" active={false} onClick={() => router.push('/revisoes')} />
               <MenuItem icon={<Settings size={18} />} label="Configurações" active={false} onClick={() => router.push('/configuracoes')} />
@@ -197,6 +240,26 @@ export default function MinhaMesaPage() {
             </div>
           ) : (
             <div className="grid grid-cols-12 gap-5 pb-8">
+              {assistente && (
+                <section className="col-span-12 rounded-[28px] border border-emerald-100 bg-white/85 p-4 shadow-xl shadow-slate-200/60 backdrop-blur-xl">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-600">Assistente de estudo</p>
+                      <h2 className="mt-1 truncate text-lg font-black text-slate-800">{assistente.titulo}</h2>
+                      <p className="mt-1 text-sm font-semibold text-slate-500">{assistente.mensagem}</p>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+                        {assistente.tipo}
+                      </span>
+                      <button onClick={() => router.push(assistente.destino)} className="flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2.5 text-xs font-black text-white transition-all hover:bg-emerald-600">
+                        Executar orientação <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </section>
+              )}
+
               <section className="col-span-12 overflow-hidden rounded-[28px] border border-white/70 bg-linear-to-br from-slate-950 via-sky-950 to-sky-700 p-5 text-white shadow-2xl shadow-sky-200/50 lg:col-span-8">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0">
@@ -258,11 +321,27 @@ export default function MinhaMesaPage() {
                 <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                   <button
                     onClick={concluirSessao}
-                    disabled={concluindo}
+                    disabled={concluindo || Boolean(acaoSecundaria)}
                     className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 py-2.5 text-sm font-black text-slate-950 shadow-lg transition-all hover:bg-emerald-300 disabled:opacity-60"
                   >
                     {concluindo ? <RefreshCw size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                     {concluindo ? 'Concluindo...' : 'Concluir sessão'}
+                  </button>
+                  <button
+                    onClick={() => executarAcaoCiclo('pular')}
+                    disabled={concluindo || Boolean(acaoSecundaria)}
+                    className="flex items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-2.5 text-sm font-black text-amber-700 transition-all hover:bg-amber-100 disabled:opacity-60"
+                  >
+                    {acaoSecundaria === 'pular' ? <RefreshCw size={16} className="animate-spin" /> : <ChevronRight size={16} />}
+                    {acaoSecundaria === 'pular' ? 'Pulando...' : 'Pular'}
+                  </button>
+                  <button
+                    onClick={() => executarAcaoCiclo('remarcar')}
+                    disabled={concluindo || Boolean(acaoSecundaria)}
+                    className="flex items-center justify-center gap-2 rounded-2xl border border-sky-200 bg-white px-5 py-2.5 text-sm font-black text-sky-700 transition-all hover:bg-sky-50 disabled:opacity-60"
+                  >
+                    {acaoSecundaria === 'remarcar' ? <RefreshCw size={16} className="animate-spin" /> : <Calendar size={16} />}
+                    {acaoSecundaria === 'remarcar' ? 'Remarcando...' : 'Remarcar'}
                   </button>
                   <button onClick={() => router.push('/ciclos')} className="flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-2.5 text-sm font-black text-sky-700 transition-all hover:bg-sky-50">
                     Ver ciclo <ChevronRight size={16} />
@@ -285,14 +364,18 @@ export default function MinhaMesaPage() {
                 <div className="mt-4 grid grid-cols-2 gap-2.5">
                   <MiniStat icon={<Clock size={16} />} label="Tempo estudado" value={formatarTempo(segundosEstudados)} />
                   <MiniStat icon={<Target size={16} />} label="Meta hoje" value={`${ciclo.horasPorDia}h`} />
+                  <MiniStat icon={<CheckCircle2 size={16} />} label="Concluídas" value={`${metaDia.sessoesConcluidas}/${ciclo.horasPorDia}`} />
+                  <MiniStat icon={<Calendar size={16} />} label="Revisões" value={String(metaDia.revisoesPendentes)} />
                   <MiniStat icon={<RefreshCw size={16} />} label="Posição" value={`${ciclo.posicaoAtual}/${ciclo.totalSlots}`} />
                   <MiniStat icon={<BookOpen size={16} />} label="Sessões no ciclo" value={String(ciclo.totalSlots)} />
                 </div>
 
-                <div className="mt-4 rounded-[20px] border border-sky-100 bg-sky-50/70 px-3 py-2.5">
+                <div className={`mt-4 rounded-[20px] border px-3 py-2.5 ${metaDia.revisoesAtrasadas > 0 ? 'border-amber-100 bg-amber-50/80' : 'border-sky-100 bg-sky-50/70'}`}>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-sky-700">Fluxo</span>
-                    <span className="text-xs font-black text-slate-700">Concluir → Avançar</span>
+                    <span className={`text-[10px] font-black uppercase tracking-[0.18em] ${metaDia.revisoesAtrasadas > 0 ? 'text-amber-700' : 'text-sky-700'}`}>Prioridade</span>
+                    <span className="text-xs font-black text-slate-700">
+                      {metaDia.revisoesAtrasadas > 0 ? `${metaDia.revisoesAtrasadas} revisão atrasada` : 'Executar sessão atual'}
+                    </span>
                   </div>
                 </div>
               </aside>
