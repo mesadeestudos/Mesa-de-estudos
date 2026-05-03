@@ -1,6 +1,7 @@
 import { buscarCicloService } from '@/service/ciclo.service';
 import { calcularPrioridadesDisciplinas } from '@/service/prioridade.service';
 import { buscarResumoQuestoes } from '@/service/questoes.service';
+import { buscarAjustesPlano } from '@/service/ajuste-plano.service';
 import prisma from '@/lib/prisma';
 
 type TipoAcao = 'REVISAO' | 'CICLO' | 'REFORCO' | 'QUESTOES' | 'DESCANSO' | 'CRIAR_CICLO';
@@ -53,11 +54,12 @@ async function buscarRevisoesPendentes(idUsuario: bigint): Promise<RevisaoPenden
 }
 
 export async function gerarAssistenteEstudo(idUsuario: bigint) {
-  const [ciclo, prioridades, questoes, revisoes] = await Promise.all([
+  const [ciclo, prioridades, questoes, revisoes, ajustes] = await Promise.all([
     buscarCicloService(idUsuario),
     calcularPrioridadesDisciplinas(idUsuario),
     buscarResumoQuestoes(idUsuario),
     buscarRevisoesPendentes(idUsuario),
+    buscarAjustesPlano(idUsuario),
   ]);
 
   const piorQuestao = questoes.disciplinas[0] ?? null;
@@ -67,12 +69,33 @@ export async function gerarAssistenteEstudo(idUsuario: bigint) {
   let mensagem = 'Quando houver ciclo, revisões ou questões registradas, eu organizo a próxima ação.';
   let destino = '/dashboard';
   let payload: unknown = {};
+  let explicacao = {
+    principal: 'Ainda não há sinais suficientes para priorizar uma tarefa.',
+    sinaisUsados: [] as string[],
+    alternativas: [] as string[],
+  };
 
-  if (!ciclo) {
+  if (ajustes.pausaAtiva) {
+    tipo = 'DESCANSO';
+    titulo = 'Plano pausado';
+    mensagem = `Você pausou o plano até ${new Date(ajustes.pausaAtiva.dataFim).toLocaleDateString('pt-BR')}.`;
+    destino = '/agenda';
+    payload = ajustes.pausaAtiva;
+    explicacao = {
+      principal: 'A pausa ativa indica impossibilidade de estudo no período informado.',
+      sinaisUsados: ['pausa ativa na Agenda'],
+      alternativas: ['retomar após a pausa', 'ajustar meta temporária se conseguir estudar pouco'],
+    };
+  } else if (!ciclo) {
     tipo = 'CRIAR_CICLO';
     titulo = 'Crie seu ciclo de estudos';
     mensagem = 'O ciclo é a base para eu organizar sua rotina automaticamente.';
     destino = '/ciclos';
+    explicacao = {
+      principal: 'Sem ciclo ativo, não existe uma fila de estudo para organizar.',
+      sinaisUsados: ['nenhum ciclo ativo encontrado'],
+      alternativas: ['criar ciclo de estudos', 'escolher edital e cargo'],
+    };
   } else if (revisoes.some(item => item.atrasada)) {
     const revisao = revisoes.find(item => item.atrasada) ?? revisoes[0];
     tipo = 'REVISAO';
@@ -80,24 +103,44 @@ export async function gerarAssistenteEstudo(idUsuario: bigint) {
     mensagem = 'Há revisão atrasada. Vou priorizar memória antes de avançar conteúdo novo.';
     destino = '/revisoes';
     payload = revisao;
+    explicacao = {
+      principal: 'Revisões atrasadas têm prioridade porque protegem retenção antes de conteúdo novo.',
+      sinaisUsados: [`${revisoes.filter(item => item.atrasada).length} revisão(ões) atrasada(s)`, `${revisoes.length} revisão(ões) pendente(s)`],
+      alternativas: ['fazer a revisão agora', 'remarcar se estiver sem tempo'],
+    };
   } else if (piorQuestao && piorQuestao.total >= 10 && piorQuestao.percentual < 65) {
     tipo = 'QUESTOES';
     titulo = `Treinar questões de ${piorQuestao.disciplina}`;
     mensagem = `Seu aproveitamento está em ${piorQuestao.percentual}%. Uma bateria curta ajuda a calibrar o estudo.`;
     destino = '/desempenho';
     payload = piorQuestao;
+    explicacao = {
+      principal: 'O aproveitamento em questões está baixo o suficiente para recomendar treino antes de avançar.',
+      sinaisUsados: [`${piorQuestao.percentual}% de aproveitamento`, `${piorQuestao.erros} erro(s) registrados`, `${piorQuestao.total} questão(ões) feitas`],
+      alternativas: ['registrar nova bateria', 'revisar tópicos fracos'],
+    };
   } else if (prioridade && prioridade.score >= 45) {
     tipo = 'REFORCO';
     titulo = `Reforçar ${prioridade.nome}`;
     mensagem = `Motivo: ${prioridade.motivos.slice(0, 2).join(' e ')}.`;
     destino = '/minha-mesa';
     payload = prioridade;
+    explicacao = {
+      principal: 'Essa disciplina acumulou sinais de atenção no histórico recente.',
+      sinaisUsados: prioridade.motivos,
+      alternativas: ['fazer sessão de reforço', 'rebalancear ciclo', 'remarcar se hoje não for possível'],
+    };
   } else if (ciclo.hojeSlots[0]) {
     tipo = 'CICLO';
     titulo = `Estudar ${ciclo.hojeSlots[0].nome}`;
     mensagem = 'A próxima sessão do ciclo está adequada para agora.';
     destino = '/minha-mesa';
     payload = ciclo.hojeSlots[0];
+    explicacao = {
+      principal: 'Não há revisão ou alerta crítico acima do ciclo, então a próxima sessão planejada é a melhor ação.',
+      sinaisUsados: ['ciclo ativo', 'fila de hoje disponível', 'sem alerta crítico prioritário'],
+      alternativas: ['concluir sessão', 'pular', 'remarcar'],
+    };
   }
 
   return {
@@ -106,6 +149,7 @@ export async function gerarAssistenteEstudo(idUsuario: bigint) {
     mensagem,
     destino,
     payload,
+    explicacao,
     sinais: {
       revisoesPendentes: revisoes.length,
       revisoesAtrasadas: revisoes.filter(item => item.atrasada).length,

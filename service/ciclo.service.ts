@@ -401,6 +401,54 @@ export async function remarcarSessaoCicloService(idUsuario: bigint) {
   return registrarSessaoSemConclusao(idUsuario, 'REMARCADA');
 }
 
+export async function remarcarSessaoEspecificaCicloService(idUsuario: bigint, ordem: number) {
+  const ciclo = await buscarCicloAtivo(idUsuario);
+  if (!ciclo) throw Object.assign(new Error('Nenhum ciclo ativo.'), { status: 404 });
+
+  const totalSlots = ciclo.ciclo_disciplina.length;
+  if (totalSlots === 0) throw Object.assign(new Error('Ciclo sem disciplinas.'), { status: 400 });
+
+  const ordemSegura = Math.max(1, Math.min(totalSlots, Math.floor(ordem)));
+  const slot = ciclo.ciclo_disciplina[ordemSegura - 1];
+  const posicaoAtual = ciclo.ciclo_execucao?.posicao_atual ?? 1;
+  const agora = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    const topico = await tx.topico.findFirst({
+      where: { id_disciplina: slot.id_disciplina },
+      orderBy: [{ ordem: 'asc' }, { id_topico: 'asc' }],
+    });
+
+    if (topico) {
+      await tx.sessao_estudo.create({
+        data: {
+          id_usuario: idUsuario,
+          id_disciplina: slot.id_disciplina,
+          id_topico: topico.id_topico,
+          inicio: agora,
+          fim: agora,
+          duracao_minutos: 0,
+          status: 'REMARCADA',
+        },
+      });
+    }
+
+    if (ordemSegura === posicaoAtual) {
+      await tx.ciclo_execucao.update({
+        where: { id_ciclo: ciclo.id_ciclo },
+        data: { posicao_atual: (posicaoAtual % totalSlots) + 1, data_ultima_execucao: agora },
+      });
+    }
+  });
+
+  return {
+    ordem: ordemSegura,
+    posicaoAtual: ordemSegura === posicaoAtual ? (posicaoAtual % totalSlots) + 1 : posicaoAtual,
+    totalSlots,
+    status: 'REMARCADA',
+  };
+}
+
 export async function avancarCicloService(idUsuario: bigint) {
   const ciclo = await buscarCicloAtivo(idUsuario);
   if (!ciclo) throw Object.assign(new Error('Nenhum ciclo ativo.'), { status: 404 });

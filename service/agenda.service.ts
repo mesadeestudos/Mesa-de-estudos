@@ -2,6 +2,7 @@ import prisma from '@/lib/prisma';
 import { buscarCicloService } from '@/service/ciclo.service';
 import { gerarAssistenteEstudo } from '@/service/assistente-estudo.service';
 import { buscarResumoQuestoes } from '@/service/questoes.service';
+import { buscarAjustesPlano } from '@/service/ajuste-plano.service';
 
 const inicioDoDia = (data: Date) => {
   const copia = new Date(data);
@@ -33,9 +34,10 @@ export async function gerarAgendaService(idUsuario: bigint) {
   const fimSemana = adicionarDias(hoje, 6);
   const ciclo = await buscarCicloService(idUsuario);
 
-  const [assistente, questoes, sessoesSemana, revisoesBase] = await Promise.all([
+  const [assistente, questoes, ajustes, sessoesSemana, revisoesBase] = await Promise.all([
     gerarAssistenteEstudo(idUsuario),
     buscarResumoQuestoes(idUsuario),
+    buscarAjustesPlano(idUsuario),
     prisma.$queryRaw<SessaoSemanaRow[]>`
       SELECT
         se.id_sessao,
@@ -122,7 +124,8 @@ export async function gerarAgendaService(idUsuario: bigint) {
     })
     : 0;
 
-  const mediaTopicosDia = Math.max(1, ciclo?.horasPorDia ?? 1);
+  const horasDiaEfetivas = ajustes.metaTemporaria?.horasPorDia ?? ciclo?.horasPorDia ?? 0;
+  const mediaTopicosDia = Math.max(1, horasDiaEfetivas || 1);
   const diasConclusao = ciclo ? Math.ceil(topicosRestantes / mediaTopicosDia) : null;
   const conclusaoPrevista = diasConclusao !== null ? adicionarDias(hoje, diasConclusao).toISOString() : null;
 
@@ -135,10 +138,11 @@ export async function gerarAgendaService(idUsuario: bigint) {
       questaoRecomendada: questoes.disciplinas[0] ?? null,
     },
     semana: {
-      metaMinutos: (ciclo?.horasPorDia ?? 0) * 60 * 6,
+      metaMinutos: horasDiaEfetivas * 60 * 6,
       minutosRegistrados: dias.reduce((total, dia) => total + dia.minutos, 0),
       dias,
     },
+    ajustes,
     revisoes: {
       vencidas: revisoes.filter(item => item.atrasada),
       futuras: revisoes.filter(item => !item.atrasada).slice(0, 12),

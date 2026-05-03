@@ -7,6 +7,14 @@ export interface RegistroQuestoesInput {
   acertos: number;
 }
 
+export interface AtualizarQuestoesInput {
+  id: number;
+  idDisciplina: number;
+  idTopico?: number | null;
+  total: number;
+  acertos: number;
+}
+
 interface QuestaoResumoRow {
   id_disciplina: number;
   disciplina: string;
@@ -31,6 +39,13 @@ interface QuestaoRecenteRow {
   total_acertos: number;
   percentual: number;
   data_registro: Date;
+}
+
+interface TopicoOpcaoRow {
+  id_disciplina: number;
+  disciplina: string;
+  id_topico: bigint;
+  topico: string;
 }
 
 interface TabelaExisteRow {
@@ -64,6 +79,31 @@ export async function registrarQuestoes(idUsuario: bigint, input: RegistroQuesto
   return { total, acertos, percentual };
 }
 
+export async function atualizarQuestoes(idUsuario: bigint, input: AtualizarQuestoesInput) {
+  const tabelaExiste = await tabelaQuestoesExiste();
+  if (!tabelaExiste) {
+    throw Object.assign(new Error('Modulo de questoes ainda nao configurado no banco.'), { status: 503 });
+  }
+
+  const total = Math.max(1, Math.floor(input.total));
+  const acertos = Math.min(total, Math.max(0, Math.floor(input.acertos)));
+  const percentual = Number(((acertos / total) * 100).toFixed(2));
+
+  await prisma.$executeRaw`
+    UPDATE planejamento.questao_treino
+    SET
+      id_disciplina = ${input.idDisciplina},
+      id_topico = ${input.idTopico ? BigInt(input.idTopico) : null},
+      total_questoes = ${total},
+      total_acertos = ${acertos},
+      percentual = ${percentual}
+    WHERE id_questao_treino = ${BigInt(input.id)}
+      AND id_usuario = ${idUsuario}
+  `;
+
+  return { total, acertos, percentual };
+}
+
 export async function buscarResumoQuestoes(idUsuario: bigint) {
   const tabelaExiste = await tabelaQuestoesExiste();
   if (!tabelaExiste) {
@@ -75,7 +115,7 @@ export async function buscarResumoQuestoes(idUsuario: bigint) {
     };
   }
 
-  const [disciplinas, topicos, recentes] = await Promise.all([
+  const [disciplinas, topicos, recentes, opcoesTopicos] = await Promise.all([
     prisma.$queryRaw<QuestaoResumoRow[]>`
       SELECT
         qt.id_disciplina,
@@ -120,6 +160,21 @@ export async function buscarResumoQuestoes(idUsuario: bigint) {
       ORDER BY qt.data_registro DESC
       LIMIT 12
     `,
+    prisma.$queryRaw<TopicoOpcaoRow[]>`
+      SELECT DISTINCT
+        d.id_disciplina,
+        d.nome AS disciplina,
+        t.id_topico,
+        t.descricao AS topico
+      FROM planejamento.ciclo_estudo ce
+      JOIN planejamento.plano_estudo pe ON pe.id_plano = ce.id_plano
+      JOIN planejamento.ciclo_disciplina cd ON cd.id_ciclo = ce.id_ciclo
+      JOIN concurso.disciplina d ON d.id_disciplina = cd.id_disciplina
+      JOIN concurso.topico t ON t.id_disciplina = d.id_disciplina
+      WHERE pe.id_usuario = ${idUsuario}
+        AND ce.ativo = true
+      ORDER BY d.nome ASC, t.id_topico ASC
+    `,
   ]);
 
   const mapResumo = <T extends { total_questoes: bigint | number; total_acertos: bigint | number }>(item: T) => {
@@ -157,5 +212,13 @@ export async function buscarResumoQuestoes(idUsuario: bigint) {
       percentual: Number(item.percentual),
       dataRegistro: item.data_registro.toISOString(),
     })),
+    opcoes: {
+      topicos: opcoesTopicos.map(item => ({
+        idDisciplina: item.id_disciplina,
+        disciplina: item.disciplina,
+        idTopico: Number(item.id_topico),
+        topico: item.topico,
+      })),
+    },
   };
 }

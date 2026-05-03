@@ -7,6 +7,7 @@ import {
   rebalancearCicloService,
   pularSessaoCicloService,
   remarcarSessaoCicloService,
+  remarcarSessaoEspecificaCicloService,
 } from '@/service/ciclo.service';
 import { autenticarUsuario, toHttpError } from '@/lib/auth';
 
@@ -39,14 +40,16 @@ export async function PATCH(req: Request) {
   try {
     const idUsuario = await autenticarUsuario();
     const rawBody = await req.text();
-    const body = rawBody ? JSON.parse(rawBody) as { acao?: string } : null;
+    const body = rawBody ? JSON.parse(rawBody) as { acao?: string; ordem?: number } : null;
     const resultado =
       body?.acao === 'rebalancear'
         ? await rebalancearCicloService(idUsuario)
         : body?.acao === 'pular'
           ? await pularSessaoCicloService(idUsuario)
           : body?.acao === 'remarcar'
-            ? await remarcarSessaoCicloService(idUsuario)
+            ? body.ordem
+              ? await remarcarSessaoEspecificaCicloService(idUsuario, Number(body.ordem))
+              : await remarcarSessaoCicloService(idUsuario)
             : await avancarCicloService(idUsuario);
     return NextResponse.json(resultado);
   } catch (err) {
