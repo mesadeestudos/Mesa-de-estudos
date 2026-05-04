@@ -127,6 +127,11 @@ export default function AgendaPage() {
   };
 
   const pctSemana = dados?.semana.metaMinutos ? Math.min(100, Math.round((dados.semana.minutosRegistrados / dados.semana.metaMinutos) * 100)) : 0;
+  const coberturaAtrasada = Boolean(
+    dados?.edital.dataProva
+    && dados.edital.conclusaoPrevista
+    && new Date(dados.edital.conclusaoPrevista) > new Date(dados.edital.dataProva),
+  );
 
   return (
     <AppShell active="agenda" title="Agenda" eyebrow="Planejamento automatico">
@@ -159,6 +164,23 @@ export default function AgendaPage() {
                   </button>
                 </div>
               </section>
+
+              {coberturaAtrasada && (
+                <section className="col-span-12 rounded-[28px] border border-red-200 bg-red-50 p-5 shadow-xl shadow-red-100/60">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.24em] text-red-600">Alerta de cobertura</p>
+                      <h2 className="mt-1 text-lg font-black text-red-900">A previsão de conclusão passou da data da prova</h2>
+                      <p className="mt-1 text-sm font-bold text-red-700">
+                        Prova em {new Date(dados.edital.dataProva as string).toLocaleDateString('pt-BR')} e conclusão prevista em {new Date(dados.edital.conclusaoPrevista as string).toLocaleDateString('pt-BR')}. Rebalanceie o ciclo ou ajuste sua meta.
+                      </p>
+                    </div>
+                    <button onClick={() => router.push('/ciclos')} className="flex items-center justify-center gap-2 rounded-2xl bg-red-600 px-5 py-3 text-sm font-black text-white transition-all hover:bg-red-700">
+                      Ajustar ciclo <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </section>
+              )}
 
               <MetricCard icon={<Target size={20} />} label="Meta semanal" value={`${Math.round(dados.semana.metaMinutos / 60)}h`} className="col-span-6 lg:col-span-3" />
               <MetricCard icon={<Clock size={20} />} label="Registrado" value={`${Math.round(dados.semana.minutosRegistrados / 60)}h`} className="col-span-6 lg:col-span-3" />

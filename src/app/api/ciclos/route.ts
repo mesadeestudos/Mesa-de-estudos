@@ -40,7 +40,7 @@ export async function PATCH(req: Request) {
   try {
     const idUsuario = await autenticarUsuario();
     const rawBody = await req.text();
-    const body = rawBody ? JSON.parse(rawBody) as { acao?: string; ordem?: number } : null;
+    const body = rawBody ? JSON.parse(rawBody) as { acao?: string; ordem?: number; qualidade?: string } : null;
     const resultado =
       body?.acao === 'rebalancear'
         ? await rebalancearCicloService(idUsuario)
@@ -50,7 +50,7 @@ export async function PATCH(req: Request) {
             ? body.ordem
               ? await remarcarSessaoEspecificaCicloService(idUsuario, Number(body.ordem))
               : await remarcarSessaoCicloService(idUsuario)
-            : await avancarCicloService(idUsuario);
+            : await avancarCicloService(idUsuario, body?.qualidade);
     return NextResponse.json(resultado);
   } catch (err) {
     console.error('[PATCH /api/ciclos] erro:', err);

@@ -232,6 +232,7 @@ model sessao_estudo {
   fim                 DateTime?         @db.Timestamptz(6)
   duracao_minutos     Int?
   status              String            @db.VarChar(20)
+  qualidade           String?           @db.VarChar(20)
   ciclo_disciplina    ciclo_disciplina? @relation(fields: [id_ciclo_disciplina], references: [id_ciclo_disciplina], onDelete: SetNull, onUpdate: NoAction)
   disciplina          disciplina        @relation(fields: [id_disciplina], references: [id_disciplina], onDelete: NoAction, onUpdate: NoAction)
   topico              topico            @relation(fields: [id_topico], references: [id_topico], onDelete: NoAction, onUpdate: NoAction)

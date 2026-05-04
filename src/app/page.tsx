@@ -18,9 +18,8 @@ export default function HomePage() {
               className="h-16 w-auto object-contain"
             />
             <div className="hidden lg:flex items-center gap-8 text-sm font-bold text-slate-500">
-              <Link href="#" className="hover:text-cyan-600 transition">Editais</Link>
-              <Link href="#" className="hover:text-cyan-600 transition">Tutoriais</Link>
-              <Link href="#" className="hover:text-cyan-600 transition">Blog</Link>
+              <Link href="/tutoriais" className="hover:text-cyan-600 transition">Tutoriais</Link>
+              <Link href="/ajuda" className="hover:text-cyan-600 transition">Ajuda</Link>
             </div>
           </div>
 
@@ -63,21 +62,21 @@ export default function HomePage() {
                   Começar Jornada
                 </button>
               </Link>
-              <button className="px-8 py-3.5 bg-white border border-slate-200 text-slate-600 rounded-2xl text-sm font-bold tracking-wide hover:bg-slate-50 active:scale-[0.98] transition-all">
-                Ver Vídeo
-              </button>
+              <Link href="/tutoriais" className="px-8 py-3.5 bg-white border border-slate-200 text-center text-slate-600 rounded-2xl text-sm font-bold tracking-wide hover:bg-slate-50 active:scale-[0.98] transition-all">
+                Ver tutoriais
+              </Link>
             </div>
           </div>
 
           <div className="flex justify-center items-center h-full">
             <div
-              className="relative w-full overflow-hidden bg-white/78 rounded-[32px] border border-white/70 shadow-2xl shadow-slate-200/60 backdrop-blur-xl"
-              style={{ maxHeight: 'calc(100vh - 15.5rem)' }}
+              className="relative flex w-full items-center justify-center overflow-hidden bg-white/78 rounded-[32px] border border-white/70 p-4 shadow-2xl shadow-slate-200/60 backdrop-blur-xl sm:p-6"
+              style={{ height: 'min(560px, calc(100vh - 15.5rem))' }}
             >
               <img
                 src="/imagem_home.png"
                 alt="Visão Geral Preview"
-                className="w-full h-auto drop-shadow-xl animate-float"
+                className="max-h-full w-full object-contain drop-shadow-xl animate-float"
               />
             </div>
           </div>

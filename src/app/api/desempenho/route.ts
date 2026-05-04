@@ -100,6 +100,17 @@ export async function GET() {
 
     const minutosPrimeirosDias = dias.slice(0, 3).reduce((total, dia) => total + dia.minutos, 0);
     const minutosUltimosDias = dias.slice(4).reduce((total, dia) => total + dia.minutos, 0);
+    const diasComEstudoSet = new Set(sessoes.map(sessao => diaKey(sessao.inicio)));
+    const inicioStreak = diasComEstudoSet.has(diaKey(hoje))
+      ? new Date(hoje)
+      : new Date(hoje.getTime() - 86_400_000);
+    let streakAtual = 0;
+    for (let cursor = new Date(inicioStreak); diasComEstudoSet.has(diaKey(cursor)); cursor.setDate(cursor.getDate() - 1)) {
+      streakAtual += 1;
+    }
+    const diasComEstudoSemana = dias.filter(dia => dia.minutos > 0).length;
+    const metaDiasSemana = 6;
+    const percentualMetaDias = Math.min(100, Math.round((diasComEstudoSemana / metaDiasSemana) * 100));
     const tendencia =
       minutosUltimosDias > minutosPrimeirosDias * 1.15
         ? 'SUBINDO'
@@ -126,6 +137,8 @@ export async function GET() {
       pontosFracos[0] ? `Priorize ${pontosFracos[0].nome} na próxima sessão livre.` : null,
       tendencia === 'CAINDO' ? 'Seu ritmo caiu nos últimos dias; reduza a meta e preserve consistência.' : null,
       tendencia === 'SUBINDO' ? 'Seu ritmo está subindo; mantenha a sequência e proteja revisões.' : null,
+      streakAtual === 0 ? 'Retome hoje com uma sessão curta para reconstruir consistência.' : null,
+      percentualMetaDias < 50 ? 'A meta semanal de presença está baixa; priorize constância antes de aumentar volume.' : null,
       topicosConcluidos === 0 ? 'Conclua o primeiro tópico para liberar revisões e leituras de desempenho.' : null,
     ].filter((item): item is string => Boolean(item));
 
@@ -138,6 +151,12 @@ export async function GET() {
         disciplinasComProgresso: disciplinas.length,
       },
       semana: dias,
+      habito: {
+        streakAtual,
+        diasComEstudoSemana,
+        metaDiasSemana,
+        percentualMetaDias,
+      },
       disciplinas,
       inteligencia: {
         tendencia,

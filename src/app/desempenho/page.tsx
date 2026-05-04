@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   BarChart3, BookOpen, Calendar, Clock, LayoutDashboard, LineChart,
   LogOut, Menu, RefreshCw, Settings, Target, TrendingUp, User,
-  ClipboardCheck, CalendarDays,
+  ClipboardCheck, CalendarDays, Flame, ChevronRight,
 } from 'lucide-react';
 
 interface DesempenhoData {
@@ -15,6 +15,12 @@ interface DesempenhoData {
     sessoesConcluidas: number;
     topicosConcluidos: number;
     disciplinasComProgresso: number;
+  };
+  habito: {
+    streakAtual: number;
+    diasComEstudoSemana: number;
+    metaDiasSemana: number;
+    percentualMetaDias: number;
   };
   semana: Array<{ data: string; minutos: number; sessoes: number }>;
   disciplinas: Array<{
@@ -152,6 +158,8 @@ export default function DesempenhoPage() {
               <Metric icon={<Target size={20} />} label="Sessões concluídas" value={String(dados.resumo.sessoesConcluidas)} />
               <Metric icon={<BookOpen size={20} />} label="Tópicos concluídos" value={String(dados.resumo.topicosConcluidos)} />
               <Metric icon={<TrendingUp size={20} />} label="Disciplinas ativas" value={String(dados.resumo.disciplinasComProgresso)} />
+              <Metric icon={<Flame size={20} />} label="Sequência atual" value={`${dados.habito.streakAtual} dia${dados.habito.streakAtual === 1 ? '' : 's'}`} />
+              <Metric icon={<CalendarDays size={20} />} label="Meta semanal visual" value={`${dados.habito.percentualMetaDias}%`} />
 
               <section className="col-span-12 rounded-[32px] border border-white/70 bg-slate-950 p-5 text-white shadow-xl shadow-sky-200/50 lg:col-span-5">
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-200">Central de inteligência</p>
@@ -180,6 +188,14 @@ export default function DesempenhoPage() {
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                         <div className="h-full rounded-full bg-linear-to-r from-amber-400 to-sky-400" style={{ width: `${Math.min(100, item.percentual)}%` }} />
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button onClick={() => router.push(`/questoes?disciplina=${item.idDisciplina}`)} className="flex items-center gap-1.5 rounded-xl bg-slate-950 px-3 py-2 text-[11px] font-black text-white transition-all hover:bg-slate-800">
+                          Ver tópicos críticos <ChevronRight size={13} />
+                        </button>
+                        <button onClick={() => router.push('/ciclos')} className="flex items-center gap-1.5 rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-[11px] font-black text-sky-700 transition-all hover:bg-sky-100">
+                          Rebalancear ciclo
+                        </button>
                       </div>
                     </div>
                   ))}

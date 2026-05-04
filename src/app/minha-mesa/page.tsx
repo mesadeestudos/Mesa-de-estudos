@@ -16,6 +16,7 @@ interface HojeSlot {
   categoria: string;
   nivel: string | null;
   minutosAlocados: number;
+  topicosSugeridos: Array<{ idTopico: number; descricao: string; ordem: number | null }>;
 }
 
 interface CicloAtivo {
@@ -79,6 +80,8 @@ export default function MinhaMesaPage() {
   const [erro, setErro] = useState('');
   const [cronometroAtivo, setCronometroAtivo] = useState(false);
   const [segundosRestantes, setSegundosRestantes] = useState(60 * 60);
+  const [qualidadeSessao, setQualidadeSessao] = useState<'FACIL' | 'MEDIO' | 'DIFICIL' | 'NAO_ENTENDI'>('MEDIO');
+  const [cobriuTopicos, setCobriuTopicos] = useState(true);
   const [metaDia, setMetaDia] = useState({
     sessoesConcluidas: 0,
     revisoesPendentes: 0,
@@ -142,8 +145,8 @@ export default function MinhaMesaPage() {
     try {
       const res = await fetch('/api/ciclos', {
         method: 'PATCH',
-        headers: acao ? { 'Content-Type': 'application/json' } : undefined,
-        body: acao ? JSON.stringify({ acao }) : undefined,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(acao ? { acao } : { qualidade: `${qualidadeSessao}_${cobriuTopicos ? 'COBRIU' : 'PARCIAL'}` }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Não foi possível avançar o ciclo.');
@@ -154,13 +157,15 @@ export default function MinhaMesaPage() {
       setConcluindo(false);
       setAcaoSecundaria(null);
     }
-  }, [carregarCiclo]);
+  }, [carregarCiclo, qualidadeSessao, cobriuTopicos]);
 
   const concluirSessao = useCallback(() => executarAcaoCiclo(), [executarAcaoCiclo]);
 
   useEffect(() => {
     setCronometroAtivo(false);
     setSegundosRestantes(totalSegundosSessao);
+    setQualidadeSessao('MEDIO');
+    setCobriuTopicos(true);
   }, [chaveSessaoAtual, totalSegundosSessao]);
 
   useEffect(() => {
@@ -336,6 +341,60 @@ export default function MinhaMesaPage() {
                     <p className="mt-1.5 text-xs font-semibold text-sky-100/70">
                       Ao atingir o tempo previsto, a sessão será concluída automaticamente.
                     </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
+                  <div className="rounded-[22px] border border-white/15 bg-white/10 p-4 shadow-lg shadow-slate-950/10 backdrop-blur">
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-sky-100/70">Checklist da sessão</p>
+                    <div className="mt-3 space-y-2">
+                      {sessaoAtual.topicosSugeridos.length === 0 ? (
+                        <p className="text-xs font-semibold text-sky-100/75">Não encontrei tópicos pendentes nessa disciplina. Use a sessão para revisar ou resolver questões.</p>
+                      ) : sessaoAtual.topicosSugeridos.map((topico) => (
+                        <div key={topico.idTopico} className="flex items-start gap-2 rounded-2xl border border-white/10 bg-white/10 px-3 py-2">
+                          <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-300" size={15} />
+                          <p className="text-xs font-bold leading-relaxed text-sky-50">{topico.descricao}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[22px] border border-white/15 bg-white/10 p-4 shadow-lg shadow-slate-950/10 backdrop-blur">
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-sky-100/70">Como foi?</p>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      {[
+                        { label: 'Entendi bem', value: 'FACIL' as const },
+                        { label: 'Normal', value: 'MEDIO' as const },
+                        { label: 'Difícil', value: 'DIFICIL' as const },
+                        { label: 'Não entendi', value: 'NAO_ENTENDI' as const },
+                      ].map((opcao) => (
+                        <button
+                          key={opcao.value}
+                          type="button"
+                          onClick={() => setQualidadeSessao(opcao.value)}
+                          className={`rounded-2xl px-3 py-2 text-xs font-black transition-all ${qualidadeSessao === opcao.value ? 'bg-emerald-300 text-slate-950' : 'bg-white/10 text-sky-50 hover:bg-white/15'}`}
+                        >
+                          {opcao.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCobriuTopicos(true)}
+                        className={`rounded-2xl px-3 py-2 text-xs font-black transition-all ${cobriuTopicos ? 'bg-sky-200 text-slate-950' : 'bg-white/10 text-sky-50 hover:bg-white/15'}`}
+                      >
+                        Cobri os tópicos
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCobriuTopicos(false)}
+                        className={`rounded-2xl px-3 py-2 text-xs font-black transition-all ${!cobriuTopicos ? 'bg-amber-300 text-slate-950' : 'bg-white/10 text-sky-50 hover:bg-white/15'}`}
+                      >
+                        Faltou parte
+                      </button>
+                    </div>
+                    <p className="mt-3 text-xs font-semibold text-sky-100/70">Esse retorno alimenta o histórico da disciplina e deixa o assistente mais preciso.</p>
                   </div>
                 </div>
 

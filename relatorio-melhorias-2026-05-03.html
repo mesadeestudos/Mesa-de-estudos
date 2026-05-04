@@ -37,12 +37,13 @@
       Sistema Mesa de Estudos: consolidacao das melhorias feitas em 03/05/2026, atualizacao comercial de 04/05/2026
       e atualizacao de UX e banco de 04/05/2026, incluindo assistente inteligente, agenda, questoes, revisao adaptativa,
       ajustes de rotina, fluxo comercial, seguranca, onboarding, assinatura, sugestoes dos usuarios,
-      redesign da etapa 1 de criacao de ciclo e correcao da constraint de metodo no banco.
+      redesign da etapa 1 de criacao de ciclo, home funcional com Tutoriais/Ajuda, checklist da sessao,
+      feedback de aprendizagem e correcao da constraint de metodo no banco.
     </p>
     <div class="meta">
       <div><span class="label">Data</span>03/05/2026, 04/05/2026</div>
       <div><span class="label">Branch</span>jardel</div>
-      <div><span class="label">Ultimo commit remoto</span>0105b9f</div>
+      <div><span class="label">Ultimo commit remoto</span>Atualizado nesta entrega</div>
     </div>
   </section>
 
@@ -77,6 +78,17 @@
     <li>Destaca prova/data do edital quando disponivel.</li>
     <li>Permite remarcar a sessao atual ou uma sessao especifica da fila.</li>
     <li>Permite pausar o plano por periodo e reduzir temporariamente a meta diaria.</li>
+    <li>Agora destaca alerta urgente quando a previsao de conclusao passa da data da prova.</li>
+  </ul>
+
+  <h3>2.2.1 Minha Mesa com sessao focada e feedback de aprendizagem</h3>
+  <p><strong>Arquivos principais:</strong> <code>service/ciclo.service.ts</code>, <code>src/app/minha-mesa/page.tsx</code>, <code>src/app/api/ciclos/route.ts</code>.</p>
+  <ul>
+    <li>A sessao atual passou a exibir uma checklist de topicos sugeridos da disciplina, baseada em topicos ainda nao concluidos.</li>
+    <li>Ao concluir a sessao, o usuario informa se entendeu bem, se foi normal, dificil ou se nao entendeu.</li>
+    <li>O usuario tambem informa se cobriu os topicos ou se faltou parte da sessao.</li>
+    <li>O campo <code>qualidade</code> em <code>planejamento.sessao_estudo</code> guarda esse feedback para alimentar o historico e o assistente.</li>
+    <li>Quando o usuario marca que nao entendeu ou que faltou parte, o topico nao e marcado automaticamente como concluido.</li>
   </ul>
 
   <h3>2.3 Ajustes de rotina do plano</h3>
@@ -104,6 +116,7 @@
     <li>Permite editar lancamentos recentes usando <code>PUT /api/questoes</code>.</li>
     <li>Retorna opcoes de topicos para deixar o registro mais preciso.</li>
     <li>Alimenta Agenda, Desempenho e Assistente com dados reais de aprendizado.</li>
+    <li>O rebalanceamento do ciclo passou a considerar aproveitamento em questoes, separando progresso por tempo de entendimento real.</li>
   </ul>
 
   <h3>2.6 Revisoes com botoes de resultado</h3>
@@ -112,6 +125,7 @@
     <li>A tela de Revisoes agora usa botoes <strong>Facil</strong>, <strong>Medio</strong>, <strong>Dificil</strong> e <strong>Errei</strong>.</li>
     <li>O resultado enviado altera o intervalo futuro da revisao.</li>
     <li>Isso aproxima o sistema de uma revisao espacada adaptativa.</li>
+    <li>As revisoes agora exibem topico exato, motivo da revisao e dificuldade historica.</li>
   </ul>
 
   <h3>2.7 Layout/menu compartilhado</h3>
@@ -369,6 +383,16 @@ ALTER TABLE planejamento.sessao_estudo
     <strong>Acao obrigatoria no banco:</strong> executar <code>scripts/update-plano-metodo-constraint.sql</code> para que o metodo de estudo selecionado seja persistido corretamente. Sem esse script o ciclo funciona, mas todos os planos ficam gravados com metodo <code>AUTOMATICO</code>.
   </div>
 
+  <h3>9.8 Home publica funcional</h3>
+  <p><strong>Arquivos principais:</strong> <code>src/app/page.tsx</code>, <code>src/app/tutoriais/page.tsx</code>, <code>src/app/ajuda/page.tsx</code>.</p>
+  <ul>
+    <li>A home deixou de exibir botoes decorativos de Editais e Blog.</li>
+    <li>Foram mantidos apenas Tutoriais e Ajuda, ambos direcionando para paginas reais.</li>
+    <li>A pagina <code>/tutoriais</code> apresenta o passo a passo do cadastro ate a primeira sessao.</li>
+    <li>A pagina <code>/ajuda</code> explica ciclo, dificuldade, questoes, revisoes, agenda e previsao ate a prova.</li>
+    <li>A imagem lateral da home foi reenquadrada dentro do objeto visual com altura controlada e <code>object-contain</code>.</li>
+  </ul>
+
   <h2 class="break">10. Scripts SQL Necessarios no Banco Real</h2>
   <p>
     Abaixo estao todos os scripts necessarios para ativar as tabelas e campos usados pelas melhorias recentes. Recomenda-se executar em ambiente de homologacao antes da producao.
@@ -520,6 +544,18 @@ ALTER TABLE planejamento.plano_estudo
     Apos executa-lo, ajuste o codigo no repositorio conforme o comentario acima.
   </div>
 
+  <h3>10.7 Campo qualidade em sessao_estudo</h3>
+  <p>
+    Necessario para registrar o feedback da sessao em Minha Mesa. Esse campo guarda sinais como
+    <code>FACIL_COBRIU</code>, <code>MEDIO_COBRIU</code>, <code>DIFICIL_PARCIAL</code> ou
+    <code>NAO_ENTENDI_PARCIAL</code>.
+  </p>
+  <pre>ALTER TABLE planejamento.sessao_estudo
+  ADD COLUMN IF NOT EXISTS qualidade VARCHAR(20);
+
+COMMENT ON COLUMN planejamento.sessao_estudo.qualidade IS
+  'Feedback do usuario ao concluir a sessao: entendimento e cobertura dos topicos.';</pre>
+
   <h3>10.8 Status necessarios em sessao_estudo</h3>
   <p>Se houver constraint de status na tabela <code>planejamento.sessao_estudo</code>, recriar com todos os valores necessarios:</p>
   <pre>ALTER TABLE planejamento.sessao_estudo
@@ -564,6 +600,7 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA auth TO usuario_da_aplicacao;</pr
     <li>Executar <code>scripts/create-sugestoes-table.sql</code>.</li>
     <li>Adicionar <code>id_ciclo_disciplina</code> em <code>planejamento.sessao_estudo</code>, se ainda nao existir.</li>
     <li><strong>Executar <code>scripts/update-plano-metodo-constraint.sql</code></strong> — obrigatorio para ciclos criados com qualquer momento de estudo.</li>
+    <li>Adicionar <code>qualidade</code> em <code>planejamento.sessao_estudo</code> para feedback de aprendizagem.</li>
     <li>Ajustar constraint de status de <code>sessao_estudo</code> conforme item 10.8.</li>
     <li>Configurar variaveis de ambiente de producao (item 10.9).</li>
     <li>Garantir permissoes para o usuario da aplicacao (item 10.10).</li>
@@ -589,6 +626,7 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA auth TO usuario_da_aplicacao;</pr
       <tr><td>Tabela sugestao_usuario</td><td><code>scripts/create-sugestoes-table.sql</code></td><td>Sim</td></tr>
       <tr><td>Constraint metodo em plano_estudo</td><td><code>scripts/update-plano-metodo-constraint.sql</code></td><td>Sim — sem isso todos os ciclos ficam com metodo AUTOMATICO</td></tr>
       <tr><td>Campo id_ciclo_disciplina em sessao_estudo</td><td>ALTER TABLE (item 10.5)</td><td>Sim — alinhar schema Prisma com banco</td></tr>
+      <tr><td>Campo qualidade em sessao_estudo</td><td>ALTER TABLE (item 10.7)</td><td>Sim — necessario para feedback de aprendizagem na Minha Mesa</td></tr>
       <tr><td>Constraint de status em sessao_estudo</td><td>ALTER TABLE (item 10.8)</td><td>Sim — sem isso revisoes com resultado falham</td></tr>
       <tr><td>Variaveis de ambiente</td><td>Configurar no servidor (item 10.9)</td><td>Sim — JWT_SECRET obrigatorio em producao</td></tr>
       <tr><td>Permissoes do usuario da aplicacao</td><td>GRANT (item 10.10)</td><td>Sim</td></tr>

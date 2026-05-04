@@ -18,6 +18,8 @@ interface RevisaoItem {
   hoje: boolean;
   motivo: string;
   explicacao: string;
+  statusAnterior: string | null;
+  diasDesdeBase: number;
 }
 
 interface RevisoesData {
@@ -115,6 +117,13 @@ export default function RevisoesPage() {
 }
 
 function RevisaoCard({ item, dark = false, loading = false, onConcluir }: { item: RevisaoItem; dark?: boolean; loading?: boolean; onConcluir?: (resultado: 'facil' | 'medio' | 'dificil' | 'errei') => void }) {
+  const dificuldadeHistorica = {
+    REVISAO_FACIL: 'Histórico: fácil',
+    REVISAO_MEDIO: 'Histórico: médio',
+    REVISAO_DIFICIL: 'Histórico: difícil',
+    REVISAO_ERREI: 'Histórico: errou',
+    REVISAO: 'Histórico: revisado',
+  }[item.statusAnterior ?? ''] ?? 'Primeira revisão';
   const botoes = [
     { label: 'Facil', value: 'facil' as const, cls: 'bg-emerald-400 text-slate-950 hover:bg-emerald-300' },
     { label: 'Medio', value: 'medio' as const, cls: 'bg-sky-400 text-slate-950 hover:bg-sky-300' },
@@ -130,6 +139,9 @@ function RevisaoCard({ item, dark = false, loading = false, onConcluir }: { item
           <p className={`mt-1 line-clamp-2 text-xs font-semibold ${dark ? 'text-slate-300' : 'text-slate-500'}`}>{item.topico}</p>
           <p className={`mt-2 text-[10px] font-black uppercase tracking-widest ${item.atrasada ? 'text-amber-400' : dark ? 'text-sky-200' : 'text-sky-600'}`}>
             etapa {item.etapa} | {item.intervaloDias} dias | {new Date(item.vencimento).toLocaleDateString('pt-BR')}
+          </p>
+          <p className={`mt-1 text-[10px] font-black uppercase tracking-widest ${dark ? 'text-emerald-200' : 'text-emerald-600'}`}>
+            {dificuldadeHistorica} | {item.diasDesdeBase} dia(s) desde a base
           </p>
           <p className={`mt-2 text-xs font-semibold ${dark ? 'text-sky-100/80' : 'text-slate-500'}`}>
             {item.explicacao}
