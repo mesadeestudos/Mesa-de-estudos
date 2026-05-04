@@ -70,13 +70,16 @@ export default function HomePage() {
 
           <div className="flex justify-center items-center h-full">
             <div
-              className="relative flex w-full items-center justify-center overflow-hidden bg-white/78 rounded-[32px] border border-white/70 p-4 shadow-2xl shadow-slate-200/60 backdrop-blur-xl sm:p-6"
-              style={{ height: 'min(560px, calc(100vh - 15.5rem))' }}
+              className="relative flex w-full items-center justify-center overflow-hidden bg-white/78 rounded-[32px] shadow-2xl shadow-slate-200/60 backdrop-blur-xl"
+              style={{
+                width: 'min(100%, min(680px, calc(100vh - 11.5rem)))',
+                aspectRatio: '1 / 1',
+              }}
             >
               <img
                 src="/imagem_home.png"
                 alt="Visão Geral Preview"
-                className="max-h-full w-full object-contain drop-shadow-xl animate-float"
+                className="h-full w-full object-contain drop-shadow-xl animate-float"
               />
             </div>
           </div>
