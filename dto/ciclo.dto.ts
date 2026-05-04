@@ -9,6 +9,8 @@ export interface CriarCicloDTO {
   horasDiarias: number;
   idCargo:      number;
   modo:         'automatico' | 'personalizado';
+  metodoEstudo?: string;
+  momentoEstudo?: string;
   disciplinas:  Array<{ id: number; dificuldade: string }>;
 }
 

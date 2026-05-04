@@ -152,13 +152,13 @@ export async function gerarAssistenteEstudo(idUsuario: bigint) {
   } else if (ciclo.hojeSlots[0]) {
     tipo = 'CICLO';
     titulo = `Estudar ${ciclo.hojeSlots[0].nome}`;
-    mensagem = 'A proxima sessao do ciclo esta adequada para agora.';
+    mensagem = `${ciclo.metodoDetalhe?.titulo ?? 'Ciclo Inteligente'} ativo: a proxima sessao esta adequada para agora.`;
     destino = '/minha-mesa';
     payload = ciclo.hojeSlots[0];
     prioridadeScore = 58;
     explicacao = criarExplicacao(
-      'Nao ha revisao ou alerta critico acima do ciclo, entao a proxima sessao planejada e a melhor acao.',
-      ['ciclo ativo', 'fila de hoje disponivel', 'sem alerta critico prioritario'],
+      ciclo.metodoDetalhe?.explicacao ?? 'Nao ha revisao ou alerta critico acima do ciclo, entao a proxima sessao planejada e a melhor acao.',
+      ['ciclo ativo', ciclo.metodoDetalhe?.titulo ?? 'Ciclo Inteligente', 'fila de hoje disponivel', 'sem alerta critico prioritario'],
       ['concluir sessao', 'pular com registro', 'remarcar se hoje nao der'],
       'Concluir a sessao atual avanca o ciclo e atualiza progresso automaticamente.',
     );
@@ -181,6 +181,8 @@ export async function gerarAssistenteEstudo(idUsuario: bigint) {
       precisaRebalancear,
       metaTemporariaAtiva: Boolean(ajustes.metaTemporaria),
       pausaAtiva: Boolean(ajustes.pausaAtiva),
+      metodoEstudo: ciclo?.metodo ?? null,
+      metodoDetalhe: ciclo?.metodoDetalhe ?? null,
     },
     recomendacoes: [
       revisoesPendentes.length > 0 ? 'Resolva revisoes antes de avancar muitos conteudos novos.' : null,

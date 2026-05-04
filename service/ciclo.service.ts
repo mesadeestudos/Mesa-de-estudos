@@ -7,6 +7,7 @@ import {
   gerarDistribuicaoCiclo,
   type RitmoCiclo,
 } from '@/lib/cicloAlgorithm';
+import { getMetodoConfig, metodoPorMomento } from '@/lib/studyMethods';
 import { criarCicloSchema } from '@/schema/ciclo.schema';
 import { salvarCiclo, buscarCicloAtivo, desativarCiclosUsuario } from '@/repository/ciclo.repository';
 import { DisciplinaCicloDTO } from '@/dto/ciclo.dto';
@@ -130,6 +131,8 @@ export function gerarCiclo(
 
 export async function criarCicloService(body: unknown, idUsuario: bigint) {
   const input = criarCicloSchema.parse(body);
+  const metodoEstudo = input.metodoEstudo ?? metodoPorMomento(input.momentoEstudo);
+  const metodoConfig = getMetodoConfig(metodoEstudo);
 
   const idsDisciplinas = input.disciplinas.map(d => d.id);
   const [disciplinasBanco, desempenhoPorDisciplina] = await Promise.all([
@@ -154,14 +157,14 @@ export async function criarCicloService(body: unknown, idUsuario: bigint) {
     qtd_topicos: disciplina._count.topico,
   }));
 
-  const ritmo = normalizarRitmo(input.ritmo);
+  const ritmo = input.ritmo ? normalizarRitmo(input.ritmo) : metodoConfig.ritmo;
   const disciplinasPorDia = calcularDiscsPorDiaAlgoritmo(input.horasDiarias, ritmo);
   const distribuicao = gerarDistribuicaoCiclo(
     disciplinasAlgo,
     input.horasDiarias,
     ritmo,
     input.modo === 'personalizado',
-  );
+  ).map(item => ({ ...item, minutosAlocados: metodoConfig.minutosSessao }));
 
   const idsNoCiclo = new Set(distribuicao.map(item => item.id));
   const disciplinasParaPersistir: Array<{ id: number; dificuldade: string }> =
@@ -174,7 +177,8 @@ export async function criarCicloService(body: unknown, idUsuario: bigint) {
     idCargo: input.idCargo,
     horasDiarias: input.horasDiarias,
     modo: input.modo,
-    ritmo: input.ritmo,
+    metodoEstudo,
+    ritmo,
     disciplinas: disciplinasParaPersistir,
     distribuicao,
   });
@@ -184,6 +188,8 @@ export async function criarCicloService(body: unknown, idUsuario: bigint) {
     idPlano: Number(ciclo.idPlano),
     totalSlots: distribuicao.length,
     disciplinasPorDia,
+    metodoEstudo,
+    metodoDetalhe: metodoConfig,
     distribuicao,
   };
 }
@@ -194,6 +200,7 @@ export async function buscarCicloService(idUsuario: bigint) {
 
   const horasPorDia = Number(ciclo.plano_estudo.horas_por_dia);
   const ritmo = normalizarRitmo(ciclo.plano_estudo.ritmo);
+  const metodoConfig = getMetodoConfig(ciclo.plano_estudo.metodo);
   const discsPorDia = calcularDiscsPorDiaAlgoritmo(horasPorDia, ritmo);
   const posicaoAtual = Math.max(1, ciclo.ciclo_execucao?.posicao_atual ?? 1);
   const slots = ciclo.ciclo_disciplina;
@@ -265,7 +272,8 @@ export async function buscarCicloService(idUsuario: bigint) {
   return {
     idCiclo: Number(ciclo.id_ciclo),
     idPlano: Number(ciclo.id_plano),
-    metodo: ciclo.plano_estudo.metodo,
+    metodo: metodoConfig.metodo,
+    metodoDetalhe: metodoConfig,
     horasPorDia,
     cargoNome: cargo.nome,
     concursoNome: edital?.concurso?.nome ?? '',
@@ -317,7 +325,9 @@ export async function rebalancearCicloService(idUsuario: bigint) {
 
   const horasPorDia = Number(ciclo.plano_estudo.horas_por_dia);
   const ritmo = normalizarRitmo(ciclo.plano_estudo.ritmo);
-  const distribuicao = gerarDistribuicaoCiclo(disciplinasAlgo, horasPorDia, ritmo, true);
+  const metodoConfig = getMetodoConfig(ciclo.plano_estudo.metodo);
+  const distribuicao = gerarDistribuicaoCiclo(disciplinasAlgo, horasPorDia, ritmo, true)
+    .map(item => ({ ...item, minutosAlocados: metodoConfig.minutosSessao }));
 
   await prisma.$transaction(async (tx) => {
     await tx.ciclo_disciplina.deleteMany({
