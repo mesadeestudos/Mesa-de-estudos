@@ -2,55 +2,24 @@ import { buscarCicloService } from '@/service/ciclo.service';
 import { calcularPrioridadesDisciplinas } from '@/service/prioridade.service';
 import { buscarResumoQuestoes } from '@/service/questoes.service';
 import { buscarAjustesPlano } from '@/service/ajuste-plano.service';
-import prisma from '@/lib/prisma';
+import { listarRevisoesInteligentes } from '@/service/revisoes-inteligentes.service';
 
-type TipoAcao = 'REVISAO' | 'CICLO' | 'REFORCO' | 'QUESTOES' | 'DESCANSO' | 'CRIAR_CICLO';
+type TipoAcao = 'REVISAO' | 'CICLO' | 'REFORCO' | 'QUESTOES' | 'DESCANSO' | 'CRIAR_CICLO' | 'AJUSTAR_PLANO';
 
-interface RevisaoPendente {
-  idTopico: number;
-  disciplina: string;
-  topico: string;
-  atrasada: boolean;
+interface ExplicacaoAssistente {
+  principal: string;
+  sinaisUsados: string[];
+  alternativas: string[];
+  consequencia: string;
 }
 
-async function buscarRevisoesPendentes(idUsuario: bigint): Promise<RevisaoPendente[]> {
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
-
-  const topicos = await prisma.topico_progresso.findMany({
-    where: { id_usuario: idUsuario, concluido: true, data_conclusao: { not: null } },
-    include: { topico: { include: { disciplina: true } } },
-    orderBy: { data_conclusao: 'asc' },
-    take: 60,
-  });
-
-  const revisoes = await prisma.sessao_estudo.findMany({
-    where: {
-      id_usuario: idUsuario,
-      status: { in: ['REVISAO', 'REVISAO_FACIL', 'REVISAO_MEDIO', 'REVISAO_DIFICIL', 'REVISAO_ERREI'] },
-    },
-    select: { id_topico: true, inicio: true },
-  });
-
-  const pendentes: RevisaoPendente[] = [];
-  for (const progresso of topicos) {
-    if (!progresso.data_conclusao) continue;
-    const vencimento = new Date(progresso.data_conclusao);
-    vencimento.setDate(vencimento.getDate() + 1);
-    vencimento.setHours(0, 0, 0, 0);
-    if (vencimento > hoje) continue;
-    const jaRevisado = revisoes.some(revisao =>
-      revisao.id_topico === progresso.id_topico && revisao.inicio >= vencimento,
-    );
-    if (jaRevisado) continue;
-    pendentes.push({
-      idTopico: Number(progresso.id_topico),
-      disciplina: progresso.topico.disciplina?.nome ?? 'Disciplina',
-      topico: progresso.topico.descricao,
-      atrasada: vencimento < hoje,
-    });
-  }
-  return pendentes;
+function criarExplicacao(
+  principal: string,
+  sinaisUsados: string[],
+  alternativas: string[],
+  consequencia: string,
+): ExplicacaoAssistente {
+  return { principal, sinaisUsados, alternativas, consequencia };
 }
 
 export async function gerarAssistenteEstudo(idUsuario: bigint) {
@@ -58,89 +27,141 @@ export async function gerarAssistenteEstudo(idUsuario: bigint) {
     buscarCicloService(idUsuario),
     calcularPrioridadesDisciplinas(idUsuario),
     buscarResumoQuestoes(idUsuario),
-    buscarRevisoesPendentes(idUsuario),
+    listarRevisoesInteligentes(idUsuario, 14),
     buscarAjustesPlano(idUsuario),
   ]);
 
-  const piorQuestao = questoes.disciplinas[0] ?? null;
+  const revisoesPendentes = revisoes.filter(item => new Date(item.vencimento) <= new Date());
+  const revisoesAtrasadas = revisoes.filter(item => item.atrasada);
+  const piorQuestao = questoes.disciplinas.find(item => item.total >= 10 && item.percentual < 70) ?? null;
+  const piorTopicoQuestao = questoes.diagnostico?.piorTopico ?? null;
+  const quedaRecente = questoes.diagnostico?.quedaRecente ?? [];
   const prioridade = prioridades[0] ?? null;
+  const precisaRebalancear = Boolean(
+    prioridade && prioridade.score >= 62 && (
+      prioridade.diasSemEstudar === null ||
+      prioridade.diasSemEstudar >= 7 ||
+      prioridade.percentual < 30
+    ),
+  );
+
   let tipo: TipoAcao = 'DESCANSO';
   let titulo = 'Tudo em ordem por enquanto';
-  let mensagem = 'Quando houver ciclo, revisões ou questões registradas, eu organizo a próxima ação.';
+  let mensagem = 'Quando houver ciclo, revisoes ou questoes registradas, eu organizo a proxima acao.';
   let destino = '/dashboard';
   let payload: unknown = {};
-  let explicacao = {
-    principal: 'Ainda não há sinais suficientes para priorizar uma tarefa.',
-    sinaisUsados: [] as string[],
-    alternativas: [] as string[],
-  };
+  let prioridadeScore = 0;
+  let explicacao = criarExplicacao(
+    'Ainda nao ha sinais suficientes para priorizar uma tarefa.',
+    [],
+    ['criar ciclo', 'registrar questoes', 'concluir uma sessao'],
+    'Com mais registros, o sistema passa a decidir com mais precisao.',
+  );
 
-  if (ajustes.pausaAtiva) {
-    tipo = 'DESCANSO';
-    titulo = 'Plano pausado';
-    mensagem = `Você pausou o plano até ${new Date(ajustes.pausaAtiva.dataFim).toLocaleDateString('pt-BR')}.`;
-    destino = '/agenda';
-    payload = ajustes.pausaAtiva;
-    explicacao = {
-      principal: 'A pausa ativa indica impossibilidade de estudo no período informado.',
-      sinaisUsados: ['pausa ativa na Agenda'],
-      alternativas: ['retomar após a pausa', 'ajustar meta temporária se conseguir estudar pouco'],
-    };
-  } else if (!ciclo) {
+  if (!ciclo) {
     tipo = 'CRIAR_CICLO';
     titulo = 'Crie seu ciclo de estudos';
-    mensagem = 'O ciclo é a base para eu organizar sua rotina automaticamente.';
+    mensagem = 'O ciclo e a base para eu organizar sua rotina automaticamente.';
     destino = '/ciclos';
-    explicacao = {
-      principal: 'Sem ciclo ativo, não existe uma fila de estudo para organizar.',
-      sinaisUsados: ['nenhum ciclo ativo encontrado'],
-      alternativas: ['criar ciclo de estudos', 'escolher edital e cargo'],
-    };
-  } else if (revisoes.some(item => item.atrasada)) {
-    const revisao = revisoes.find(item => item.atrasada) ?? revisoes[0];
+    prioridadeScore = 100;
+    explicacao = criarExplicacao(
+      'Sem ciclo ativo, nao existe uma fila de estudo para organizar.',
+      ['nenhum ciclo ativo encontrado'],
+      ['escolher edital e cargo', 'definir horas por dia'],
+      'Depois do ciclo criado, o sistema passa a sugerir estudo, revisao e questoes em ordem.',
+    );
+  } else if (ajustes.pausaAtiva) {
+    tipo = 'DESCANSO';
+    titulo = 'Plano pausado';
+    mensagem = `Voce pausou o plano ate ${new Date(ajustes.pausaAtiva.dataFim).toLocaleDateString('pt-BR')}. Vou proteger revisoes e evitar conteudo novo.`;
+    destino = '/agenda';
+    payload = ajustes.pausaAtiva;
+    prioridadeScore = 96;
+    explicacao = criarExplicacao(
+      'A pausa ativa indica impossibilidade de estudo no periodo informado.',
+      ['pausa ativa na Agenda', `${revisoesAtrasadas.length} revisao(oes) atrasada(s)`],
+      ['retomar apos a pausa', 'trocar pausa por meta temporaria se conseguir estudar pouco'],
+      'Conteudo novo perde prioridade enquanto a pausa estiver ativa.',
+    );
+  } else if (revisoesAtrasadas.length > 0) {
+    const revisao = revisoesAtrasadas[0];
     tipo = 'REVISAO';
     titulo = `Revisar ${revisao.disciplina}`;
-    mensagem = 'Há revisão atrasada. Vou priorizar memória antes de avançar conteúdo novo.';
+    mensagem = `${revisoesAtrasadas.length} revisao(oes) atrasada(s). Vou priorizar memoria antes de avancar conteudo novo.`;
     destino = '/revisoes';
     payload = revisao;
-    explicacao = {
-      principal: 'Revisões atrasadas têm prioridade porque protegem retenção antes de conteúdo novo.',
-      sinaisUsados: [`${revisoes.filter(item => item.atrasada).length} revisão(ões) atrasada(s)`, `${revisoes.length} revisão(ões) pendente(s)`],
-      alternativas: ['fazer a revisão agora', 'remarcar se estiver sem tempo'],
-    };
-  } else if (piorQuestao && piorQuestao.total >= 10 && piorQuestao.percentual < 65) {
+    prioridadeScore = 92;
+    explicacao = criarExplicacao(
+      revisao.explicacao,
+      [
+        `${revisoesAtrasadas.length} revisao(oes) atrasada(s)`,
+        `${revisoesPendentes.length} revisao(oes) pendente(s)`,
+        revisao.motivo,
+      ],
+      ['fazer a revisao agora', 'marcar como dificil se estiver inseguro', 'remarcar o estudo novo'],
+      'Ignorar revisoes atrasadas aumenta a chance de esquecer topicos ja estudados.',
+    );
+  } else if (piorQuestao && piorQuestao.percentual < 65) {
     tipo = 'QUESTOES';
-    titulo = `Treinar questões de ${piorQuestao.disciplina}`;
-    mensagem = `Seu aproveitamento está em ${piorQuestao.percentual}%. Uma bateria curta ajuda a calibrar o estudo.`;
-    destino = '/desempenho';
-    payload = piorQuestao;
-    explicacao = {
-      principal: 'O aproveitamento em questões está baixo o suficiente para recomendar treino antes de avançar.',
-      sinaisUsados: [`${piorQuestao.percentual}% de aproveitamento`, `${piorQuestao.erros} erro(s) registrados`, `${piorQuestao.total} questão(ões) feitas`],
-      alternativas: ['registrar nova bateria', 'revisar tópicos fracos'],
-    };
+    titulo = piorTopicoQuestao ? `Revisar teoria de ${piorTopicoQuestao.topico}` : `Treinar questoes de ${piorQuestao.disciplina}`;
+    mensagem = piorTopicoQuestao
+      ? `Seu aproveitamento em ${piorTopicoQuestao.topico} esta em ${piorTopicoQuestao.percentual}%. Revise a teoria antes da proxima bateria.`
+      : `Seu aproveitamento em ${piorQuestao.disciplina} esta em ${piorQuestao.percentual}%. Uma bateria curta ajuda a calibrar o estudo.`;
+    destino = '/questoes';
+    payload = piorTopicoQuestao ?? piorQuestao;
+    prioridadeScore = 84;
+    explicacao = criarExplicacao(
+      'Questoes indicam um ponto fraco com dados suficientes para mudar a prioridade.',
+      [
+        `${piorQuestao.percentual}% de aproveitamento`,
+        `${piorQuestao.erros} erro(s) registrado(s)`,
+        `${piorQuestao.total} questao(oes) feita(s)`,
+        quedaRecente.length > 0 ? `${quedaRecente.length} bateria(s) recente(s) abaixo de 65%` : 'sem queda recente critica',
+      ],
+      ['registrar nova bateria', 'revisar topicos fracos', 'refazer questoes erradas'],
+      'Avancar no ciclo sem corrigir esse ponto tende a repetir erros.',
+    );
   } else if (prioridade && prioridade.score >= 45) {
-    tipo = 'REFORCO';
-    titulo = `Reforçar ${prioridade.nome}`;
+    tipo = precisaRebalancear ? 'AJUSTAR_PLANO' : 'REFORCO';
+    titulo = precisaRebalancear ? `Rebalancear ${prioridade.nome}` : `Reforcar ${prioridade.nome}`;
     mensagem = `Motivo: ${prioridade.motivos.slice(0, 2).join(' e ')}.`;
-    destino = '/minha-mesa';
+    destino = precisaRebalancear ? '/ciclos' : '/minha-mesa';
     payload = prioridade;
-    explicacao = {
-      principal: 'Essa disciplina acumulou sinais de atenção no histórico recente.',
-      sinaisUsados: prioridade.motivos,
-      alternativas: ['fazer sessão de reforço', 'rebalancear ciclo', 'remarcar se hoje não for possível'],
-    };
+    prioridadeScore = Math.min(82, Math.round(prioridade.score));
+    explicacao = criarExplicacao(
+      'Essa disciplina acumulou sinais de atencao no historico recente.',
+      prioridade.motivos,
+      ['fazer sessao de reforco', 'rebalancear ciclo', 'reduzir meta temporaria se o ritmo caiu'],
+      precisaRebalancear
+        ? 'Sem rebalancear, uma disciplina critica pode ficar pouco frequente no ciclo.'
+        : 'Um reforco agora reduz o risco de acumular atraso nessa disciplina.',
+    );
+  } else if (ajustes.metaTemporaria) {
+    tipo = 'AJUSTAR_PLANO';
+    titulo = 'Seguir meta temporaria';
+    mensagem = `Sua meta esta reduzida para ${ajustes.metaTemporaria.horasPorDia}h/dia. Vou preservar revisoes e a sessao mais importante.`;
+    destino = '/agenda';
+    payload = ajustes.metaTemporaria;
+    prioridadeScore = 70;
+    explicacao = criarExplicacao(
+      'A meta temporaria muda a capacidade diaria de estudo.',
+      ['meta temporaria ativa', `${ajustes.metaTemporaria.horasPorDia}h por dia`],
+      ['seguir plano reduzido', 'encerrar meta temporaria', 'pausar se nao puder estudar'],
+      'O plano fica mais realista e evita acumular tarefas impossiveis.',
+    );
   } else if (ciclo.hojeSlots[0]) {
     tipo = 'CICLO';
     titulo = `Estudar ${ciclo.hojeSlots[0].nome}`;
-    mensagem = 'A próxima sessão do ciclo está adequada para agora.';
+    mensagem = 'A proxima sessao do ciclo esta adequada para agora.';
     destino = '/minha-mesa';
     payload = ciclo.hojeSlots[0];
-    explicacao = {
-      principal: 'Não há revisão ou alerta crítico acima do ciclo, então a próxima sessão planejada é a melhor ação.',
-      sinaisUsados: ['ciclo ativo', 'fila de hoje disponível', 'sem alerta crítico prioritário'],
-      alternativas: ['concluir sessão', 'pular', 'remarcar'],
-    };
+    prioridadeScore = 58;
+    explicacao = criarExplicacao(
+      'Nao ha revisao ou alerta critico acima do ciclo, entao a proxima sessao planejada e a melhor acao.',
+      ['ciclo ativo', 'fila de hoje disponivel', 'sem alerta critico prioritario'],
+      ['concluir sessao', 'pular com registro', 'remarcar se hoje nao der'],
+      'Concluir a sessao atual avanca o ciclo e atualiza progresso automaticamente.',
+    );
   }
 
   return {
@@ -149,17 +170,23 @@ export async function gerarAssistenteEstudo(idUsuario: bigint) {
     mensagem,
     destino,
     payload,
+    prioridadeScore,
     explicacao,
     sinais: {
-      revisoesPendentes: revisoes.length,
-      revisoesAtrasadas: revisoes.filter(item => item.atrasada).length,
+      revisoesPendentes: revisoesPendentes.length,
+      revisoesAtrasadas: revisoesAtrasadas.length,
       disciplinasCriticas: prioridades.slice(0, 4),
       piorDesempenhoQuestoes: piorQuestao,
+      piorTopicoQuestoes: piorTopicoQuestao,
+      precisaRebalancear,
+      metaTemporariaAtiva: Boolean(ajustes.metaTemporaria),
+      pausaAtiva: Boolean(ajustes.pausaAtiva),
     },
     recomendacoes: [
-      revisoes.length > 0 ? 'Resolva revisões antes de avançar muitos conteúdos novos.' : null,
-      prioridade ? `Mantenha ${prioridade.nome} em observação.` : null,
-      piorQuestao ? `Use questões para validar ${piorQuestao.disciplina}.` : null,
+      revisoesPendentes.length > 0 ? 'Resolva revisoes antes de avancar muitos conteudos novos.' : null,
+      piorTopicoQuestao ? `Revise teoria de ${piorTopicoQuestao.topico}.` : null,
+      prioridade ? `Mantenha ${prioridade.nome} em observacao.` : null,
+      precisaRebalancear ? 'Considere rebalancear o ciclo para aumentar a frequencia da disciplina critica.' : null,
     ].filter((item): item is string => Boolean(item)),
   };
 }

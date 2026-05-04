@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { setCookie } from "cookies-next"
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -64,19 +63,11 @@ export default function LoginPage() {
 
       const data = await response.json();
 
-      console.log("RESPOSTA LOGIN:", data)
-
       if (!response.ok) {
         throw new Error(data.message || 'Erro ao fazer login. Tente novamente.');
       }
 
-      setCookie("authorization", data.token, {
-        path: "/",
-        maxAge: 60 * 60,
-        sameSite: "lax",
-      });
-
-      window.location.href = '/dashboard';
+      window.location.href = data.redirectTo || '/dashboard';
 
     } catch (error: unknown) {
       setErrorMsg(getErrorMessage(error));

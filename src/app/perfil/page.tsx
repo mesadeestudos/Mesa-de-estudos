@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteCookie } from 'cookies-next';
 import { BookOpen, Calendar, CalendarDays, CheckCircle2, ClipboardCheck, LayoutDashboard, LineChart, LogOut, Menu, RefreshCw, Save, Settings, User } from 'lucide-react';
 
 interface PerfilData {
@@ -55,7 +54,10 @@ export default function PerfilPage() {
     }
   };
 
-  const handleLogout = () => { deleteCookie('authorization'); router.push('/login'); };
+  const handleLogout = async () => {
+    await fetch('/api/logout', { method: 'POST' }).catch(() => null);
+    router.push('/login');
+  };
 
   return (
     <Shell router={router} sidebarAberta={sidebarAberta} setSidebarAberta={setSidebarAberta} active="Perfil" onLogout={handleLogout}>

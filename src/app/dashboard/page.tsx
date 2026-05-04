@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteCookie } from 'cookies-next';
 import {
   Bell, Settings, User, LayoutDashboard, BookOpen, RefreshCw,
   LineChart, Calendar, LogOut, Clock, Target, TrendingUp,
   ChevronRight, Info, CheckCircle2, Zap, BarChart3, Menu,
-  ClipboardCheck, CalendarDays,
+  ClipboardCheck, CalendarDays, Lightbulb,
 } from 'lucide-react';
 
 function getNomeUsuario(): string {
@@ -39,6 +38,20 @@ interface ResumoPainel {
   horasTotais: number;
 }
 
+interface AssistentePainel {
+  tipo: string;
+  titulo: string;
+  mensagem: string;
+  destino: string;
+  prioridadeScore?: number;
+  explicacao?: {
+    principal: string;
+    sinaisUsados: string[];
+    alternativas: string[];
+    consequencia: string;
+  };
+}
+
 export default function PainelEstudante() {
   const router = useRouter();
   const [temCiclo, setTemCiclo]         = useState(false);
@@ -54,8 +67,12 @@ export default function PainelEstudante() {
     sessoesConcluidas: 0,
     horasTotais: 0,
   });
+  const [assistente, setAssistente] = useState<AssistentePainel | null>(null);
 
-  const handleLogout = () => { deleteCookie('authorization'); router.push('/login'); };
+  const handleLogout = async () => {
+    await fetch('/api/logout', { method: 'POST' }).catch(() => null);
+    router.push('/login');
+  };
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -87,8 +104,9 @@ export default function PainelEstudante() {
       fetch('/api/revisoes').then(r => r.ok ? r.json() : null),
       fetch('/api/desempenho').then(r => r.ok ? r.json() : null),
       fetch('/api/perfil').then(r => r.ok ? r.json() : null),
+      fetch('/api/assistente').then(r => r.ok ? r.json() : null),
     ])
-      .then(([revisoes, desempenho, perfil]) => {
+      .then(([revisoes, desempenho, perfil, assistenteData]) => {
         setResumo({
           revisoesPendentes: revisoes?.resumo?.pendentes ?? 0,
           revisoesAtrasadas: revisoes?.resumo?.atrasadas ?? 0,
@@ -98,6 +116,7 @@ export default function PainelEstudante() {
         if (perfil?.nomeCompleto) {
           setNomeUsuario(perfil.nomeCompleto.split(' ').slice(0, 2).join(' '));
         }
+        setAssistente(assistenteData);
       })
       .catch(() => {});
   }, []);
@@ -121,13 +140,13 @@ export default function PainelEstudante() {
 
       {/* Sidebar */}
       <aside className={`fixed lg:static inset-y-0 left-0 z-40 w-64 border-r border-white/30 bg-slate-950/90 text-white shadow-2xl shadow-slate-950/20 backdrop-blur-xl flex flex-col shrink-0 h-screen transition-transform duration-300 lg:translate-x-0 ${sidebarAberta ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex flex-col items-center grow overflow-y-auto min-h-0">
-          <div className="w-full px-4 pt-5 pb-4 shrink-0">
-            <div className="rounded-[24px] border border-white/10 bg-white/95 px-4 py-3 shadow-xl shadow-sky-950/20">
-              <img src="/logo_azul.png" alt="Logo" className="h-20 w-auto mx-auto" />
+        <div className="no-scrollbar flex min-h-0 grow flex-col items-center overflow-y-auto">
+          <div className="w-full shrink-0 px-4 pb-3 pt-4">
+            <div className="rounded-[20px] border border-white/10 bg-white/95 px-4 py-2.5 shadow-xl shadow-sky-950/20">
+              <img src="/logo_azul.png" alt="Logo" className="mx-auto h-16 w-auto" />
             </div>
           </div>
-          <nav className="space-y-1 w-full px-3">
+          <nav className="w-full space-y-0.5 px-3">
             <MenuItem icon={<LayoutDashboard size={18} />} label="Visão Geral"        active={abaAtiva === 'Visão Geral'}   onClick={() => { setAbaAtiva('Visão Geral');   setSidebarAberta(false); }} />
             <MenuItem icon={<BookOpen size={18} />}        label="Minha Mesa"       active={false}                      onClick={() => { router.push('/minha-mesa'); setSidebarAberta(false); }} />
             <MenuItem icon={<RefreshCw size={18} />}       label="Ciclos de estudo" active={abaAtiva === 'Ciclos'}      onClick={() => { router.push('/ciclos');    setSidebarAberta(false); }} />
@@ -135,6 +154,7 @@ export default function PainelEstudante() {
             <MenuItem icon={<CalendarDays size={18} />}    label="Agenda"           active={false}                      onClick={() => { router.push('/agenda'); setSidebarAberta(false); }} />
             <MenuItem icon={<LineChart size={18} />}       label="Desempenho"       active={false}                      onClick={() => { router.push('/desempenho'); setSidebarAberta(false); }} />
             <MenuItem icon={<Calendar size={18} />}        label="Revisões"         active={false}                      onClick={() => { router.push('/revisoes');   setSidebarAberta(false); }} />
+            <MenuItem icon={<Lightbulb size={18} />}       label="Sugestões"        active={false}                      onClick={() => { router.push('/sugestoes'); setSidebarAberta(false); }} />
             <MenuItem icon={<Settings size={18} />}        label="Configurações"    active={abaAtiva === 'Config'}      onClick={() => { router.push('/configuracoes'); setSidebarAberta(false); }} />
             <MenuItem icon={<User size={18} />}            label="Perfil"           active={abaAtiva === 'Perfil'}      onClick={() => { router.push('/perfil'); setSidebarAberta(false); }} />
           </nav>
@@ -235,6 +255,29 @@ export default function PainelEstudante() {
             {/* ══ COM CICLO ══ */}
             {temCiclo && ciclo ? (
               <>
+                {assistente && (
+                  <div className="rounded-[28px] border border-emerald-100 bg-white/85 p-5 shadow-xl shadow-slate-200/60 backdrop-blur-xl">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Faça isso agora</p>
+                        <h3 className="mt-1 truncate text-xl font-black text-slate-800">{assistente.titulo}</h3>
+                        <p className="mt-1 text-sm font-semibold text-slate-500">{assistente.mensagem}</p>
+                        {assistente.explicacao && (
+                          <p className="mt-2 text-xs font-bold text-slate-500">{assistente.explicacao.consequencia}</p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+                          {assistente.tipo}{assistente.prioridadeScore ? ` · ${assistente.prioridadeScore}` : ''}
+                        </span>
+                        <button onClick={() => router.push(assistente.destino)} className="flex items-center gap-2 rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-white transition-all hover:bg-emerald-600">
+                          Abrir <ChevronRight size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Hero — próxima sessão */}
                 <div className="relative overflow-hidden rounded-[32px] border border-white/70 bg-linear-to-br from-slate-950 via-sky-950 to-sky-700 p-6 text-white shadow-2xl shadow-sky-200/50 animate-in fade-in duration-500">
                   <div className="flex items-start justify-between gap-4 mb-5">
@@ -379,7 +422,7 @@ export default function PainelEstudante() {
 
 function MenuItem({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
   return (
-    <div onClick={onClick} className={`flex items-center gap-3 px-3 py-2.5 rounded-2xl cursor-pointer transition-all group ${active ? 'text-white bg-white/16 font-bold shadow-sm ring-1 ring-white/15' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}>
+    <div onClick={onClick} className={`flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-2 transition-all group ${active ? 'bg-white/16 font-bold text-white shadow-sm ring-1 ring-white/15' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}>
       <div className={`shrink-0 transition-all ${active ? 'p-1.5 rounded-xl bg-sky-400 text-white' : 'text-slate-400 group-hover:text-sky-200'}`}>{icon}</div>
       <span className="text-[13px] truncate">{label}</span>
     </div>

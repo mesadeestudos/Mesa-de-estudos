@@ -7,6 +7,7 @@ import {
   CalendarDays,
   ClipboardCheck,
   LayoutDashboard,
+  Lightbulb,
   LineChart,
   LogOut,
   RefreshCw,
@@ -23,6 +24,7 @@ export type AppSection =
   | 'agenda'
   | 'desempenho'
   | 'revisoes'
+  | 'sugestoes'
   | 'configuracoes'
   | 'perfil';
 
@@ -41,6 +43,7 @@ const NAV_ITEMS = [
   { id: 'agenda', label: 'Agenda', href: '/agenda', icon: CalendarDays },
   { id: 'desempenho', label: 'Desempenho', href: '/desempenho', icon: LineChart },
   { id: 'revisoes', label: 'Revisões', href: '/revisoes', icon: Calendar },
+  { id: 'sugestoes', label: 'Sugestões', href: '/sugestoes', icon: Lightbulb },
   { id: 'configuracoes', label: 'Configurações', href: '/configuracoes', icon: Settings },
   { id: 'perfil', label: 'Perfil', href: '/perfil', icon: User },
 ] as const;
@@ -50,13 +53,13 @@ export default function Sidebar({ active, mobileOpen = false, onNavigate, onLogo
 
   return (
     <aside className={`fixed inset-y-0 left-0 z-40 flex h-screen w-64 shrink-0 flex-col border-r border-white/30 bg-slate-950/90 text-white shadow-2xl shadow-slate-950/20 backdrop-blur-xl transition-transform lg:static lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-      <div className="min-h-0 grow overflow-y-auto px-3">
-        <div className="px-1 pb-4 pt-5">
-          <div className="rounded-[24px] border border-white/10 bg-white/95 px-4 py-3 shadow-xl shadow-sky-950/20">
-            <img src="/logo_azul.png" alt="Logo" className="mx-auto h-20 w-auto" />
+      <div className="no-scrollbar min-h-0 grow overflow-y-auto px-3">
+        <div className="px-1 pb-3 pt-4">
+          <div className="rounded-[20px] border border-white/10 bg-white/95 px-4 py-2.5 shadow-xl shadow-sky-950/20">
+            <img src="/logo_azul.png" alt="Logo" className="mx-auto h-16 w-auto" />
           </div>
         </div>
-        <nav className="space-y-1">
+        <nav className="space-y-0.5">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             return (
@@ -74,7 +77,7 @@ export default function Sidebar({ active, mobileOpen = false, onNavigate, onLogo
           })}
         </nav>
       </div>
-      <div className="p-4">
+      <div className="p-3">
         <button
           onClick={onLogout}
           className="group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-bold text-slate-300 transition-all hover:bg-red-500/15 hover:text-red-200"

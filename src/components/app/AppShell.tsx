@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteCookie } from 'cookies-next';
 import Header from './Header';
 import Sidebar, { type AppSection } from './Sidebar';
 
@@ -18,8 +17,8 @@ export default function AppShell({ active, title, eyebrow, actions, children }: 
   const router = useRouter();
   const [sidebarAberta, setSidebarAberta] = useState(false);
 
-  const handleLogout = () => {
-    deleteCookie('authorization');
+  const handleLogout = async () => {
+    await fetch('/api/logout', { method: 'POST' }).catch(() => null);
     router.push('/login');
   };
 

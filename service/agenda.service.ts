@@ -3,6 +3,7 @@ import { buscarCicloService } from '@/service/ciclo.service';
 import { gerarAssistenteEstudo } from '@/service/assistente-estudo.service';
 import { buscarResumoQuestoes } from '@/service/questoes.service';
 import { buscarAjustesPlano } from '@/service/ajuste-plano.service';
+import { listarRevisoesInteligentes } from '@/service/revisoes-inteligentes.service';
 
 const inicioDoDia = (data: Date) => {
   const copia = new Date(data);
@@ -54,37 +55,9 @@ export async function gerarAgendaService(idUsuario: bigint) {
         AND se.fim IS NOT NULL
       ORDER BY se.inicio ASC
     `,
-    prisma.topico_progresso.findMany({
-      where: { id_usuario: idUsuario, concluido: true, data_conclusao: { not: null } },
-      include: { topico: { include: { disciplina: true } } },
-      orderBy: { data_conclusao: 'asc' },
-      take: 80,
-    }),
+    listarRevisoesInteligentes(idUsuario, 14),
   ]);
-
-  const revisoesFeitas = await prisma.sessao_estudo.findMany({
-    where: {
-      id_usuario: idUsuario,
-      status: { in: ['REVISAO', 'REVISAO_FACIL', 'REVISAO_MEDIO', 'REVISAO_DIFICIL', 'REVISAO_ERREI'] },
-    },
-    select: { id_topico: true, inicio: true },
-  });
-
-  const revisoes = revisoesBase.flatMap((item) => {
-    if (!item.data_conclusao) return [];
-    const vencimento = inicioDoDia(adicionarDias(item.data_conclusao, 1));
-    if (vencimento > adicionarDias(hoje, 14)) return [];
-    const feita = revisoesFeitas.some(revisao => revisao.id_topico === item.id_topico && revisao.inicio >= vencimento);
-    if (feita) return [];
-    return [{
-      idTopico: Number(item.id_topico),
-      disciplina: item.topico.disciplina?.nome ?? 'Disciplina',
-      topico: item.topico.descricao,
-      vencimento: vencimento.toISOString(),
-      atrasada: vencimento < hoje,
-      hoje: dataKey(vencimento) === dataKey(hoje),
-    }];
-  }).sort((a, b) => new Date(a.vencimento).getTime() - new Date(b.vencimento).getTime());
+  const revisoes = revisoesBase;
 
   const dias = Array.from({ length: 7 }, (_, indice) => {
     const data = adicionarDias(hoje, indice);
@@ -128,6 +101,26 @@ export async function gerarAgendaService(idUsuario: bigint) {
   const mediaTopicosDia = Math.max(1, horasDiaEfetivas || 1);
   const diasConclusao = ciclo ? Math.ceil(topicosRestantes / mediaTopicosDia) : null;
   const conclusaoPrevista = diasConclusao !== null ? adicionarDias(hoje, diasConclusao).toISOString() : null;
+  const atrasoAcumulado = {
+    revisoesAtrasadas: revisoes.filter(item => item.atrasada).length,
+    diasSemEstudoSemana: dias.filter(item => item.semEstudo).length,
+    minutosAbaixoMeta: Math.max(0, (horasDiaEfetivas * 60 * 6) - dias.reduce((total, dia) => total + dia.minutos, 0)),
+  };
+  const impactoAjuste = ajustes.pausaAtiva
+    ? `Plano pausado ate ${new Date(ajustes.pausaAtiva.dataFim).toLocaleDateString('pt-BR')}. Vou priorizar revisoes quando voce voltar.`
+    : ajustes.metaTemporaria
+      ? `Meta temporaria de ${ajustes.metaTemporaria.horasPorDia}h/dia ativa. A agenda reduz conteudo novo e protege revisoes.`
+      : atrasoAcumulado.revisoesAtrasadas > 0
+        ? 'Ha revisoes atrasadas. A agenda deve priorizar memoria antes de conteudo novo.'
+        : 'Sem ajuste ativo. A agenda segue o ciclo e monitora atrasos.';
+  const sugestoesAjuste = [
+    atrasoAcumulado.revisoesAtrasadas >= 3 ? 'Crie um bloco curto so para revisoes antes de estudar conteudo novo.' : null,
+    atrasoAcumulado.minutosAbaixoMeta >= 180 ? 'Considere uma meta temporaria menor para preservar consistencia.' : null,
+    topicosRestantes > 0 && dataProva?.plano_estudo.cargo.edital?.data_prova && conclusaoPrevista && new Date(conclusaoPrevista) > dataProva.plano_estudo.cargo.edital.data_prova
+      ? 'A previsao de conclusao passou da data da prova. Rebalanceie o ciclo ou aumente a meta.'
+      : null,
+    questoes.diagnostico?.piorDisciplina ? `Inclua questoes de ${questoes.diagnostico.piorDisciplina.disciplina} na semana.` : null,
+  ].filter((item): item is string => Boolean(item));
 
   return {
     assistente,
@@ -141,8 +134,14 @@ export async function gerarAgendaService(idUsuario: bigint) {
       metaMinutos: horasDiaEfetivas * 60 * 6,
       minutosRegistrados: dias.reduce((total, dia) => total + dia.minutos, 0),
       dias,
+      atrasoAcumulado,
     },
     ajustes,
+    inteligencia: {
+      impactoAjuste,
+      sugestoesAjuste,
+      atrasoAcumulado,
+    },
     revisoes: {
       vencidas: revisoes.filter(item => item.atrasada),
       futuras: revisoes.filter(item => !item.atrasada).slice(0, 12),

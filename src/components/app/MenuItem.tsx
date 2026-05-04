@@ -11,7 +11,7 @@ export default function MenuItem({ icon, label, active = false, onClick }: MenuI
   return (
     <button
       onClick={onClick}
-      className={`group flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-all ${
+      className={`group flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition-all ${
         active
           ? 'bg-white/16 font-bold text-white ring-1 ring-white/15'
           : 'text-slate-300 hover:bg-white/10 hover:text-white'

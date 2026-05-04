@@ -1,17 +1,25 @@
 import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 
-const SECRET = process.env.JWT_SECRET || 'secret';
+export const AUTH_COOKIE = 'authorization';
+
+export function getJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret && process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET obrigatorio em producao.');
+  }
+  return secret || 'dev-secret-change-me';
+}
 
 export async function autenticarUsuario(): Promise<bigint> {
   const cookieStore = await cookies();
-  const token = cookieStore.get('authorization')?.value;
+  const token = cookieStore.get(AUTH_COOKIE)?.value;
 
   if (!token) {
     throw Object.assign(new Error('Nao autenticado.'), { status: 401 });
   }
 
-  const payload = jwt.verify(token, SECRET) as { id: number };
+  const payload = jwt.verify(token, getJwtSecret()) as { id: number };
   return BigInt(payload.id);
 }
 

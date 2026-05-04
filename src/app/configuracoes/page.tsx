@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteCookie } from 'cookies-next';
 import { AlertTriangle, BookOpen, Calendar, CalendarDays, CheckCircle2, ClipboardCheck, KeyRound, LayoutDashboard, LineChart, LogOut, Menu, RefreshCw, Save, Settings, Shield, User } from 'lucide-react';
 
 interface ConfigData {
@@ -62,7 +61,7 @@ export default function ConfiguracoesPage() {
       const res = await fetch('/api/configuracoes', { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Não foi possível encerrar as sessões.');
-      deleteCookie('authorization');
+      await fetch('/api/logout', { method: 'POST' }).catch(() => null);
       router.push('/login');
     } catch (error) {
       setErro(error instanceof Error ? error.message : 'Não foi possível encerrar as sessões.');
@@ -70,7 +69,10 @@ export default function ConfiguracoesPage() {
     }
   };
 
-  const handleLogout = () => { deleteCookie('authorization'); router.push('/login'); };
+  const handleLogout = async () => {
+    await fetch('/api/logout', { method: 'POST' }).catch(() => null);
+    router.push('/login');
+  };
 
   return (
     <Shell router={router} sidebarAberta={sidebarAberta} setSidebarAberta={setSidebarAberta} active="Configurações" onLogout={handleLogout}>

@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteCookie } from 'cookies-next';
 import {
   Bell, Settings, User, LayoutDashboard, BookOpen, RefreshCw,
   LineChart, Calendar, LogOut, Menu, CheckCircle2, Clock, Target,
-  ChevronRight, AlertCircle, Play, Pause, ClipboardCheck, CalendarDays,
+  ChevronRight, AlertCircle, Play, Pause, ClipboardCheck, CalendarDays, Lightbulb,
 } from 'lucide-react';
 
 interface HojeSlot {
@@ -36,9 +35,17 @@ interface AssistenteEstudo {
   titulo: string;
   mensagem: string;
   destino: string;
+  prioridadeScore?: number;
+  explicacao?: {
+    principal: string;
+    sinaisUsados: string[];
+    alternativas: string[];
+    consequencia: string;
+  };
   sinais: {
     revisoesPendentes: number;
     revisoesAtrasadas: number;
+    precisaRebalancear?: boolean;
   };
   recomendacoes: string[];
 }
@@ -79,7 +86,10 @@ export default function MinhaMesaPage() {
   });
   const [assistente, setAssistente] = useState<AssistenteEstudo | null>(null);
 
-  const handleLogout = () => { deleteCookie('authorization'); router.push('/login'); };
+  const handleLogout = async () => {
+    await fetch('/api/logout', { method: 'POST' }).catch(() => null);
+    router.push('/login');
+  };
 
   const carregarCiclo = useCallback(async () => {
     setErro('');
@@ -179,13 +189,13 @@ export default function MinhaMesaPage() {
         )}
 
         <aside className={`fixed lg:static inset-y-0 left-0 z-40 flex h-screen w-64 shrink-0 flex-col border-r border-white/30 bg-slate-950/90 text-white shadow-2xl shadow-slate-950/20 backdrop-blur-xl transition-transform duration-300 lg:translate-x-0 ${sidebarAberta ? 'translate-x-0' : '-translate-x-full'}`}>
-          <div className="flex min-h-0 grow flex-col items-center overflow-y-auto">
-            <div className="w-full shrink-0 px-4 pb-4 pt-5">
-              <div className="rounded-[24px] border border-white/10 bg-white/95 px-4 py-3 shadow-xl shadow-sky-950/20">
-                <img src="/logo_azul.png" alt="Logo" className="mx-auto h-20 w-auto" />
+          <div className="no-scrollbar flex min-h-0 grow flex-col items-center overflow-y-auto">
+            <div className="w-full shrink-0 px-4 pb-3 pt-4">
+              <div className="rounded-[20px] border border-white/10 bg-white/95 px-4 py-2.5 shadow-xl shadow-sky-950/20">
+                <img src="/logo_azul.png" alt="Logo" className="mx-auto h-16 w-auto" />
               </div>
             </div>
-            <nav className="w-full space-y-1 px-3">
+            <nav className="w-full space-y-0.5 px-3">
               <MenuItem icon={<LayoutDashboard size={18} />} label="Visão Geral" active={false} onClick={() => router.push('/dashboard')} />
               <MenuItem icon={<BookOpen size={18} />} label="Minha Mesa" active onClick={() => setSidebarAberta(false)} />
               <MenuItem icon={<RefreshCw size={18} />} label="Ciclos de estudo" active={false} onClick={() => router.push('/ciclos')} />
@@ -193,6 +203,7 @@ export default function MinhaMesaPage() {
               <MenuItem icon={<CalendarDays size={18} />} label="Agenda" active={false} onClick={() => router.push('/agenda')} />
               <MenuItem icon={<LineChart size={18} />} label="Desempenho" active={false} onClick={() => router.push('/desempenho')} />
               <MenuItem icon={<Calendar size={18} />} label="Revisões" active={false} onClick={() => router.push('/revisoes')} />
+              <MenuItem icon={<Lightbulb size={18} />} label="Sugestões" active={false} onClick={() => router.push('/sugestoes')} />
               <MenuItem icon={<Settings size={18} />} label="Configurações" active={false} onClick={() => router.push('/configuracoes')} />
               <MenuItem icon={<User size={18} />} label="Perfil" active={false} onClick={() => router.push('/perfil')} />
             </nav>
@@ -247,13 +258,23 @@ export default function MinhaMesaPage() {
                       <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-600">Assistente de estudo</p>
                       <h2 className="mt-1 truncate text-lg font-black text-slate-800">{assistente.titulo}</h2>
                       <p className="mt-1 text-sm font-semibold text-slate-500">{assistente.mensagem}</p>
+                      {assistente.explicacao && (
+                        <div className="mt-3 grid gap-2 lg:grid-cols-2">
+                          <p className="rounded-2xl border border-emerald-100 bg-emerald-50/80 px-3 py-2 text-xs font-bold text-slate-700">
+                            {assistente.explicacao.principal}
+                          </p>
+                          <p className="rounded-2xl border border-sky-100 bg-sky-50/80 px-3 py-2 text-xs font-bold text-slate-700">
+                            {assistente.explicacao.consequencia}
+                          </p>
+                        </div>
+                      )}
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-2">
                       <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
-                        {assistente.tipo}
+                        {assistente.tipo}{assistente.prioridadeScore ? ` · ${assistente.prioridadeScore}` : ''}
                       </span>
                       <button onClick={() => router.push(assistente.destino)} className="flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2.5 text-xs font-black text-white transition-all hover:bg-emerald-600">
-                        Executar orientação <ChevronRight size={14} />
+                        Fazer agora <ChevronRight size={14} />
                       </button>
                     </div>
                   </div>
@@ -410,7 +431,7 @@ export default function MinhaMesaPage() {
 
 function MenuItem({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} className={`group flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-all ${active ? 'bg-white/16 font-bold text-white shadow-sm ring-1 ring-white/15' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}>
+    <button onClick={onClick} className={`group flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition-all ${active ? 'bg-white/16 font-bold text-white shadow-sm ring-1 ring-white/15' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}>
       <div className={`shrink-0 transition-all ${active ? 'rounded-xl bg-sky-400 p-1.5 text-white' : 'text-slate-400 group-hover:text-sky-200'}`}>{icon}</div>
       <span className="truncate text-[13px]">{label}</span>
     </button>

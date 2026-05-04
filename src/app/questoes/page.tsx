@@ -44,6 +44,29 @@ interface QuestoesData {
     percentual: number;
     dataRegistro: string;
   }>;
+  diagnostico?: {
+    piorDisciplina: {
+      idDisciplina: number;
+      disciplina: string;
+      total: number;
+      acertos: number;
+      erros: number;
+      percentual: number;
+      sessoes: number;
+    } | null;
+    piorTopico: {
+      idTopico: number | null;
+      topico: string;
+      disciplina: string;
+      total: number;
+      acertos: number;
+      erros: number;
+      percentual: number;
+    } | null;
+    quedaRecente: Array<{ percentual: number; disciplina: string; topico: string }>;
+    sugestao: string;
+    recomendacaoTeorica: boolean;
+  };
   opcoes?: {
     topicos: Array<{ idDisciplina: number; disciplina: string; idTopico: number; topico: string }>;
   };
@@ -71,7 +94,7 @@ export default function QuestoesPage() {
         fetch('/api/ciclos'),
       ]);
       const questoesData = await questoesRes.json();
-      if (!questoesRes.ok) throw new Error(questoesData.message || 'NÃ£o foi possÃ­vel carregar questÃµes.');
+      if (!questoesRes.ok) throw new Error(questoesData.message || 'Não foi possível carregar questões.');
       setDados(questoesData);
 
       if (cicloRes.ok) {
@@ -85,7 +108,7 @@ export default function QuestoesPage() {
         if (!idDisciplina && lista[0]) setIdDisciplina(String(lista[0].idDisciplina));
       }
     } catch (error) {
-      setErro(error instanceof Error ? error.message : 'NÃ£o foi possÃ­vel carregar questÃµes.');
+      setErro(error instanceof Error ? error.message : 'Não foi possível carregar questões.');
     } finally {
       setCarregando(false);
     }
@@ -126,14 +149,14 @@ export default function QuestoesPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'NÃ£o foi possÃ­vel registrar as questÃµes.');
+      if (!res.ok) throw new Error(data.message || 'Não foi possível registrar as questões.');
       setSucesso(`${editandoId ? 'Bateria atualizada' : 'Bateria registrada'} com ${data.percentual}% de aproveitamento.`);
       setEditandoId(null);
       setIdTopico('');
       setAcertos(0);
       await carregar();
     } catch (error) {
-      setErro(error instanceof Error ? error.message : 'NÃ£o foi possÃ­vel registrar as questÃµes.');
+      setErro(error instanceof Error ? error.message : 'Não foi possível registrar as questões.');
     } finally {
       setSalvando(false);
     }
@@ -155,7 +178,7 @@ export default function QuestoesPage() {
   return (
     <AppShell active="questoes" title="Questoes" eyebrow="Pratica inteligente">
           {carregando ? (
-            <EmptyState icon={<RefreshCw className="animate-spin" size={26} />} title="Carregando suas questÃµes..." />
+            <EmptyState icon={<RefreshCw className="animate-spin" size={26} />} title="Carregando suas questões..." />
           ) : (
             <div className="grid grid-cols-12 gap-5 pb-8">
               <MetricCard icon={<Target size={20} />} label="Questoes feitas" value={String(resumo.totalQuestoes)} className="col-span-6 lg:col-span-3" />
@@ -167,9 +190,9 @@ export default function QuestoesPage() {
                 <section className="col-span-12 rounded-[28px] border border-amber-200 bg-amber-50 p-5 shadow-xl shadow-amber-100/50">
                   <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-700">ConfiguraÃ§Ã£o pendente</p>
-                      <h2 className="mt-1 text-lg font-black text-slate-800">A tabela de questÃµes ainda nÃ£o existe no banco.</h2>
-                      <p className="mt-1 text-sm font-semibold text-slate-600">Depois de criar a tabela, esta tela registra acertos, erros, histÃ³rico e diagnÃ³sticos automaticamente.</p>
+                      <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-700">Configuração pendente</p>
+                      <h2 className="mt-1 text-lg font-black text-slate-800">A tabela de questões ainda não existe no banco.</h2>
+                      <p className="mt-1 text-sm font-semibold text-slate-600">Depois de criar a tabela, esta tela registra acertos, erros, histórico e diagnósticos automaticamente.</p>
                     </div>
                     <button onClick={() => router.push('/desempenho')} className="rounded-2xl bg-white px-4 py-2.5 text-xs font-black text-amber-700 shadow-sm transition-all hover:bg-amber-100">
                       Ver desempenho
@@ -180,7 +203,7 @@ export default function QuestoesPage() {
 
               <section className="col-span-12 rounded-[32px] border border-white/70 bg-slate-950 p-5 text-white shadow-xl shadow-sky-200/50 lg:col-span-5">
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-200">Registrar bateria</p>
-                <h2 className="mt-1 text-xl font-black">Como foi sua prÃ¡tica?</h2>
+                <h2 className="mt-1 text-xl font-black">Como foi sua prática?</h2>
                 <div className="mt-5 space-y-4">
                   <label className="block">
                     <span className="text-[11px] font-black uppercase tracking-widest text-slate-300">Disciplina</span>
@@ -191,9 +214,9 @@ export default function QuestoesPage() {
                     </select>
                   </label>
                   <label className="block">
-                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-300">TÃ³pico</span>
+                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-300">Tópico</span>
                     <select value={idTopico} onChange={e => setIdTopico(e.target.value)} className="mt-2 w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white outline-none">
-                      <option value="" className="text-slate-900">Sem tÃ³pico especÃ­fico</option>
+                      <option value="" className="text-slate-900">Sem tópico específico</option>
                       {topicosDisponiveis.map(item => (
                         <option key={item.idTopico} value={item.idTopico} className="text-slate-900">{item.topico}</option>
                       ))}
@@ -205,11 +228,11 @@ export default function QuestoesPage() {
                   </div>
                   <button onClick={registrar} disabled={salvando || !idDisciplina || acertos > total || dados?.configuracaoPendente} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 transition-all hover:bg-emerald-300 disabled:opacity-60">
                     {salvando ? <RefreshCw className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}
-                    {editandoId ? 'Atualizar lanÃ§amento' : 'Registrar questÃµes'}
+                    {editandoId ? 'Atualizar lançamento' : 'Registrar questões'}
                   </button>
                   {editandoId && (
                     <button onClick={() => { setEditandoId(null); setIdTopico(''); setAcertos(0); }} className="w-full rounded-2xl border border-white/10 bg-white/10 px-5 py-2.5 text-sm font-black text-white transition-all hover:bg-white/15">
-                      Cancelar ediÃ§Ã£o
+                      Cancelar edição
                     </button>
                   )}
                   {erro && <p className="rounded-2xl bg-red-500/15 px-4 py-3 text-sm font-bold text-red-100">{erro}</p>}
@@ -218,18 +241,29 @@ export default function QuestoesPage() {
               </section>
 
               <section className="col-span-12 rounded-[32px] border border-white/70 bg-white/80 p-5 shadow-xl shadow-slate-200/60 backdrop-blur-xl lg:col-span-7">
-                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">DiagnÃ³stico automÃ¡tico</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Diagnóstico automático</p>
                 <h2 className="mt-1 text-xl font-black text-slate-800">
-                  {disciplinaCritica ? `Priorize ${disciplinaCritica.disciplina}` : 'Registre questÃµes para gerar diagnÃ³stico'}
+                  {disciplinaCritica ? `Priorize ${disciplinaCritica.disciplina}` : 'Registre questões para gerar diagnóstico'}
                 </h2>
                 <p className="mt-2 text-sm font-semibold text-slate-500">
                   {disciplinaCritica
                     ? `Aproveitamento atual de ${disciplinaCritica.percentual}% com ${disciplinaCritica.erros} erros registrados.`
-                    : 'O assistente usarÃ¡ seus acertos e erros para ajustar recomendaÃ§Ãµes.'}
+                    : 'O assistente usará seus acertos e erros para ajustar recomendações.'}
                 </p>
+                {dados?.diagnostico && (
+                  <div className="mt-4 rounded-2xl border border-sky-100 bg-sky-50/80 p-4">
+                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-sky-700">Sinal para o assistente</p>
+                    <p className="mt-2 text-sm font-black text-slate-800">{dados.diagnostico.sugestao}</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                      {dados.diagnostico.recomendacaoTeorica
+                        ? 'Como o aproveitamento esta baixo por topico, o sistema recomenda teoria antes de outra bateria.'
+                        : 'Esses dados entram no motor de decisao da Minha Mesa, Agenda e Dashboard.'}
+                    </p>
+                  </div>
+                )}
                 <div className="mt-5 grid gap-3 md:grid-cols-2">
                   {(dados?.disciplinas ?? []).map(item => (
-                    <ProgressCard key={item.idDisciplina} title={item.disciplina} detail={`${item.acertos}/${item.total} acertos Â· ${item.sessoes} baterias`} value={item.percentual} />
+                    <ProgressCard key={item.idDisciplina} title={item.disciplina} detail={`${item.acertos}/${item.total} acertos · ${item.sessoes} baterias`} value={item.percentual} />
                   ))}
                 </div>
               </section>
@@ -237,21 +271,21 @@ export default function QuestoesPage() {
               <section className="col-span-12 rounded-[32px] border border-white/70 bg-white/80 p-5 shadow-xl shadow-slate-200/60 backdrop-blur-xl lg:col-span-6">
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Pontos fracos</p>
                 <div className="mt-5 space-y-3">
-                  {topicosCriticos.length === 0 ? <p className="text-sm font-semibold text-slate-500">Os tÃ³picos com maior erro aparecerÃ£o aqui.</p> : topicosCriticos.map(item => (
+                  {topicosCriticos.length === 0 ? <p className="text-sm font-semibold text-slate-500">Os tópicos com maior erro aparecerão aqui.</p> : topicosCriticos.map(item => (
                     <ProgressCard key={`${item.idTopico}-${item.disciplina}`} title={item.disciplina} detail={item.topico} value={item.percentual} compact />
                   ))}
                 </div>
               </section>
 
               <section className="col-span-12 rounded-[32px] border border-white/70 bg-white/80 p-5 shadow-xl shadow-slate-200/60 backdrop-blur-xl lg:col-span-6">
-                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">HistÃ³rico recente</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Histórico recente</p>
                 <div className="mt-5 space-y-3">
-                  {(dados?.recentes ?? []).length === 0 ? <p className="text-sm font-semibold text-slate-500">Suas baterias recentes aparecerÃ£o aqui.</p> : dados?.recentes.map(item => (
+                  {(dados?.recentes ?? []).length === 0 ? <p className="text-sm font-semibold text-slate-500">Suas baterias recentes aparecerão aqui.</p> : dados?.recentes.map(item => (
                     <div key={item.id} className="rounded-2xl border border-slate-100 bg-white/80 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-black text-slate-800">{item.disciplina}</p>
-                          <p className="mt-1 text-xs font-semibold text-slate-500">{item.acertos}/{item.total} acertos Â· {new Date(item.dataRegistro).toLocaleDateString('pt-BR')}</p>
+                          <p className="mt-1 text-xs font-semibold text-slate-500">{item.acertos}/{item.total} acertos · {new Date(item.dataRegistro).toLocaleDateString('pt-BR')}</p>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           <span className={`text-sm font-black ${item.percentual < 65 ? 'text-amber-600' : 'text-emerald-600'}`}>{item.percentual}%</span>

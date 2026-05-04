@@ -112,6 +112,13 @@ export async function buscarResumoQuestoes(idUsuario: bigint) {
       disciplinas: [],
       topicos: [],
       recentes: [],
+      diagnostico: {
+        piorDisciplina: null,
+        piorTopico: null,
+        quedaRecente: [],
+        sugestao: 'Crie a tabela de questoes para calibrar o assistente.',
+        recomendacaoTeorica: false,
+      },
     };
   }
 
@@ -188,6 +195,32 @@ export async function buscarResumoQuestoes(idUsuario: bigint) {
     };
   };
 
+  const disciplinasInteligencia = disciplinas.map(item => ({
+    idDisciplina: item.id_disciplina,
+    disciplina: item.disciplina,
+    sessoes: Number(item.sessoes ?? 0),
+    ...mapResumo(item),
+  }));
+  const topicosInteligencia = topicos.map(item => ({
+    idTopico: item.id_topico ? Number(item.id_topico) : null,
+    topico: item.topico ?? 'Sem topico vinculado',
+    disciplina: item.disciplina,
+    ...mapResumo(item),
+  }));
+  const recentesInteligencia = recentes.map(item => ({
+    id: Number(item.id_questao_treino),
+    disciplina: item.disciplina,
+    topico: item.topico ?? 'Sem topico vinculado',
+    total: item.total_questoes,
+    acertos: item.total_acertos,
+    erros: Math.max(0, item.total_questoes - item.total_acertos),
+    percentual: Number(item.percentual),
+    dataRegistro: item.data_registro.toISOString(),
+  }));
+  const piorDisciplina = disciplinasInteligencia.find(item => item.total >= 10 && item.percentual < 70) ?? null;
+  const piorTopico = topicosInteligencia.find(item => item.total >= 5 && item.percentual < 70) ?? null;
+  const quedaRecente = recentesInteligencia.filter(item => item.percentual < 65).slice(0, 3);
+
   return {
     configuracaoPendente: false,
     disciplinas: disciplinas.map(item => ({
@@ -212,6 +245,17 @@ export async function buscarResumoQuestoes(idUsuario: bigint) {
       percentual: Number(item.percentual),
       dataRegistro: item.data_registro.toISOString(),
     })),
+    diagnostico: {
+      piorDisciplina,
+      piorTopico,
+      quedaRecente,
+      sugestao: piorTopico
+        ? `Revise teoria de ${piorTopico.topico} antes de outra bateria.`
+        : piorDisciplina
+          ? `Faca uma bateria curta de ${piorDisciplina.disciplina} e revise os erros.`
+          : 'Registre questoes por topico para calibrar o assistente.',
+      recomendacaoTeorica: Boolean(piorTopico && piorTopico.percentual < 60),
+    },
     opcoes: {
       topicos: opcoesTopicos.map(item => ({
         idDisciplina: item.id_disciplina,

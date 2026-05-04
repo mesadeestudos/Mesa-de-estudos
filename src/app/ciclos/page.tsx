@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { deleteCookie } from 'cookies-next';
 import {
   gerarCicloEstrutural,
   selecionarDisciplinas,
@@ -486,7 +485,10 @@ export default function CiclosEstudo() {
   );
   const editaisFiltrados = useMemo(() => editaisFiltradosBase.slice(0, 5), [editaisFiltradosBase]);
 
-  const handleLogout = () => { deleteCookie('authorization'); router.push('/login'); };
+  const handleLogout = async () => {
+    await fetch('/api/logout', { method: 'POST' }).catch(() => null);
+    router.push('/login');
+  };
 
   const handleFinalizar = async () => {
     if (!cargoSelecionado) return;

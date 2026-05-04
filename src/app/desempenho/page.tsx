@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { deleteCookie } from 'cookies-next';
 import {
   BarChart3, BookOpen, Calendar, Clock, LayoutDashboard, LineChart,
   LogOut, Menu, RefreshCw, Settings, Target, TrendingUp, User,
@@ -95,7 +94,10 @@ export default function DesempenhoPage() {
     ESTAVEL: 'Ritmo estável',
   }[dados?.inteligencia.tendencia ?? 'ESTAVEL'];
 
-  const handleLogout = () => { deleteCookie('authorization'); router.push('/login'); };
+  const handleLogout = async () => {
+    await fetch('/api/logout', { method: 'POST' }).catch(() => null);
+    router.push('/login');
+  };
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-[linear-gradient(135deg,#eef9ff_0%,#f8fafc_38%,#ecfdf5_100%)] text-slate-600">

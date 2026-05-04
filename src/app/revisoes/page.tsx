@@ -12,9 +12,12 @@ interface RevisaoItem {
   disciplina: string;
   topico: string;
   intervaloDias: number;
+  etapa: number;
   vencimento: string;
   atrasada: boolean;
   hoje: boolean;
+  motivo: string;
+  explicacao: string;
 }
 
 interface RevisoesData {
@@ -126,7 +129,10 @@ function RevisaoCard({ item, dark = false, loading = false, onConcluir }: { item
           <p className={`text-sm font-black ${dark ? 'text-white' : 'text-slate-800'}`}>{item.disciplina}</p>
           <p className={`mt-1 line-clamp-2 text-xs font-semibold ${dark ? 'text-slate-300' : 'text-slate-500'}`}>{item.topico}</p>
           <p className={`mt-2 text-[10px] font-black uppercase tracking-widest ${item.atrasada ? 'text-amber-400' : dark ? 'text-sky-200' : 'text-sky-600'}`}>
-            {item.intervaloDias} dias | {new Date(item.vencimento).toLocaleDateString('pt-BR')}
+            etapa {item.etapa} | {item.intervaloDias} dias | {new Date(item.vencimento).toLocaleDateString('pt-BR')}
+          </p>
+          <p className={`mt-2 text-xs font-semibold ${dark ? 'text-sky-100/80' : 'text-slate-500'}`}>
+            {item.explicacao}
           </p>
         </div>
         {onConcluir && (
