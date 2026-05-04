@@ -1,11 +1,19 @@
 import prisma from '@/lib/prisma';
 import { DisciplinaCicloDTO } from '@/dto/ciclo.dto';
 
+// A check constraint plano_estudo_metodo_check no banco real foi criada antes dos
+// métodos atuais existirem. Salvar sempre 'AUTOMATICO' evita a violação até que o
+// script scripts/update-plano-metodo-constraint.sql seja executado no banco.
+function normalizarMetodoDB(_metodo: string): string {
+  return 'AUTOMATICO';
+}
+
 interface SalvarCicloInput {
   idUsuario:    bigint;
   idCargo:      number;
   horasDiarias: number;
   modo:         string;
+  metodoEstudo: string;
   ritmo:        string;
   disciplinas:  Array<{ id: number; dificuldade: string }>;
   distribuicao: DisciplinaCicloDTO[];
@@ -21,7 +29,7 @@ export async function salvarCiclo(input: SalvarCicloInput) {
       data: {
         id_usuario:    input.idUsuario,
         id_cargo:      input.idCargo,
-        metodo:        input.modo.toUpperCase(),
+        metodo:        normalizarMetodoDB(input.metodoEstudo),
         ritmo:         input.ritmo.toUpperCase(),
         horas_por_dia: input.horasDiarias,
       },

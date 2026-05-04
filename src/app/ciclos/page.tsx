@@ -11,7 +11,7 @@ import {
   Bell, Settings, User, LayoutDashboard, BookOpen, RefreshCw,
   LineChart, Calendar, LogOut, Search, ChevronDown, ChevronRight, Check,
   Lock, Zap, SlidersHorizontal, Info, CheckCircle2, Menu, AlertCircle,
-  Pencil, ClipboardCheck, CalendarDays,
+  Pencil, ClipboardCheck, CalendarDays, type LucideIcon,
 } from 'lucide-react';
 
 interface Edital      { id: number; nome: string; descricao: string; banca: string; status: string; data: string; }
@@ -25,6 +25,16 @@ interface Disciplina  {
   categoria_cognitiva?: string | null;
 }
 interface Cargo       { id: number; nome: string; disciplinas: Disciplina[]; }
+type MomentoEstudo = 'COMECO_ZERO' | 'PROVA_DATA' | 'ATRASADO' | 'REVISAR' | 'QUESTOES' | 'CICLO_AUTOMATICO';
+
+const MOMENTOS_ESTUDO_OPCOES: Array<{ key: MomentoEstudo; titulo: string; descricao: string; metodo: string; Icone: LucideIcon; horasSugeridas: number }> = [
+  { key: 'COMECO_ZERO',     titulo: 'Estou começando do zero',          descricao: 'Passos guiados para criar rotina sem complicação.',           metodo: 'Trilha por Objetivo',    Icone: BookOpen,      horasSugeridas: 2 },
+  { key: 'PROVA_DATA',      titulo: 'Tenho prova com data marcada',     descricao: 'Plano por prazo, previsão de conclusão e alertas de atraso.', metodo: 'Plano por Prazo',        Icone: CalendarDays,  horasSugeridas: 3 },
+  { key: 'ATRASADO',        titulo: 'Estou atrasado',                   descricao: 'Recupera revisões e reorganiza prioridades sem sobrecarga.',  metodo: 'Recuperação de Atraso',  Icone: AlertCircle,   horasSugeridas: 4 },
+  { key: 'REVISAR',         titulo: 'Quero revisar',                    descricao: 'Prioriza memória, revisões vencidas e tópicos já estudados.', metodo: 'Revisão Intensiva',      Icone: RefreshCw,     horasSugeridas: 2 },
+  { key: 'QUESTOES',        titulo: 'Quero resolver questões',          descricao: 'Usa acertos e erros para guiar teoria e prática.',            metodo: 'Modo Questões',          Icone: ClipboardCheck, horasSugeridas: 2 },
+  { key: 'CICLO_AUTOMATICO', titulo: 'Quero seguir um ciclo automático', descricao: 'Mantém a rotação inteligente entre disciplinas.',            metodo: 'Ciclo Inteligente',      Icone: Zap,           horasSugeridas: 2 },
+];
 
 interface HojeSlot {
   ordem:           number;
@@ -109,7 +119,7 @@ interface ConcursoDetalheApi {
 }
 
 const STEPS = [
-  { num: 1, label: 'Tempo', title: 'Defina sua disponibilidade', description: 'Informe quantas sessões cabem no seu dia.' },
+  { num: 1, label: 'Perfil', title: 'Defina seu perfil', description: 'Escolha seu momento e disponibilidade.' },
   { num: 2, label: 'Edital', title: 'Escolha edital e cargo', description: 'O cargo define as disciplinas disponíveis.' },
   { num: 3, label: 'Método', title: 'Escolha o nível de controle', description: 'Deixe o sistema decidir ou personalize as prioridades.' },
   { num: 4, label: 'Resumo', title: 'Revise e crie o ciclo', description: 'Confira a composição antes de finalizar.' },
@@ -153,6 +163,7 @@ export default function CiclosEstudo() {
 
   // Etapa 1
   const [horasDiarias, setHorasDiarias] = useState(2);
+  const [momentoEstudo, setMomentoEstudo] = useState<MomentoEstudo>('CICLO_AUTOMATICO');
 
   // Etapa 2
   const [editais, setEditais]                         = useState<Edital[]>([]);
@@ -179,6 +190,7 @@ export default function CiclosEstudo() {
   const visualizacaoHoverTimeoutRef                           = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const horasDiariasLimitadas = Math.min(horasDiarias, 8);
+  const opcaoMomentoAtual = MOMENTOS_ESTUDO_OPCOES.find(o => o.key === momentoEstudo) ?? MOMENTOS_ESTUDO_OPCOES[5];
 
   // Computed — espelha a lógica do servidor
   const maxDisciplinas       = useMemo(() => horasDiariasLimitadas * 2,          [horasDiariasLimitadas]);
@@ -373,6 +385,10 @@ export default function CiclosEstudo() {
   useEffect(() => {
     setMounted(true);
   }, []);
+  useEffect(() => {
+    const opcao = MOMENTOS_ESTUDO_OPCOES.find(o => o.key === momentoEstudo);
+    if (opcao) setHorasDiarias(opcao.horasSugeridas);
+  }, [momentoEstudo]);
   useEffect(() => { if (mounted) fetchCicloAtivo(); }, [mounted]);
   useEffect(() => { if (etapa === 2 && editais.length === 0) fetchEditais(); }, [etapa, editais.length]);
   useEffect(() => { if (editalSelecionado) fetchCargos(editalSelecionado.id); }, [editalSelecionado]);
@@ -499,7 +515,7 @@ export default function CiclosEstudo() {
           horasDiarias: horasDiariasLimitadas,
           idCargo: cargoSelecionado.id,
           modo:    modoCiclo,
-          ritmo: 'equilibrado',
+          momentoEstudo,
           disciplinas: modoCiclo === 'personalizado'
             ? disciplinasSelecionadas.map(id => ({ id, dificuldade: dificuldades[id] }))
             : disciplinas.map(d => ({ id: d.id })), // algoritmo seleciona as melhores
@@ -513,7 +529,7 @@ export default function CiclosEstudo() {
 
       // Resetar form e ir para visualização
       setEtapa(1); setDirecao('frente');
-      setHorasDiarias(2); setEditalSelecionado(null); setCargoSelecionado(null);
+      setHorasDiarias(2); setMomentoEstudo('CICLO_AUTOMATICO'); setEditalSelecionado(null); setCargoSelecionado(null);
       setModoCiclo('automatico'); setDisciplinasSelecionadas([]); setDificuldades({});
       setEstado('loading');
       await fetchCicloAtivo();
@@ -531,7 +547,7 @@ export default function CiclosEstudo() {
       await fetch('/api/ciclos', { method: 'DELETE' });
       setCicloAtivo(null);
       setEtapa(1); setDirecao('frente');
-      setHorasDiarias(2); setEditalSelecionado(null); setCargoSelecionado(null);
+      setHorasDiarias(2); setMomentoEstudo('CICLO_AUTOMATICO'); setEditalSelecionado(null); setCargoSelecionado(null);
       setModoCiclo('automatico'); setDisciplinasSelecionadas([]); setDificuldades({});
       setEstado('criacao');
     } finally {
@@ -1413,98 +1429,109 @@ export default function CiclosEstudo() {
                   {/* -- ETAPA 1 -- */}
                   {etapa === 1 && (
                     <div key="etapa1" className={`rounded-[32px] border border-white/70 bg-white/78 p-6 shadow-xl shadow-slate-200/60 backdrop-blur-xl lg:p-8 ${animClass}`}>
-                      <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-500">Disponibilidade diária</p>
-                      <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-900">Quantas sessões cabem no seu dia?</h2>
-                      <p className="mt-2 mb-8 max-w-2xl text-sm font-medium leading-relaxed text-slate-500">Cada hora vira uma sessão de estudo. A partir disso, o sistema calcula quantas disciplinas entram no ciclo.</p>
+                      <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-500">Configuração inicial</p>
+                      <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-900">Qual é o seu momento de estudo?</h2>
+                      <p className="mt-2 mb-6 max-w-2xl text-sm font-medium leading-relaxed text-slate-500">
+                        Escolha a situação que melhor descreve agora. O sistema ativa a estratégia certa e sugere a carga ideal.
+                      </p>
 
-                      <div className="grid w-full gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)] xl:items-stretch">
-                        <div className="min-w-0">
-                          <div className="mb-5 overflow-hidden rounded-[28px] border border-sky-100 bg-linear-to-br from-sky-500 to-cyan-400 p-5 text-white shadow-lg shadow-sky-200/50">
-                            <p className="text-xs font-bold uppercase tracking-widest text-white/75">Meta diária</p>
-                            <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                              <p className="text-3xl font-black text-white">
-                                {horasDiariasLimitadas} {horasDiariasLimitadas === 1 ? 'hora' : 'horas'} por dia
-                              </p>
-                              <p className="text-sm font-semibold text-white/85">
-                                {horasDiariasLimitadas} {horasDiariasLimitadas === 1 ? 'sessão' : 'sessões'} por dia
-                              </p>
-                            </div>
-                            <p className="mt-3 text-xs font-semibold text-white/80">
-                              Cada sessão é um bloco de estudo de 1h.
+                      {/* Momento de estudo — escolha primária */}
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {MOMENTOS_ESTUDO_OPCOES.map(opcao => {
+                          const selecionado = momentoEstudo === opcao.key;
+                          return (
+                            <button
+                              key={opcao.key}
+                              type="button"
+                              onClick={() => setMomentoEstudo(opcao.key)}
+                              className={`rounded-2xl border p-4 text-left transition-all ${
+                                selecionado
+                                  ? 'border-sky-300 bg-sky-50 shadow-sm shadow-sky-100 ring-1 ring-sky-200/60'
+                                  : 'border-slate-100 bg-white hover:border-sky-200 hover:bg-sky-50/50'
+                              }`}
+                            >
+                              <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${
+                                selecionado ? 'bg-sky-500 text-white' : 'bg-slate-100 text-slate-400'
+                              }`}>
+                                <opcao.Icone size={17} />
+                              </div>
+                              <p className="text-sm font-black text-slate-800">{opcao.titulo}</p>
+                              <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">{opcao.descricao}</p>
+                              <span className={`mt-2 inline-block text-[10px] font-black uppercase tracking-widest ${
+                                selecionado ? 'text-sky-600' : 'text-slate-400'
+                              }`}>{opcao.metodo}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Disponibilidade — escolha secundária */}
+                      <div className="mt-6 rounded-[28px] border border-slate-200/70 bg-white/86 p-5 shadow-sm backdrop-blur">
+                        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-black text-slate-700">Quanto tempo você tem por dia?</p>
+                            <p className="mt-0.5 text-xs font-medium text-slate-400">
+                              Sugestão para este momento:{' '}
+                              <span className="font-bold text-sky-600">{opcaoMomentoAtual.horasSugeridas}h</span>
                             </p>
                           </div>
+                          <span className="text-2xl font-black text-sky-600">{horasDiariasLimitadas}h/dia</span>
+                        </div>
 
-                          <div className="rounded-[28px] border border-slate-200/70 bg-white/86 p-5 shadow-sm backdrop-blur">
-                            <div className="flex items-center justify-between mb-3">
-                              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Ajuste sua disponibilidade</label>
-                              <span className="text-sm font-black text-sky-600">{horasDiariasLimitadas}h</span>
-                            </div>
-                            <input
-                              type="range" min="1" max="8" step="1"
-                              value={horasDiariasLimitadas}
-                              onChange={e => setHorasDiarias(Math.min(Number(e.target.value), 8))}
-                              className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-sky-500 mb-1.5"
-                            />
-                            <div className="mb-4 flex justify-between text-[11px] font-bold text-slate-400">
-                              <span>1h</span>
-                              <span>8h</span>
-                            </div>
+                        <input
+                          type="range" min="1" max="8" step="1"
+                          value={horasDiariasLimitadas}
+                          onChange={e => setHorasDiarias(Math.min(Number(e.target.value), 8))}
+                          className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-sky-500 mb-1.5"
+                        />
+                        <div className="mb-4 flex justify-between text-[11px] font-bold text-slate-400">
+                          <span>1h</span>
+                          <span>8h</span>
+                        </div>
 
-                            <p className="mb-2 text-xs font-semibold text-slate-500">
-                              Escolha um perfil ou ajuste manualmente.
-                            </p>
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-5">
-                              {[
-                                { h: 1, label: 'Leve' },
-                                { h: 2, label: 'Essencial' },
-                                { h: 4, label: 'Moderado' },
-                                { h: 6, label: 'Intenso' },
-                                { h: 8, label: 'Máximo' },
-                              ].map(({ h, label }) => (
-                                <button key={h} onClick={() => setHorasDiarias(h)}
-                                  className={`rounded-xl px-3 py-2 text-left transition-all ${
-                                    horasDiariasLimitadas === h
-                                      ? h === 8 ? 'bg-amber-500 text-white shadow-sm shadow-amber-100' : 'bg-sky-500 text-white shadow-sm shadow-sky-100'
-                                      : 'bg-slate-100 text-slate-500 hover:bg-sky-50 hover:text-sky-600'
-                                  }`}
-                                >
-                                  <span className="block text-xs font-black">{label}</span>
-                                  <span className={`text-lg font-black leading-tight ${horasDiariasLimitadas === h ? 'text-white' : 'text-slate-700'}`}>
-                                    {h}h
-                                  </span>
-                                </button>
-                              ))}
-                            </div>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                          {[
+                            { h: 1, label: 'Leve' },
+                            { h: 2, label: 'Essencial' },
+                            { h: 4, label: 'Moderado' },
+                            { h: 6, label: 'Intenso' },
+                            { h: 8, label: 'Máximo' },
+                          ].map(({ h, label }) => (
+                            <button key={h} onClick={() => setHorasDiarias(h)}
+                              className={`rounded-xl px-3 py-2 text-left transition-all ${
+                                horasDiariasLimitadas === h
+                                  ? h === 8 ? 'bg-amber-500 text-white shadow-sm shadow-amber-100' : 'bg-sky-500 text-white shadow-sm shadow-sky-100'
+                                  : 'bg-slate-100 text-slate-500 hover:bg-sky-50 hover:text-sky-600'
+                              }`}
+                            >
+                              <span className="block text-xs font-black">{label}</span>
+                              <span className={`text-lg font-black leading-tight ${horasDiariasLimitadas === h ? 'text-white' : 'text-slate-700'}`}>
+                                {h}h
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="mt-4 flex items-center gap-6 border-t border-slate-100 pt-4">
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sessões/dia</p>
+                            <p className="text-xl font-black text-slate-800">{horasDiariasLimitadas}</p>
+                          </div>
+                          <div className="h-8 w-px bg-slate-200" />
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Máx. disciplinas</p>
+                            <p className="text-xl font-black text-slate-800">até {maxDisciplinas}</p>
                           </div>
                         </div>
 
-                        <div className="flex min-w-0 flex-col rounded-[28px] border border-white/70 bg-white/62 p-5 shadow-sm backdrop-blur">
-                          <p className="text-sm font-black text-slate-700">Impacto da escolha</p>
-                          <p className="mb-3 mt-1 text-xs font-medium text-slate-500">
-                            Com essa meta, seu ciclo será calculado para {horasDiariasLimitadas} {horasDiariasLimitadas === 1 ? 'sessão' : 'sessões'} por dia.
-                          </p>
-                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                            <StatCard cor="sky"   label="Sessões por dia"      valor={String(horasDiariasLimitadas)} />
-                            <StatCard cor="sky"   label="Disciplinas no ciclo" valor={`até ${maxDisciplinas}`} />
-                          </div>
-
-                          <div className={`mt-4 flex items-start gap-2 rounded-xl bg-white p-3 ${horasDiariasLimitadas === 8 ? 'mb-3' : 'mb-5'}`}>
-                            <Info size={14} className="text-slate-400 mt-0.5 shrink-0" />
-                            <p className="text-xs font-medium text-slate-500">
-                              Depois, escolha o edital e o cargo para montar a distribuição.
+                        {horasDiariasLimitadas === 8 && (
+                          <div className="mt-3 flex items-start gap-2 rounded-xl border border-sky-100 bg-sky-50 p-3">
+                            <Info size={14} className="mt-0.5 shrink-0 text-sky-500" />
+                            <p className="text-xs text-sky-700">
+                              8 horas é uma carga alta. Para manter qualidade, distribua o estudo ao longo do dia e faça pausas entre as sessões.
                             </p>
                           </div>
-
-                          {horasDiariasLimitadas === 8 && (
-                            <div className="flex items-start gap-2 bg-sky-50 border border-sky-100 rounded-xl p-3 mb-5">
-                              <Info size={14} className="text-sky-500 mt-0.5 shrink-0" />
-                              <p className="text-xs text-sky-700">
-                                8 horas é uma carga alta. Para manter qualidade, distribua o estudo ao longo do dia e faça pausas entre as sessões.
-                              </p>
-                            </div>
-                          )}
-
-                        </div>
+                        )}
                       </div>
 
                       <div className="mt-6 flex justify-end">
