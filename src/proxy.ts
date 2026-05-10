@@ -10,13 +10,17 @@ const APP_ROUTES = [
   '/desempenho',
   '/revisoes',
   '/questoes',
+  '/caderno-erros',
+  '/simulados',
+  '/assistente',
   '/sugestoes',
   '/agenda',
+  '/diagnostico',
   '/perfil',
   '/configuracoes',
   '/onboarding',
 ];
-const SUBSCRIPTION_FREE_ROUTES = ['/onboarding', '/perfil', '/configuracoes'];
+const SUBSCRIPTION_FREE_ROUTES = ['/onboarding', '/diagnostico', '/perfil', '/configuracoes'];
 
 function startsWithAny(pathname: string, routes: string[]) {
   return routes.some(route => pathname === route || pathname.startsWith(`${route}/`));
@@ -69,8 +73,12 @@ export const config = {
     '/desempenho/:path*',
     '/revisoes/:path*',
     '/questoes/:path*',
+    '/caderno-erros/:path*',
+    '/simulados/:path*',
+    '/assistente/:path*',
     '/sugestoes/:path*',
     '/agenda/:path*',
+    '/diagnostico/:path*',
     '/perfil/:path*',
     '/configuracoes/:path*',
     '/onboarding/:path*',

@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import prisma from '@/lib/prisma';
 
-export type PlanoAssinatura = 'MENSAL' | 'TRIMESTRAL' | 'ANUAL';
+export type PlanoAssinatura = 'MENSAL' | 'SEMESTRAL' | 'ANUAL';
 export type StatusAssinatura = 'ACTIVE' | 'TRIALING' | 'PAST_DUE' | 'CANCELED' | 'PENDING';
 
 interface AssinaturaExisteRow {
@@ -19,15 +19,15 @@ interface AssinaturaRow {
 }
 
 const PLANOS: Record<PlanoAssinatura, { valorCentavos: number; dias: number; label: string }> = {
-  MENSAL: { valorCentavos: 3900, dias: 30, label: 'Plano Mensal' },
-  TRIMESTRAL: { valorCentavos: 9600, dias: 90, label: 'Plano Trimestral' },
-  ANUAL: { valorCentavos: 28800, dias: 365, label: 'Plano Anual' },
+  MENSAL: { valorCentavos: 1990, dias: 30, label: 'Plano Mensal' },
+  SEMESTRAL: { valorCentavos: 10740, dias: 180, label: 'Plano Semestral' },
+  ANUAL: { valorCentavos: 19080, dias: 365, label: 'Plano Anual' },
 };
 
 function normalizarPlano(plano?: string | null): PlanoAssinatura {
   const valor = (plano ?? '').toUpperCase();
   if (valor.includes('ANUAL')) return 'ANUAL';
-  if (valor.includes('TRIMESTRAL')) return 'TRIMESTRAL';
+  if (valor.includes('SEMESTRAL') || valor.includes('TRIMESTRAL')) return 'SEMESTRAL';
   return 'MENSAL';
 }
 
@@ -105,7 +105,16 @@ export function criarCheckoutPendente(input: { plano?: string | null }) {
     label: planoConfig.label,
     url: process.env.PAYMENT_PROVIDER === 'STRIPE'
       ? null
-      : `/pagamento?checkout=${checkoutId}&plano=${encodeURIComponent(planoConfig.label)}&valor=${Math.round(planoConfig.valorCentavos / 100)}`,
+      : `/pagamento?checkout=${checkoutId}&plano=${encodeURIComponent(planoConfig.label)}&valor=${encodeURIComponent((planoConfig.valorCentavos / 100).toFixed(2).replace('.', ','))}`,
+  };
+}
+
+export function criarTrialPendente() {
+  const checkoutId = crypto.randomUUID();
+  return {
+    checkoutId,
+    plano: 'MENSAL' as PlanoAssinatura,
+    valorCentavos: 0,
   };
 }
 
@@ -136,19 +145,27 @@ export function lerCookieCheckoutAssinado(valor?: string | null) {
 
 export async function ativarAssinaturaUsuario(
   idUsuario: bigint,
-  input: { plano: PlanoAssinatura; checkoutId?: string | null; valorCentavos?: number | null; provider?: string | null },
+  input: {
+    plano: PlanoAssinatura;
+    checkoutId?: string | null;
+    valorCentavos?: number | null;
+    provider?: string | null;
+    status?: StatusAssinatura;
+    dias?: number;
+  },
 ) {
   const existe = await tabelaAssinaturaExiste();
   if (!existe) return null;
 
-  const dias = PLANOS[input.plano].dias;
+  const dias = input.dias ?? PLANOS[input.plano].dias;
   const dataFim = new Date(Date.now() + dias * 86_400_000);
+  const status = input.status ?? 'ACTIVE';
 
   await prisma.$executeRaw`
     INSERT INTO planejamento.assinatura_usuario
       (id_usuario, plano, status, provider, checkout_id, valor_centavos, data_inicio, data_fim)
     VALUES
-      (${idUsuario}, ${input.plano}, 'ACTIVE', ${input.provider ?? 'MOCK'}, ${input.checkoutId ?? null}, ${input.valorCentavos ?? PLANOS[input.plano].valorCentavos}, NOW(), ${dataFim})
+      (${idUsuario}, ${input.plano}, ${status}, ${input.provider ?? 'MOCK'}, ${input.checkoutId ?? null}, ${input.valorCentavos ?? PLANOS[input.plano].valorCentavos}, NOW(), ${dataFim})
   `;
 
   return buscarStatusAssinatura(idUsuario);

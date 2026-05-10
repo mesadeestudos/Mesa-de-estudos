@@ -3,14 +3,16 @@ import { autenticarUsuario, toHttpError } from '@/lib/auth';
 import { buscarStatusAssinatura } from '@/service/assinatura.service';
 import { buscarCicloService } from '@/service/ciclo.service';
 import { gerarAssistenteEstudo } from '@/service/assistente-estudo.service';
+import { buscarDiagnosticoInicial } from '@/service/diagnostico-inicial.service';
 
 export async function GET() {
   try {
     const idUsuario = await autenticarUsuario();
-    const [assinatura, ciclo, assistente] = await Promise.all([
+    const [assinatura, ciclo, assistente, diagnostico] = await Promise.all([
       buscarStatusAssinatura(idUsuario),
       buscarCicloService(idUsuario),
       gerarAssistenteEstudo(idUsuario),
+      buscarDiagnosticoInicial(idUsuario),
     ]);
 
     return NextResponse.json({
@@ -18,8 +20,10 @@ export async function GET() {
       temCiclo: Boolean(ciclo),
       ciclo,
       assistente,
+      diagnostico,
       passos: {
         assinatura: assinatura.ativa,
+        diagnostico: diagnostico.completo,
         ciclo: Boolean(ciclo),
         primeiraSessao: Boolean(ciclo?.hojeSlots?.[0]),
       },

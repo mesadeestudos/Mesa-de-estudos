@@ -5,6 +5,9 @@ export interface RegistroQuestoesInput {
   idTopico?: number | null;
   total: number;
   acertos: number;
+  motivoErro?: string | null;
+  confianca?: string | null;
+  observacao?: string | null;
 }
 
 export interface AtualizarQuestoesInput {
@@ -13,6 +16,9 @@ export interface AtualizarQuestoesInput {
   idTopico?: number | null;
   total: number;
   acertos: number;
+  motivoErro?: string | null;
+  confianca?: string | null;
+  observacao?: string | null;
 }
 
 interface QuestaoResumoRow {
@@ -39,6 +45,9 @@ interface QuestaoRecenteRow {
   total_acertos: number;
   percentual: number;
   data_registro: Date;
+  motivo_erro?: string | null;
+  confianca?: string | null;
+  observacao?: string | null;
 }
 
 interface TopicoOpcaoRow {
@@ -59,6 +68,30 @@ async function tabelaQuestoesExiste() {
   return Boolean(resultado[0]?.existe);
 }
 
+async function detalhesQuestoesExistem() {
+  const resultado = await prisma.$queryRaw<TabelaExisteRow[]>`
+    SELECT column_name AS existe
+    FROM information_schema.columns
+    WHERE table_schema = 'planejamento'
+      AND table_name = 'questao_treino'
+      AND column_name = 'motivo_erro'
+    LIMIT 1
+  `;
+  return Boolean(resultado[0]?.existe);
+}
+
+function normalizarMotivoErro(valor?: string | null) {
+  const normalizado = (valor ?? '').toUpperCase();
+  const permitidos = ['FALTA_TEORIA', 'DISTRACAO', 'INTERPRETACAO', 'DECOREBA', 'CHUTE_ACERTEI', 'NAO_INFORMADO'];
+  return permitidos.includes(normalizado) ? normalizado : null;
+}
+
+function normalizarConfianca(valor?: string | null) {
+  const normalizado = (valor ?? '').toUpperCase();
+  const permitidos = ['BAIXA', 'MEDIA', 'ALTA', 'CHUTE'];
+  return permitidos.includes(normalizado) ? normalizado : null;
+}
+
 export async function registrarQuestoes(idUsuario: bigint, input: RegistroQuestoesInput) {
   const tabelaExiste = await tabelaQuestoesExiste();
   if (!tabelaExiste) {
@@ -68,13 +101,23 @@ export async function registrarQuestoes(idUsuario: bigint, input: RegistroQuesto
   const total = Math.max(1, Math.floor(input.total));
   const acertos = Math.min(total, Math.max(0, Math.floor(input.acertos)));
   const percentual = Number(((acertos / total) * 100).toFixed(2));
+  const temDetalhes = await detalhesQuestoesExistem();
 
-  await prisma.$executeRaw`
-    INSERT INTO planejamento.questao_treino
-      (id_usuario, id_disciplina, id_topico, total_questoes, total_acertos, percentual)
-    VALUES
-      (${idUsuario}, ${input.idDisciplina}, ${input.idTopico ? BigInt(input.idTopico) : null}, ${total}, ${acertos}, ${percentual})
-  `;
+  if (temDetalhes) {
+    await prisma.$executeRaw`
+      INSERT INTO planejamento.questao_treino
+        (id_usuario, id_disciplina, id_topico, total_questoes, total_acertos, percentual, motivo_erro, confianca, observacao)
+      VALUES
+        (${idUsuario}, ${input.idDisciplina}, ${input.idTopico ? BigInt(input.idTopico) : null}, ${total}, ${acertos}, ${percentual}, ${normalizarMotivoErro(input.motivoErro)}, ${normalizarConfianca(input.confianca)}, ${input.observacao ?? null})
+    `;
+  } else {
+    await prisma.$executeRaw`
+      INSERT INTO planejamento.questao_treino
+        (id_usuario, id_disciplina, id_topico, total_questoes, total_acertos, percentual)
+      VALUES
+        (${idUsuario}, ${input.idDisciplina}, ${input.idTopico ? BigInt(input.idTopico) : null}, ${total}, ${acertos}, ${percentual})
+    `;
+  }
 
   return { total, acertos, percentual };
 }
@@ -88,18 +131,36 @@ export async function atualizarQuestoes(idUsuario: bigint, input: AtualizarQuest
   const total = Math.max(1, Math.floor(input.total));
   const acertos = Math.min(total, Math.max(0, Math.floor(input.acertos)));
   const percentual = Number(((acertos / total) * 100).toFixed(2));
+  const temDetalhes = await detalhesQuestoesExistem();
 
-  await prisma.$executeRaw`
-    UPDATE planejamento.questao_treino
-    SET
-      id_disciplina = ${input.idDisciplina},
-      id_topico = ${input.idTopico ? BigInt(input.idTopico) : null},
-      total_questoes = ${total},
-      total_acertos = ${acertos},
-      percentual = ${percentual}
-    WHERE id_questao_treino = ${BigInt(input.id)}
-      AND id_usuario = ${idUsuario}
-  `;
+  if (temDetalhes) {
+    await prisma.$executeRaw`
+      UPDATE planejamento.questao_treino
+      SET
+        id_disciplina = ${input.idDisciplina},
+        id_topico = ${input.idTopico ? BigInt(input.idTopico) : null},
+        total_questoes = ${total},
+        total_acertos = ${acertos},
+        percentual = ${percentual},
+        motivo_erro = ${normalizarMotivoErro(input.motivoErro)},
+        confianca = ${normalizarConfianca(input.confianca)},
+        observacao = ${input.observacao ?? null}
+      WHERE id_questao_treino = ${BigInt(input.id)}
+        AND id_usuario = ${idUsuario}
+    `;
+  } else {
+    await prisma.$executeRaw`
+      UPDATE planejamento.questao_treino
+      SET
+        id_disciplina = ${input.idDisciplina},
+        id_topico = ${input.idTopico ? BigInt(input.idTopico) : null},
+        total_questoes = ${total},
+        total_acertos = ${acertos},
+        percentual = ${percentual}
+      WHERE id_questao_treino = ${BigInt(input.id)}
+        AND id_usuario = ${idUsuario}
+    `;
+  }
 
   return { total, acertos, percentual };
 }

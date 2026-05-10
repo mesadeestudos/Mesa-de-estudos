@@ -7,40 +7,40 @@ const plans = [
   {
     id: 'MENSAL',
     name: 'Plano Mensal',
-    price: '39',
-    totalValue: '39',
-    period: '/mês',
-    description: 'Flexibilidade total para organizar seus estudos mês a mês.',
-    features: ['Cronogramas ilimitados', 'Ciclos automatizados', 'Revisões inteligentes', 'Questões e desempenho', 'Suporte via chat'],
+    price: '19,90',
+    totalValue: '19,90',
+    period: '/mes',
+    description: 'Flexibilidade total para organizar seus estudos mes a mes.',
+    features: ['Cronogramas ilimitados', 'Ciclos automatizados', 'Revisoes inteligentes', 'Questoes e desempenho', 'Suporte via chat'],
     button: 'Assinar Mensal',
     highlight: false,
-    tag: 'Flexível',
+    tag: 'Flexivel',
   },
   {
-    id: 'ANUAL',
-    name: 'Plano Anual',
-    price: '24',
-    totalValue: '288',
-    period: '/mês',
-    subtext: 'Cobrado anualmente (R$ 288)',
-    description: 'O melhor custo-benefício para quem busca aprovação.',
-    features: ['Tudo do Plano Mensal', 'IA para otimização de ciclos', 'Previsão de conclusão', 'Agenda automática', '40% de desconto'],
-    button: 'Assinar Anual',
+    id: 'SEMESTRAL',
+    name: 'Plano Semestral',
+    price: '17,90',
+    totalValue: '107,40',
+    period: '/mes',
+    subtext: 'Cobrado semestralmente (R$ 107,40)',
+    description: 'Mais previsibilidade para manter sua rotina por 6 meses.',
+    features: ['Tudo do Plano Mensal', 'IA para otimizacao de ciclos', 'Previsao de conclusao', 'Agenda automatica', '10% de economia'],
+    button: 'Assinar Semestral',
     highlight: true,
     tag: 'Melhor Valor',
   },
   {
-    id: 'TRIMESTRAL',
-    name: 'Plano Trimestral',
-    price: '32',
-    totalValue: '96',
-    period: '/mês',
-    subtext: 'Cobrado a cada 3 meses (R$ 96)',
-    description: 'Ideal para planejamento de médio prazo.',
-    features: ['Tudo do Plano Mensal', 'Diagnóstico por questões', 'Gráficos comparativos', 'Prioridade no suporte', '15% de economia'],
-    button: 'Assinar Trimestral',
+    id: 'ANUAL',
+    name: 'Plano Anual',
+    price: '15,90',
+    totalValue: '190,80',
+    period: '/mes',
+    subtext: 'Cobrado anualmente (R$ 190,80)',
+    description: 'O melhor custo-beneficio para quem busca aprovacao.',
+    features: ['Tudo do Plano Mensal', 'Diagnostico por questoes', 'Graficos comparativos', 'Prioridade no suporte', '20% de economia'],
+    button: 'Assinar Anual',
     highlight: false,
-    tag: 'Popular',
+    tag: 'Economia',
   },
 ];
 
@@ -58,10 +58,10 @@ export default function AssinaturaPage() {
         body: JSON.stringify({ plano }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Não foi possível iniciar o pagamento.');
+      if (!res.ok) throw new Error(data.message || 'Nao foi possivel iniciar o pagamento.');
       window.location.href = data.redirectUrl || '/pagamento';
     } catch (error) {
-      setErro(error instanceof Error ? error.message : 'Não foi possível iniciar o pagamento.');
+      setErro(error instanceof Error ? error.message : 'Nao foi possivel iniciar o pagamento.');
     } finally {
       setLoadingPlan(null);
     }
@@ -74,7 +74,7 @@ export default function AssinaturaPage() {
           Escolha seu plano de <span className="text-cyan-600">alta performance</span>
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-lg font-medium text-slate-500">
-          Acesso total à Mesa de Estudos, com ciclo inteligente, revisões, questões, agenda e orientação automática.
+          Acesso total a Mesa de Estudos, com ciclo inteligente, revisoes, questoes, agenda e orientacao automatica.
         </p>
         {erro && <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">{erro}</p>}
       </div>
@@ -91,9 +91,7 @@ export default function AssinaturaPage() {
           >
             <span className={`mb-6 inline-flex w-fit rounded-full px-4 py-1 text-[10px] font-black uppercase tracking-widest ${
               plan.highlight ? 'bg-cyan-400 text-slate-950' : 'bg-slate-100 text-slate-500'
-            }`}>
-              {plan.tag}
-            </span>
+            }`}>{plan.tag}</span>
             <h3 className="text-2xl font-black">{plan.name}</h3>
             <p className={`mt-2 min-h-12 text-sm font-semibold ${plan.highlight ? 'text-slate-300' : 'text-slate-500'}`}>
               {plan.description}
@@ -103,7 +101,7 @@ export default function AssinaturaPage() {
               <span className={`text-sm font-bold ${plan.highlight ? 'text-slate-400' : 'text-slate-500'}`}>{plan.period}</span>
             </div>
             <p className={`mt-2 h-5 text-xs font-bold ${plan.highlight ? 'text-cyan-300' : 'text-slate-400'}`}>
-              {plan.subtext ?? 'Cobrança mensal'}
+              {plan.subtext ?? 'Cobranca mensal'}
             </p>
 
             <ul className="my-8 space-y-4">

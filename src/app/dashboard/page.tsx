@@ -6,7 +6,7 @@ import {
   Bell, Settings, User, LayoutDashboard, BookOpen, RefreshCw,
   LineChart, Calendar, LogOut, Clock, Target, TrendingUp,
   ChevronRight, Info, CheckCircle2, Zap, BarChart3, Menu,
-  ClipboardCheck, CalendarDays, Lightbulb,
+  ClipboardCheck, CalendarDays, Lightbulb, NotebookTabs, FileCheck2, MessageCircle,
 } from 'lucide-react';
 
 function getNomeUsuario(): string {
@@ -43,6 +43,9 @@ interface AssistentePainel {
   titulo: string;
   mensagem: string;
   destino: string;
+  acaoPrimaria?: string;
+  narrativa?: string;
+  etapaPedagogica?: string;
   prioridadeScore?: number;
   explicacao?: {
     principal: string;
@@ -151,6 +154,9 @@ export default function PainelEstudante() {
             <MenuItem icon={<BookOpen size={18} />}        label="Minha Mesa"       active={false}                      onClick={() => { router.push('/minha-mesa'); setSidebarAberta(false); }} />
             <MenuItem icon={<RefreshCw size={18} />}       label="Ciclos de estudo" active={abaAtiva === 'Ciclos'}      onClick={() => { router.push('/ciclos');    setSidebarAberta(false); }} />
             <MenuItem icon={<ClipboardCheck size={18} />}  label="Questões"         active={false}                      onClick={() => { router.push('/questoes'); setSidebarAberta(false); }} />
+            <MenuItem icon={<NotebookTabs size={18} />}    label="Caderno de erros" active={false}                      onClick={() => { router.push('/caderno-erros'); setSidebarAberta(false); }} />
+            <MenuItem icon={<FileCheck2 size={18} />}      label="Simulados"        active={false}                      onClick={() => { router.push('/simulados'); setSidebarAberta(false); }} />
+            <MenuItem icon={<MessageCircle size={18} />}   label="Assistente IA"    active={false}                      onClick={() => { router.push('/assistente'); setSidebarAberta(false); }} />
             <MenuItem icon={<CalendarDays size={18} />}    label="Agenda"           active={false}                      onClick={() => { router.push('/agenda'); setSidebarAberta(false); }} />
             <MenuItem icon={<LineChart size={18} />}       label="Desempenho"       active={false}                      onClick={() => { router.push('/desempenho'); setSidebarAberta(false); }} />
             <MenuItem icon={<Calendar size={18} />}        label="Revisões"         active={false}                      onClick={() => { router.push('/revisoes');   setSidebarAberta(false); }} />
@@ -259,9 +265,9 @@ export default function PainelEstudante() {
                   <div className="rounded-[28px] border border-emerald-100 bg-white/85 p-5 shadow-xl shadow-slate-200/60 backdrop-blur-xl">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                       <div className="min-w-0">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Faça isso agora</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">{assistente.etapaPedagogica ?? 'Faça isso agora'}</p>
                         <h3 className="mt-1 truncate text-xl font-black text-slate-800">{assistente.titulo}</h3>
-                        <p className="mt-1 text-sm font-semibold text-slate-500">{assistente.mensagem}</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-500">{assistente.narrativa ?? assistente.mensagem}</p>
                         {assistente.explicacao && (
                           <p className="mt-2 text-xs font-bold text-slate-500">{assistente.explicacao.consequencia}</p>
                         )}
@@ -271,7 +277,7 @@ export default function PainelEstudante() {
                           {assistente.tipo}{assistente.prioridadeScore ? ` · ${assistente.prioridadeScore}` : ''}
                         </span>
                         <button onClick={() => router.push(assistente.destino)} className="flex items-center gap-2 rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-white transition-all hover:bg-emerald-600">
-                          Abrir <ChevronRight size={16} />
+                          {assistente.acaoPrimaria ?? 'Abrir'} <ChevronRight size={16} />
                         </button>
                       </div>
                     </div>

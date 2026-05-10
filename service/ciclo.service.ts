@@ -555,7 +555,7 @@ export async function avancarCicloService(idUsuario: bigint, qualidade?: string)
 
     if (topico) {
       const qualidadeNormalizada = qualidade?.toUpperCase() ?? '';
-      const concluiuTopico = !qualidadeNormalizada.includes('PARCIAL') && !qualidadeNormalizada.startsWith('NAO_ENTENDI');
+      const concluiuTopico = !qualidadeNormalizada.includes('PARCIAL') && !qualidadeNormalizada.includes('_P_') && !qualidadeNormalizada.startsWith('NAO_ENTENDI');
 
       await tx.sessao_estudo.create({
         data: {

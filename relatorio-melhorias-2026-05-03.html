@@ -35,13 +35,14 @@
     <h1>Relatorio de Melhorias Implementadas</h1>
     <p class="subtitle">
       Sistema Mesa de Estudos: consolidacao das melhorias feitas em 03/05/2026, atualizacao comercial de 04/05/2026
+      e atualizacao de IA orientadora, teste gratis, planos e scripts de banco de 10/05/2026
       e atualizacao de UX e banco de 04/05/2026, incluindo assistente inteligente, agenda, questoes, revisao adaptativa,
       ajustes de rotina, fluxo comercial, seguranca, onboarding, assinatura, sugestoes dos usuarios,
       redesign da etapa 1 de criacao de ciclo, home funcional com Tutoriais/Ajuda, checklist da sessao,
       feedback de aprendizagem e correcao da constraint de metodo no banco.
     </p>
     <div class="meta">
-      <div><span class="label">Data</span>03/05/2026, 04/05/2026</div>
+      <div><span class="label">Data</span>03/05/2026, 04/05/2026, 10/05/2026</div>
       <div><span class="label">Branch</span>jardel</div>
       <div><span class="label">Ultimo commit remoto</span>Atualizado nesta entrega</div>
     </div>
@@ -633,5 +634,158 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA auth TO usuario_da_aplicacao;</pr
       <tr><td>Restaurar normalizarMetodoDB</td><td>Editar <code>repository/ciclo.repository.ts</code></td><td>Apos executar update-plano-metodo-constraint.sql</td></tr>
     </tbody>
   </table>
+
+  <h2 class="break">13. Atualizacao de 10/05/2026 - IA Orientadora, Trial, Planos e Banco</h2>
+  <p>
+    Nesta entrega o sistema foi evoluido para parecer uma mentoria inteligente de estudo. Foram adicionados diagnostico inicial,
+    plano diario narrativo, assistente conversacional, caderno de erros, simulados, registro de motivo do erro, feedback pos-sessao
+    mais completo, teste gratis de 7 dias e novos valores dos planos.
+  </p>
+
+  <h3>13.1 Funcionalidades entregues</h3>
+  <ul>
+    <li><strong>Diagnostico inicial:</strong> nova pagina <code>/diagnostico</code> e API <code>/api/diagnostico</code>.</li>
+    <li><strong>Assistente IA:</strong> nova pagina <code>/assistente</code> e API conversacional <code>/api/assistente/conversa</code>.</li>
+    <li><strong>Caderno de erros:</strong> nova pagina <code>/caderno-erros</code> e API <code>/api/caderno-erros</code>.</li>
+    <li><strong>Simulados:</strong> nova pagina <code>/simulados</code> e API <code>/api/simulados</code>.</li>
+    <li><strong>Questoes:</strong> registro passou a aceitar motivo do erro, confianca e observacao.</li>
+    <li><strong>Minha Mesa:</strong> feedback pos-sessao passou a registrar foco, revisao amanha, questoes e duvida.</li>
+    <li><strong>Assistente:</strong> motor de decisao agora considera diagnostico, revisoes, questoes, erros, simulados, metodo e rebalanceamento.</li>
+    <li><strong>Rebalanceamento:</strong> assistente pode sugerir e aplicar ajuste recomendado no ciclo.</li>
+    <li><strong>Trial:</strong> home ganhou CTA de teste gratis por 7 dias em <code>/api/assinatura/trial</code>.</li>
+    <li><strong>Planos:</strong> mensal R$ 19,90; semestral R$ 17,90/mes; anual R$ 15,90/mes.</li>
+    <li><strong>Menu:</strong> pagina de Questoes passou a ter menu local proprio, mantendo o padrao visual das demais paginas com menus separados.</li>
+  </ul>
+
+  <h3>13.2 Scripts novos ou atualizados</h3>
+  <table>
+    <thead><tr><th>Script</th><th>Finalidade</th><th>Quando executar</th></tr></thead>
+    <tbody>
+      <tr><td><code>scripts/create-ia-orientadora-tables.sql</code></td><td>Cria diagnostico inicial, campos inteligentes em questoes e tabelas de simulados.</td><td>Obrigatorio para salvar diagnostico, motivos de erro e simulados.</td></tr>
+      <tr><td><code>scripts/create-questoes-table.sql</code></td><td>Cria/atualiza <code>questao_treino</code> com motivo do erro, confianca e observacao.</td><td>Obrigatorio para modulo de questoes.</td></tr>
+      <tr><td><code>scripts/create-assinaturas-table.sql</code></td><td>Cria assinatura com plano <code>SEMESTRAL</code>.</td><td>Obrigatorio para ambientes novos.</td></tr>
+      <tr><td><code>scripts/update-assinatura-planos-semestral.sql</code></td><td>Migra constraint antiga de <code>TRIMESTRAL</code> para <code>SEMESTRAL</code>.</td><td>Obrigatorio em bancos ja criados com a constraint antiga.</td></tr>
+      <tr><td><code>scripts/create-ajustes-plano-table.sql</code></td><td>Cria pausas e metas temporarias.</td><td>Obrigatorio para Agenda e ajustes de rotina.</td></tr>
+      <tr><td><code>scripts/create-sugestoes-table.sql</code></td><td>Cria sugestoes dos usuarios.</td><td>Obrigatorio para menu Sugestoes.</td></tr>
+      <tr><td><code>scripts/update-plano-metodo-constraint.sql</code></td><td>Libera os metodos de estudo no banco.</td><td>Obrigatorio para persistir metodos diferentes de AUTOMATICO.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>13.3 Script principal da IA orientadora</h3>
+  <p>
+    Execute o SQL abaixo, ou diretamente o arquivo <code>scripts/create-ia-orientadora-tables.sql</code>.
+  </p>
+  <pre>CREATE TABLE IF NOT EXISTS planejamento.diagnostico_inicial_usuario (
+  id_diagnostico BIGSERIAL PRIMARY KEY,
+  id_usuario BIGINT NOT NULL UNIQUE,
+  nivel_atual VARCHAR(30) NOT NULL,
+  dias_ate_prova INTEGER NULL,
+  estudou_edital_antes BOOLEAN NOT NULL DEFAULT false,
+  dificuldade_principal VARCHAR(40) NOT NULL,
+  preferencia_sessao VARCHAR(30) NOT NULL,
+  materias_temidas TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  objetivo TEXT NULL,
+  data_criacao TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  data_atualizacao TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT diagnostico_nivel_check CHECK (nivel_atual IN ('INICIANTE', 'INTERMEDIARIO', 'AVANCADO')),
+  CONSTRAINT diagnostico_dificuldade_check CHECK (dificuldade_principal IN ('CONSTANCIA', 'TEORIA', 'REVISAO', 'QUESTOES', 'TEMPO')),
+  CONSTRAINT diagnostico_sessao_check CHECK (preferencia_sessao IN ('CURTA', 'MEDIA', 'LONGA'))
+);
+
+ALTER TABLE planejamento.questao_treino
+  ADD COLUMN IF NOT EXISTS motivo_erro VARCHAR(40) NULL,
+  ADD COLUMN IF NOT EXISTS confianca VARCHAR(30) NULL,
+  ADD COLUMN IF NOT EXISTS observacao TEXT NULL;
+
+CREATE TABLE IF NOT EXISTS planejamento.simulado (
+  id_simulado BIGSERIAL PRIMARY KEY,
+  id_usuario BIGINT NOT NULL,
+  titulo VARCHAR(160) NOT NULL,
+  data_realizacao DATE NOT NULL DEFAULT CURRENT_DATE,
+  total_questoes INTEGER NOT NULL,
+  total_acertos INTEGER NOT NULL,
+  percentual NUMERIC(5,2) NOT NULL,
+  observacao TEXT NULL,
+  data_criacao TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT simulado_total_check CHECK (total_questoes &gt; 0),
+  CONSTRAINT simulado_acertos_check CHECK (total_acertos &gt;= 0 AND total_acertos &lt;= total_questoes)
+);
+
+CREATE TABLE IF NOT EXISTS planejamento.simulado_disciplina (
+  id_simulado_disciplina BIGSERIAL PRIMARY KEY,
+  id_simulado BIGINT NOT NULL REFERENCES planejamento.simulado(id_simulado) ON DELETE CASCADE,
+  id_disciplina INTEGER NOT NULL,
+  total_questoes INTEGER NOT NULL,
+  total_acertos INTEGER NOT NULL,
+  percentual NUMERIC(5,2) NOT NULL,
+  CONSTRAINT simulado_disc_total_check CHECK (total_questoes &gt; 0),
+  CONSTRAINT simulado_disc_acertos_check CHECK (total_acertos &gt;= 0 AND total_acertos &lt;= total_questoes)
+);
+
+CREATE INDEX IF NOT EXISTS idx_diagnostico_inicial_usuario
+  ON planejamento.diagnostico_inicial_usuario (id_usuario);
+
+CREATE INDEX IF NOT EXISTS idx_questao_treino_motivo
+  ON planejamento.questao_treino (id_usuario, motivo_erro);
+
+CREATE INDEX IF NOT EXISTS idx_simulado_usuario_data
+  ON planejamento.simulado (id_usuario, data_realizacao DESC);
+
+CREATE INDEX IF NOT EXISTS idx_simulado_disciplina
+  ON planejamento.simulado_disciplina (id_disciplina, percentual);</pre>
+
+  <h3>13.4 Atualizacao da tabela de questoes</h3>
+  <p>
+    Para bancos que ja possuem <code>planejamento.questao_treino</code>, os campos abaixo sao necessarios para o caderno de erros inteligente.
+  </p>
+  <pre>ALTER TABLE planejamento.questao_treino
+  ADD COLUMN IF NOT EXISTS motivo_erro VARCHAR(40) NULL,
+  ADD COLUMN IF NOT EXISTS confianca VARCHAR(30) NULL,
+  ADD COLUMN IF NOT EXISTS observacao TEXT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_questao_treino_motivo
+  ON planejamento.questao_treino (id_usuario, motivo_erro);</pre>
+
+  <h3>13.5 Atualizacao dos planos de assinatura</h3>
+  <p>
+    Bancos novos devem usar <code>scripts/create-assinaturas-table.sql</code>. Bancos ja existentes devem executar o script de migracao abaixo.
+  </p>
+  <pre>UPDATE planejamento.assinatura_usuario
+SET plano = 'SEMESTRAL'
+WHERE plano = 'TRIMESTRAL';
+
+ALTER TABLE planejamento.assinatura_usuario
+DROP CONSTRAINT IF EXISTS assinatura_plano_check;
+
+ALTER TABLE planejamento.assinatura_usuario
+ADD CONSTRAINT assinatura_plano_check
+CHECK (plano IN ('MENSAL', 'SEMESTRAL', 'ANUAL'));</pre>
+
+  <h3>13.6 Campo qualidade e novos sinais pos-sessao</h3>
+  <p>
+    O campo <code>qualidade</code> deve existir em <code>planejamento.sessao_estudo</code>. Ele guarda sinais compactos do feedback pos-sessao.
+    Exemplo: <code>DIFICIL_P_F2_RQD</code> indica dificuldade, cobertura parcial, foco 2, revisar amanha, gerar questoes e marcar duvida.
+  </p>
+  <pre>ALTER TABLE planejamento.sessao_estudo
+  ADD COLUMN IF NOT EXISTS qualidade VARCHAR(20);
+
+COMMENT ON COLUMN planejamento.sessao_estudo.qualidade IS
+  'Feedback pos-sessao: entendimento, cobertura, foco, revisao, questoes e duvida.';</pre>
+
+  <h3>13.7 Ordem atual recomendada para preparar o banco</h3>
+  <ol>
+    <li>Executar <code>scripts/create-questoes-table.sql</code>.</li>
+    <li>Executar <code>scripts/create-ia-orientadora-tables.sql</code>.</li>
+    <li>Executar <code>scripts/create-ajustes-plano-table.sql</code>.</li>
+    <li>Executar <code>scripts/create-assinaturas-table.sql</code> em bancos novos ou <code>scripts/update-assinatura-planos-semestral.sql</code> em bancos existentes.</li>
+    <li>Executar <code>scripts/create-sugestoes-table.sql</code>.</li>
+    <li>Executar <code>scripts/update-plano-metodo-constraint.sql</code>.</li>
+    <li>Conferir <code>id_ciclo_disciplina</code>, <code>qualidade</code> e constraint de status em <code>planejamento.sessao_estudo</code>.</li>
+    <li>Rodar os testes de fluxo: cadastro/trial, diagnostico, ciclo, Minha Mesa, questoes, caderno de erros, simulados, assistente e assinatura.</li>
+  </ol>
+
+  <div class="note ok">
+    <strong>Validacao tecnica de 10/05/2026:</strong> <code>npm run lint</code> e <code>npm run build</code> foram executados com sucesso durante a entrega.
+  </div>
 </body>
 </html>

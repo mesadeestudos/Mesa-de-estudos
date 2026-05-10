@@ -62,8 +62,8 @@ export default function HomePage() {
                   Começar Jornada
                 </button>
               </Link>
-              <Link href="/tutoriais" className="px-8 py-3.5 bg-white border border-slate-200 text-center text-slate-600 rounded-2xl text-sm font-bold tracking-wide hover:bg-slate-50 active:scale-[0.98] transition-all">
-                Ver tutoriais
+              <Link href="/api/assinatura/trial" className="px-8 py-3.5 bg-white border border-slate-200 text-center text-slate-600 rounded-2xl text-sm font-bold tracking-wide hover:bg-slate-50 active:scale-[0.98] transition-all">
+                Testar grátis por 7 dias
               </Link>
             </div>
           </div>

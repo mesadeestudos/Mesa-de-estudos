@@ -8,7 +8,7 @@ function PaymentContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const planoNome = searchParams.get('plano') || 'Plano Premium';
-  const planoValor = searchParams.get('valor') || '39';
+  const planoValor = searchParams.get('valor') || '19,90';
   const [method, setMethod] = useState<'card' | 'pix'>('card');
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -107,7 +107,7 @@ function PaymentContent() {
           <h2 className="mt-2 text-3xl font-black">{planoNome}</h2>
           <div className="mt-8 border-t border-white/10 pt-8">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total</p>
-            <p className="mt-2 text-5xl font-black">R$ {planoValor},00</p>
+            <p className="mt-2 text-5xl font-black">R$ {planoValor}</p>
           </div>
           <p className="mt-6 rounded-2xl bg-white/5 p-4 text-xs font-semibold text-slate-300">
             A integração está pronta para receber um gateway real via webhook. Em desenvolvimento, o pagamento é aprovado em modo mock.

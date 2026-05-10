@@ -22,6 +22,9 @@ export async function POST(req: Request) {
       idTopico?: number | null;
       total?: number;
       acertos?: number;
+      motivoErro?: string | null;
+      confianca?: string | null;
+      observacao?: string | null;
     };
 
     if (!body.idDisciplina || !body.total || body.acertos === undefined) {
@@ -33,6 +36,9 @@ export async function POST(req: Request) {
       idTopico: body.idTopico ?? null,
       total: body.total,
       acertos: body.acertos,
+      motivoErro: body.motivoErro ?? null,
+      confianca: body.confianca ?? null,
+      observacao: body.observacao ?? null,
     });
 
     return NextResponse.json(resultado, { status: 201 });
@@ -52,6 +58,9 @@ export async function PUT(req: Request) {
       idTopico?: number | null;
       total?: number;
       acertos?: number;
+      motivoErro?: string | null;
+      confianca?: string | null;
+      observacao?: string | null;
     };
 
     if (!body.id || !body.idDisciplina || !body.total || body.acertos === undefined) {
@@ -64,6 +73,9 @@ export async function PUT(req: Request) {
       idTopico: body.idTopico ?? null,
       total: body.total,
       acertos: body.acertos,
+      motivoErro: body.motivoErro ?? null,
+      confianca: body.confianca ?? null,
+      observacao: body.observacao ?? null,
     });
 
     return NextResponse.json(resultado);

@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS planejamento.assinatura_usuario (
   data_criacao TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   data_atualizacao TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT assinatura_status_check CHECK (status IN ('ACTIVE', 'TRIALING', 'PAST_DUE', 'CANCELED', 'PENDING')),
-  CONSTRAINT assinatura_plano_check CHECK (plano IN ('MENSAL', 'TRIMESTRAL', 'ANUAL'))
+  CONSTRAINT assinatura_plano_check CHECK (plano IN ('MENSAL', 'SEMESTRAL', 'ANUAL'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_assinatura_usuario_status

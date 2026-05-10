@@ -9,7 +9,8 @@ interface OnboardingStatus {
   temCiclo: boolean;
   ciclo: { hojeSlots?: Array<{ nome: string; minutosAlocados: number }> } | null;
   assistente: { titulo: string; mensagem: string; destino: string };
-  passos: { assinatura: boolean; ciclo: boolean; primeiraSessao: boolean };
+  diagnostico: { completo: boolean; estrategia: string };
+  passos: { assinatura: boolean; diagnostico: boolean; ciclo: boolean; primeiraSessao: boolean };
 }
 
 export default function OnboardingPage() {
@@ -41,7 +42,9 @@ export default function OnboardingPage() {
 
   const proximaRota = !dados?.passos.assinatura
     ? '/assinatura'
-    : !dados.passos.ciclo
+    : !dados.passos.diagnostico
+      ? '/diagnostico'
+      : !dados.passos.ciclo
       ? '/ciclos'
       : '/minha-mesa';
 
@@ -70,6 +73,14 @@ export default function OnboardingPage() {
                 done={dados.passos.assinatura}
                 action={() => router.push('/assinatura')}
                 actionLabel="Ver planos"
+              />
+              <StepCard
+                icon={<BookOpen size={18} />}
+                title="Diagnóstico inicial"
+                detail={dados.passos.diagnostico ? dados.diagnostico.estrategia : 'Conte seu nível, prazo e maior dificuldade.'}
+                done={dados.passos.diagnostico}
+                action={() => router.push('/diagnostico')}
+                actionLabel="Responder"
               />
               <StepCard
                 icon={<BookOpen size={18} />}

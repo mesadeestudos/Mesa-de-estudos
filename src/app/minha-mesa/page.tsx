@@ -6,6 +6,7 @@ import {
   Bell, Settings, User, LayoutDashboard, BookOpen, RefreshCw,
   LineChart, Calendar, LogOut, Menu, CheckCircle2, Clock, Target,
   ChevronRight, AlertCircle, Play, Pause, ClipboardCheck, CalendarDays, Lightbulb,
+  NotebookTabs, FileCheck2, MessageCircle,
 } from 'lucide-react';
 
 interface HojeSlot {
@@ -36,6 +37,9 @@ interface AssistenteEstudo {
   titulo: string;
   mensagem: string;
   destino: string;
+  acaoPrimaria?: string;
+  narrativa?: string;
+  etapaPedagogica?: string;
   prioridadeScore?: number;
   explicacao?: {
     principal: string;
@@ -82,6 +86,10 @@ export default function MinhaMesaPage() {
   const [segundosRestantes, setSegundosRestantes] = useState(60 * 60);
   const [qualidadeSessao, setQualidadeSessao] = useState<'FACIL' | 'MEDIO' | 'DIFICIL' | 'NAO_ENTENDI'>('MEDIO');
   const [cobriuTopicos, setCobriuTopicos] = useState(true);
+  const [nivelFoco, setNivelFoco] = useState(3);
+  const [precisaRevisarAmanha, setPrecisaRevisarAmanha] = useState(false);
+  const [querQuestoes, setQuerQuestoes] = useState(false);
+  const [marcarDuvida, setMarcarDuvida] = useState(false);
   const [metaDia, setMetaDia] = useState({
     sessoesConcluidas: 0,
     revisoesPendentes: 0,
@@ -146,7 +154,7 @@ export default function MinhaMesaPage() {
       const res = await fetch('/api/ciclos', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(acao ? { acao } : { qualidade: `${qualidadeSessao}_${cobriuTopicos ? 'COBRIU' : 'PARCIAL'}` }),
+        body: JSON.stringify(acao ? { acao } : { qualidade: `${qualidadeSessao}_${cobriuTopicos ? 'C' : 'P'}_F${nivelFoco}_${precisaRevisarAmanha ? 'R' : 'N'}${querQuestoes ? 'Q' : 'N'}${marcarDuvida ? 'D' : 'N'}` }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Não foi possível avançar o ciclo.');
@@ -157,7 +165,7 @@ export default function MinhaMesaPage() {
       setConcluindo(false);
       setAcaoSecundaria(null);
     }
-  }, [carregarCiclo, qualidadeSessao, cobriuTopicos]);
+  }, [carregarCiclo, qualidadeSessao, cobriuTopicos, nivelFoco, precisaRevisarAmanha, querQuestoes, marcarDuvida]);
 
   const concluirSessao = useCallback(() => executarAcaoCiclo(), [executarAcaoCiclo]);
 
@@ -166,6 +174,10 @@ export default function MinhaMesaPage() {
     setSegundosRestantes(totalSegundosSessao);
     setQualidadeSessao('MEDIO');
     setCobriuTopicos(true);
+    setNivelFoco(3);
+    setPrecisaRevisarAmanha(false);
+    setQuerQuestoes(false);
+    setMarcarDuvida(false);
   }, [chaveSessaoAtual, totalSegundosSessao]);
 
   useEffect(() => {
@@ -205,6 +217,9 @@ export default function MinhaMesaPage() {
               <MenuItem icon={<BookOpen size={18} />} label="Minha Mesa" active onClick={() => setSidebarAberta(false)} />
               <MenuItem icon={<RefreshCw size={18} />} label="Ciclos de estudo" active={false} onClick={() => router.push('/ciclos')} />
               <MenuItem icon={<ClipboardCheck size={18} />} label="Questões" active={false} onClick={() => router.push('/questoes')} />
+              <MenuItem icon={<NotebookTabs size={18} />} label="Caderno de erros" active={false} onClick={() => router.push('/caderno-erros')} />
+              <MenuItem icon={<FileCheck2 size={18} />} label="Simulados" active={false} onClick={() => router.push('/simulados')} />
+              <MenuItem icon={<MessageCircle size={18} />} label="Assistente IA" active={false} onClick={() => router.push('/assistente')} />
               <MenuItem icon={<CalendarDays size={18} />} label="Agenda" active={false} onClick={() => router.push('/agenda')} />
               <MenuItem icon={<LineChart size={18} />} label="Desempenho" active={false} onClick={() => router.push('/desempenho')} />
               <MenuItem icon={<Calendar size={18} />} label="Revisões" active={false} onClick={() => router.push('/revisoes')} />
@@ -260,9 +275,9 @@ export default function MinhaMesaPage() {
                 <section className="col-span-12 rounded-[28px] border border-emerald-100 bg-white/85 p-4 shadow-xl shadow-slate-200/60 backdrop-blur-xl">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
-                      <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-600">Assistente de estudo</p>
+                      <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-600">{assistente.etapaPedagogica ?? 'Assistente de estudo'}</p>
                       <h2 className="mt-1 truncate text-lg font-black text-slate-800">{assistente.titulo}</h2>
-                      <p className="mt-1 text-sm font-semibold text-slate-500">{assistente.mensagem}</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-500">{assistente.narrativa ?? assistente.mensagem}</p>
                       {assistente.explicacao && (
                         <div className="mt-3 grid gap-2 lg:grid-cols-2">
                           <p className="rounded-2xl border border-emerald-100 bg-emerald-50/80 px-3 py-2 text-xs font-bold text-slate-700">
@@ -279,7 +294,7 @@ export default function MinhaMesaPage() {
                         {assistente.tipo}{assistente.prioridadeScore ? ` · ${assistente.prioridadeScore}` : ''}
                       </span>
                       <button onClick={() => router.push(assistente.destino)} className="flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2.5 text-xs font-black text-white transition-all hover:bg-emerald-600">
-                        Fazer agora <ChevronRight size={14} />
+                        {assistente.acaoPrimaria ?? 'Fazer agora'} <ChevronRight size={14} />
                       </button>
                     </div>
                   </div>
@@ -393,6 +408,18 @@ export default function MinhaMesaPage() {
                       >
                         Faltou parte
                       </button>
+                    </div>
+                    <div className="mt-3 rounded-2xl bg-white/10 px-3 py-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs font-black text-sky-50">Foco</span>
+                        <span className="text-xs font-black text-emerald-200">{nivelFoco}/5</span>
+                      </div>
+                      <input type="range" min={1} max={5} value={nivelFoco} onChange={e => setNivelFoco(Number(e.target.value))} className="mt-2 w-full" />
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 gap-2">
+                      <Toggle checked={precisaRevisarAmanha} onClick={() => setPrecisaRevisarAmanha(v => !v)} label="Preciso revisar amanhã" />
+                      <Toggle checked={querQuestoes} onClick={() => setQuerQuestoes(v => !v)} label="Quero gerar questões desse tema" />
+                      <Toggle checked={marcarDuvida} onClick={() => setMarcarDuvida(v => !v)} label="Marcar dúvida para corrigir depois" />
                     </div>
                     <p className="mt-3 text-xs font-semibold text-sky-100/70">Esse retorno alimenta o histórico da disciplina e deixa o assistente mais preciso.</p>
                   </div>
@@ -521,6 +548,21 @@ function MiniStat({ icon, label, value }: { icon: React.ReactNode; label: string
       <p className="mt-2 text-xl font-black text-slate-800">{value}</p>
       <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
     </div>
+  );
+}
+
+function Toggle({ checked, onClick, label }: { checked: boolean; onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center justify-between rounded-2xl px-3 py-2 text-left text-xs font-black transition-all ${checked ? 'bg-emerald-300 text-slate-950' : 'bg-white/10 text-sky-50 hover:bg-white/15'}`}
+    >
+      {label}
+      <span className={`h-4 w-7 rounded-full ${checked ? 'bg-slate-950/20' : 'bg-white/20'}`}>
+        <span className={`block h-4 w-4 rounded-full bg-white transition-transform ${checked ? 'translate-x-3' : ''}`} />
+      </span>
+    </button>
   );
 }
 

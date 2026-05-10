@@ -22,6 +22,8 @@ export async function POST(req: Request) {
         checkoutId: checkout.checkoutId,
         valorCentavos: checkout.valorCentavos,
         provider: process.env.PAYMENT_PROVIDER ?? 'MOCK',
+        status: checkout.valorCentavos === 0 ? 'TRIALING' : 'ACTIVE',
+        dias: checkout.valorCentavos === 0 ? 7 : undefined,
       });
     }
 

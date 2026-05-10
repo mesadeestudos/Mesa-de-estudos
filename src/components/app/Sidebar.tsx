@@ -6,10 +6,13 @@ import {
   Calendar,
   CalendarDays,
   ClipboardCheck,
+  FileCheck2,
   LayoutDashboard,
   Lightbulb,
   LineChart,
   LogOut,
+  MessageCircle,
+  NotebookTabs,
   RefreshCw,
   Settings,
   User,
@@ -21,6 +24,9 @@ export type AppSection =
   | 'minha-mesa'
   | 'ciclos'
   | 'questoes'
+  | 'caderno-erros'
+  | 'simulados'
+  | 'assistente'
   | 'agenda'
   | 'desempenho'
   | 'revisoes'
@@ -40,6 +46,9 @@ const NAV_ITEMS = [
   { id: 'minha-mesa', label: 'Minha Mesa', href: '/minha-mesa', icon: BookOpen },
   { id: 'ciclos', label: 'Ciclos de estudo', href: '/ciclos', icon: RefreshCw },
   { id: 'questoes', label: 'Questões', href: '/questoes', icon: ClipboardCheck },
+  { id: 'caderno-erros', label: 'Caderno de erros', href: '/caderno-erros', icon: NotebookTabs },
+  { id: 'simulados', label: 'Simulados', href: '/simulados', icon: FileCheck2 },
+  { id: 'assistente', label: 'Assistente IA', href: '/assistente', icon: MessageCircle },
   { id: 'agenda', label: 'Agenda', href: '/agenda', icon: CalendarDays },
   { id: 'desempenho', label: 'Desempenho', href: '/desempenho', icon: LineChart },
   { id: 'revisoes', label: 'Revisões', href: '/revisoes', icon: Calendar },
