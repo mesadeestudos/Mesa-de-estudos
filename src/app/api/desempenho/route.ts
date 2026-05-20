@@ -107,8 +107,7 @@ export async function GET() {
           ON tp.id_topico = t.id_topico
          AND tp.id_usuario = ${idUsuario}
         LEFT JOIN sessoes_topico st ON st.id_topico = t.id_topico
-        ORDER BY COALESCE(st.minutos, 0) DESC, d.nome ASC, t.ordem ASC NULLS LAST, t.id_topico ASC
-        LIMIT 120
+        ORDER BY d.nome ASC, t.ordem ASC NULLS LAST, t.id_topico ASC
       `,
     ]);
 

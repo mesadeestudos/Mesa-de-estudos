@@ -5,8 +5,11 @@ import { useRouter } from 'next/navigation';
 import {
   BarChart3, BookOpen, Calendar, Clock, LayoutDashboard, LineChart,
   LogOut, Menu, RefreshCw, Settings, Target, TrendingUp, User,
-  ClipboardCheck, CalendarDays, Flame, ChevronRight,
+  ClipboardCheck, CalendarDays, Flame, ChevronRight, ChevronDown, Search,
 } from 'lucide-react';
+
+type TopicoStatus = 'CONCLUIDO' | 'EM_ANDAMENTO' | 'PENDENTE';
+type FiltroTopico = 'TODOS' | TopicoStatus | 'MAIS_TEMPO' | 'NUNCA_ESTUDADOS';
 
 interface DesempenhoData {
   resumo: {
@@ -90,6 +93,10 @@ export default function DesempenhoPage() {
   const [dados, setDados] = useState<DesempenhoData | null>(null);
   const [questoes, setQuestoes] = useState<QuestoesData | null>(null);
   const [topicoAtualizando, setTopicoAtualizando] = useState<number | null>(null);
+  const [buscaTopico, setBuscaTopico] = useState('');
+  const [filtroTopico, setFiltroTopico] = useState<FiltroTopico>('TODOS');
+  const [disciplinaAberta, setDisciplinaAberta] = useState<number | null>(null);
+  const [paginasTopicos, setPaginasTopicos] = useState<Record<number, number>>({});
 
   const carregarDados = useCallback(() => {
     setErro('');
@@ -112,6 +119,10 @@ export default function DesempenhoPage() {
     carregarDados();
   }, [carregarDados]);
 
+  useEffect(() => {
+    setPaginasTopicos({});
+  }, [buscaTopico, filtroTopico]);
+
   const maiorMinutoSemana = useMemo(() => Math.max(1, ...(dados?.semana.map(dia => dia.minutos) ?? [1])), [dados]);
   const disciplinasCriticas = useMemo(() => [...(dados?.disciplinas ?? [])].sort((a, b) => a.percentual - b.percentual).slice(0, 4), [dados]);
   const tendenciaTexto = {
@@ -119,6 +130,67 @@ export default function DesempenhoPage() {
     CAINDO: 'Ritmo caindo',
     ESTAVEL: 'Ritmo estável',
   }[dados?.inteligencia.tendencia ?? 'ESTAVEL'];
+  const mapaEdital = useMemo(() => {
+    const normalizar = (valor: string) => valor.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const busca = normalizar(buscaTopico.trim());
+    const grupos = new Map<number, {
+      idDisciplina: number;
+      disciplina: string;
+      total: number;
+      concluidos: number;
+      emAndamento: number;
+      pendentes: number;
+      nuncaEstudados: number;
+      minutos: number;
+      sessoes: number;
+      topicos: DesempenhoData['topicos'];
+    }>();
+
+    for (const topico of dados?.topicos ?? []) {
+      const grupo = grupos.get(topico.idDisciplina) ?? {
+        idDisciplina: topico.idDisciplina,
+        disciplina: topico.disciplina,
+        total: 0,
+        concluidos: 0,
+        emAndamento: 0,
+        pendentes: 0,
+        nuncaEstudados: 0,
+        minutos: 0,
+        sessoes: 0,
+        topicos: [],
+      };
+      grupo.total += 1;
+      grupo.concluidos += topico.status === 'CONCLUIDO' ? 1 : 0;
+      grupo.emAndamento += topico.status === 'EM_ANDAMENTO' ? 1 : 0;
+      grupo.pendentes += topico.status !== 'CONCLUIDO' ? 1 : 0;
+      grupo.nuncaEstudados += topico.sessoes === 0 ? 1 : 0;
+      grupo.minutos += topico.minutos;
+      grupo.sessoes += topico.sessoes;
+
+      const passaBusca = !busca || normalizar(`${topico.disciplina} ${topico.topico}`).includes(busca);
+      const passaFiltro =
+        filtroTopico === 'TODOS'
+        || topico.status === filtroTopico
+        || (filtroTopico === 'NUNCA_ESTUDADOS' && topico.sessoes === 0)
+        || filtroTopico === 'MAIS_TEMPO';
+
+      if (passaBusca && passaFiltro) {
+        grupo.topicos.push(topico);
+      }
+      grupos.set(topico.idDisciplina, grupo);
+    }
+
+    return [...grupos.values()]
+      .map(grupo => ({
+        ...grupo,
+        percentual: grupo.total > 0 ? Math.round((grupo.concluidos / grupo.total) * 100) : 0,
+        topicos: filtroTopico === 'MAIS_TEMPO'
+          ? [...grupo.topicos].sort((a, b) => b.minutos - a.minutos || a.topico.localeCompare(b.topico))
+          : grupo.topicos,
+      }))
+      .filter(grupo => grupo.topicos.length > 0 || (!busca && filtroTopico === 'TODOS'))
+      .sort((a, b) => a.percentual - b.percentual || a.disciplina.localeCompare(b.disciplina));
+  }, [dados?.topicos, buscaTopico, filtroTopico]);
 
   const handleLogout = async () => {
     await fetch('/api/logout', { method: 'POST' }).catch(() => null);
@@ -267,35 +339,110 @@ export default function DesempenhoPage() {
               </section>
 
               <section className="col-span-12 rounded-[32px] border border-white/70 bg-white/80 p-5 shadow-xl shadow-slate-200/60 backdrop-blur-xl">
-                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Desempenho por tópico</p>
-                <h2 className="mt-1 text-xl font-black text-slate-800">Tempo, status e avanço do edital</h2>
-                <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {dados.topicos.length === 0 ? <p className="text-sm font-semibold text-slate-500">Os tópicos do ciclo ativo aparecerão aqui.</p> : dados.topicos.map((item) => (
-                    <div key={item.idTopico} className="rounded-2xl border border-slate-100 bg-white/80 p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-black text-slate-800">{item.disciplina}</p>
-                          <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                            {item.status === 'CONCLUIDO' ? 'Concluído' : item.status === 'EM_ANDAMENTO' ? 'Em andamento' : 'Pendente'}
-                          </p>
-                        </div>
-                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${item.concluido ? 'bg-emerald-50 text-emerald-700' : item.sessoes > 0 ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-500'}`}>
-                          {item.minutos} min
-                        </span>
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Mapa do edital</p>
+                    <h2 className="mt-1 text-xl font-black text-slate-800">Tópicos por disciplina</h2>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <label className="relative block">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                      <input
+                        value={buscaTopico}
+                        onChange={(event) => setBuscaTopico(event.target.value)}
+                        placeholder="Buscar tópico"
+                        className="h-10 w-full rounded-2xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-bold text-slate-700 outline-none transition-all focus:border-sky-300 focus:ring-4 focus:ring-sky-100 sm:w-72"
+                      />
+                    </label>
+                    <select
+                      value={filtroTopico}
+                      onChange={(event) => setFiltroTopico(event.target.value as FiltroTopico)}
+                      className="h-10 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 outline-none transition-all focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
+                    >
+                      <option value="TODOS">Todos</option>
+                      <option value="PENDENTE">Pendentes</option>
+                      <option value="EM_ANDAMENTO">Em andamento</option>
+                      <option value="CONCLUIDO">Concluídos</option>
+                      <option value="MAIS_TEMPO">Mais tempo</option>
+                      <option value="NUNCA_ESTUDADOS">Nunca estudados</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  {mapaEdital.length === 0 ? (
+                    <p className="text-sm font-semibold text-slate-500">Nenhum tópico encontrado.</p>
+                  ) : mapaEdital.map((grupo) => {
+                    const aberto = disciplinaAberta === grupo.idDisciplina;
+                    const pagina = paginasTopicos[grupo.idDisciplina] ?? 1;
+                    const limite = pagina * 30;
+                    const topicosVisiveis = grupo.topicos.slice(0, limite);
+                    return (
+                      <div key={grupo.idDisciplina} className="overflow-hidden rounded-2xl border border-slate-100 bg-white/85">
+                        <button
+                          type="button"
+                          onClick={() => setDisciplinaAberta(aberto ? null : grupo.idDisciplina)}
+                          className="flex w-full flex-col gap-3 px-4 py-4 text-left transition-all hover:bg-slate-50/80 lg:flex-row lg:items-center lg:justify-between"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <ChevronDown className={`shrink-0 text-slate-400 transition-transform ${aberto ? 'rotate-180' : ''}`} size={18} />
+                              <p className="truncate text-sm font-black text-slate-800">{grupo.disciplina}</p>
+                            </div>
+                            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                              <div className="h-full rounded-full bg-linear-to-r from-sky-500 to-emerald-300" style={{ width: `${Math.min(100, grupo.percentual)}%` }} />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-xs font-black text-slate-600 sm:grid-cols-4 lg:w-[520px]">
+                            <span className="rounded-xl bg-emerald-50 px-3 py-2 text-emerald-700">{grupo.concluidos}/{grupo.total} concluídos</span>
+                            <span className="rounded-xl bg-sky-50 px-3 py-2 text-sky-700">{grupo.emAndamento} em andamento</span>
+                            <span className="rounded-xl bg-amber-50 px-3 py-2 text-amber-700">{grupo.pendentes} pendentes</span>
+                            <span className="rounded-xl bg-slate-100 px-3 py-2 text-slate-600">{Math.round(grupo.minutos / 60)}h</span>
+                          </div>
+                        </button>
+
+                        {aberto && (
+                          <div className="border-t border-slate-100">
+                            <div className="hidden grid-cols-[88px_minmax(0,1fr)_96px_88px_116px_120px] gap-3 bg-slate-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 lg:grid">
+                              <span>Status</span>
+                              <span>Tópico</span>
+                              <span>Tempo</span>
+                              <span>Sessões</span>
+                              <span>Último estudo</span>
+                              <span>Ação</span>
+                            </div>
+                            <div className="divide-y divide-slate-100">
+                              {topicosVisiveis.map((item) => (
+                                <div key={item.idTopico} className="grid gap-2 px-4 py-3 text-sm lg:grid-cols-[88px_minmax(0,1fr)_96px_88px_116px_120px] lg:items-center lg:gap-3">
+                                  <StatusPill status={item.status} />
+                                  <p className="min-w-0 text-sm font-bold leading-relaxed text-slate-700">{item.topico}</p>
+                                  <p className="text-xs font-black text-slate-600">{item.minutos} min</p>
+                                  <p className="text-xs font-black text-slate-600">{item.sessoes}</p>
+                                  <p className="text-xs font-black text-slate-500">{item.ultimoEstudo ? new Date(item.ultimoEstudo).toLocaleDateString('pt-BR') : '-'}</p>
+                                  <button
+                                    onClick={() => marcarTopico(item.idTopico, !item.concluido)}
+                                    disabled={topicoAtualizando === item.idTopico}
+                                    className={`rounded-xl px-3 py-2 text-[11px] font-black transition-all disabled:opacity-60 ${item.concluido ? 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50' : 'bg-emerald-500 text-white hover:bg-emerald-600'}`}
+                                  >
+                                    {topicoAtualizando === item.idTopico ? 'Atualizando...' : item.concluido ? 'Reabrir' : 'Concluir'}
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                            {grupo.topicos.length > limite && (
+                              <button
+                                type="button"
+                                onClick={() => setPaginasTopicos((atual) => ({ ...atual, [grupo.idDisciplina]: pagina + 1 }))}
+                                className="w-full border-t border-slate-100 bg-slate-50/70 px-4 py-3 text-xs font-black text-sky-700 transition-all hover:bg-sky-50"
+                              >
+                                Carregar mais {Math.min(30, grupo.topicos.length - limite)}
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <p className="mt-1 line-clamp-2 text-xs font-semibold text-slate-500">{item.topico}</p>
-                      <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-sky-600">
-                        {item.sessoes} sessão{item.sessoes === 1 ? '' : 'ões'}{item.ultimoEstudo ? ` | último estudo ${new Date(item.ultimoEstudo).toLocaleDateString('pt-BR')}` : ''}
-                      </p>
-                      <button
-                        onClick={() => marcarTopico(item.idTopico, !item.concluido)}
-                        disabled={topicoAtualizando === item.idTopico}
-                        className={`mt-3 w-full rounded-xl px-3 py-2 text-[11px] font-black transition-all disabled:opacity-60 ${item.concluido ? 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50' : 'bg-emerald-500 text-white hover:bg-emerald-600'}`}
-                      >
-                        {topicoAtualizando === item.idTopico ? 'Atualizando...' : item.concluido ? 'Reabrir tópico' : 'Concluir tópico'}
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
 
@@ -359,6 +506,16 @@ function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; 
 
 function ProgressRow({ nome, percentual, detalhe, dark = false }: { nome: string; percentual: number; detalhe: string; dark?: boolean }) {
   return <div><div className="mb-2 flex items-center justify-between gap-3"><div className="min-w-0"><p className={`truncate text-sm font-black ${dark ? 'text-white' : 'text-slate-800'}`}>{nome}</p><p className={`text-xs font-semibold ${dark ? 'text-slate-300' : 'text-slate-400'}`}>{detalhe}</p></div><span className={`text-sm font-black ${dark ? 'text-emerald-300' : 'text-sky-600'}`}>{percentual}%</span></div><div className={`h-2 overflow-hidden rounded-full ${dark ? 'bg-white/15' : 'bg-slate-100'}`}><div className="h-full rounded-full bg-linear-to-r from-sky-500 to-emerald-300" style={{ width: `${Math.min(100, percentual)}%` }} /></div></div>;
+}
+
+function StatusPill({ status }: { status: TopicoStatus }) {
+  const config = {
+    CONCLUIDO: 'bg-emerald-50 text-emerald-700',
+    EM_ANDAMENTO: 'bg-sky-50 text-sky-700',
+    PENDENTE: 'bg-slate-100 text-slate-600',
+  }[status];
+  const label = status === 'CONCLUIDO' ? 'Concluído' : status === 'EM_ANDAMENTO' ? 'Andamento' : 'Pendente';
+  return <span className={`w-fit rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${config}`}>{label}</span>;
 }
 
 function EmptyState({ icon, title }: { icon: React.ReactNode; title: string }) {
