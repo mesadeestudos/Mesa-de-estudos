@@ -43,6 +43,45 @@ const normalizarNivelParaDificuldade = (nivel?: string | null) => {
 };
 
 interface AccuracyRow { id_disciplina: number; total: bigint; acertos: bigint; }
+interface TempoTopicoRow { id_topico: bigint; minutos: bigint | number | null; sessoes: bigint | number; }
+
+async function recalcularProgressoDisciplina(
+  tx: Prisma.TransactionClient,
+  idUsuario: bigint,
+  idDisciplina: number,
+) {
+  const [totalTopicos, topicosConcluidos] = await Promise.all([
+    tx.topico.count({ where: { id_disciplina: idDisciplina } }),
+    tx.topico_progresso.count({
+      where: {
+        id_usuario: idUsuario,
+        concluido: true,
+        topico: { id_disciplina: idDisciplina },
+      },
+    }),
+  ]);
+
+  await tx.disciplina_progresso.upsert({
+    where: {
+      id_usuario_id_disciplina: {
+        id_usuario: idUsuario,
+        id_disciplina: idDisciplina,
+      },
+    },
+    update: {
+      total_topicos: totalTopicos,
+      topicos_concluidos: topicosConcluidos,
+      concluida: totalTopicos > 0 && topicosConcluidos >= totalTopicos,
+    },
+    create: {
+      id_usuario: idUsuario,
+      id_disciplina: idDisciplina,
+      total_topicos: totalTopicos,
+      topicos_concluidos: topicosConcluidos,
+      concluida: totalTopicos > 0 && topicosConcluidos >= totalTopicos,
+    },
+  });
+}
 
 async function calcularFatoresDesempenho(idUsuario: bigint, idsDisciplinas: number[]) {
   if (idsDisciplinas.length === 0) return new Map<number, number>();
@@ -254,13 +293,54 @@ export async function buscarCicloService(idUsuario: bigint) {
       select: { id_topico: true, id_disciplina: true, descricao: true, ordem: true },
     }),
   ]);
+  const idsTopicosSugeridos = topicosSugeridosBase.map(topico => topico.id_topico);
+  const [temposTopicos, progressosTopicos] = idsTopicosSugeridos.length > 0
+    ? await Promise.all([
+      prisma.$queryRaw<TempoTopicoRow[]>`
+        SELECT
+          id_topico,
+          COALESCE(SUM(duracao_minutos), 0) AS minutos,
+          COUNT(*) AS sessoes
+        FROM planejamento.sessao_estudo
+        WHERE id_usuario = ${idUsuario}
+          AND id_topico IN (${Prisma.join(idsTopicosSugeridos)})
+          AND fim IS NOT NULL
+        GROUP BY id_topico
+      `,
+      prisma.topico_progresso.findMany({
+        where: { id_usuario: idUsuario, id_topico: { in: idsTopicosSugeridos } },
+        select: { id_topico: true, concluido: true, data_conclusao: true },
+      }),
+    ])
+    : [[], []];
+
+  const tempoTopicoMap = new Map(temposTopicos.map(item => [item.id_topico.toString(), item]));
+  const progressoTopicoMap = new Map(progressosTopicos.map(item => [item.id_topico.toString(), item]));
   const nivelMap = new Map(niveis.map(nivel => [nivel.id_disciplina, nivel.nivel]));
-  const topicosPorDisciplina = new Map<number, Array<{ idTopico: number; descricao: string; ordem: number | null }>>();
+  const topicosPorDisciplina = new Map<number, Array<{
+    idTopico: number;
+    descricao: string;
+    ordem: number | null;
+    minutosEstudados: number;
+    sessoes: number;
+    concluido: boolean;
+    concluidoEm: string | null;
+  }>>();
   for (const topico of topicosSugeridosBase) {
     if (!topico.id_disciplina) continue;
     const lista = topicosPorDisciplina.get(topico.id_disciplina) ?? [];
     if (lista.length < 3) {
-      lista.push({ idTopico: Number(topico.id_topico), descricao: topico.descricao, ordem: topico.ordem ?? null });
+      const tempo = tempoTopicoMap.get(topico.id_topico.toString());
+      const progresso = progressoTopicoMap.get(topico.id_topico.toString());
+      lista.push({
+        idTopico: Number(topico.id_topico),
+        descricao: topico.descricao,
+        ordem: topico.ordem ?? null,
+        minutosEstudados: Number(tempo?.minutos ?? 0),
+        sessoes: Number(tempo?.sessoes ?? 0),
+        concluido: Boolean(progresso?.concluido),
+        concluidoEm: progresso?.data_conclusao?.toISOString() ?? null,
+      });
       topicosPorDisciplina.set(topico.id_disciplina, lista);
     }
   }
@@ -523,7 +603,11 @@ export async function remarcarSessaoEspecificaCicloService(idUsuario: bigint, or
   };
 }
 
-export async function avancarCicloService(idUsuario: bigint, qualidade?: string) {
+export async function avancarCicloService(
+  idUsuario: bigint,
+  qualidade?: string,
+  opcoes?: { topicoConcluido?: boolean; duracaoMinutos?: number },
+) {
   const ciclo = await buscarCicloAtivo(idUsuario);
   if (!ciclo) throw Object.assign(new Error('Nenhum ciclo ativo.'), { status: 404 });
 
@@ -534,7 +618,7 @@ export async function avancarCicloService(idUsuario: bigint, qualidade?: string)
   const novaPosicao = (posicaoAtual % totalSlots) + 1;
   const slotAtual = ciclo.ciclo_disciplina[(posicaoAtual - 1) % totalSlots];
   const agora = new Date();
-  const minutos = Math.max(1, Math.round(Number(slotAtual.horas_planejadas) * 60));
+  const minutos = Math.max(1, Math.round(opcoes?.duracaoMinutos ?? Number(slotAtual.horas_planejadas) * 60));
 
   await prisma.$transaction(async (tx) => {
     const topicoPendente = await tx.topico.findFirst({
@@ -555,7 +639,7 @@ export async function avancarCicloService(idUsuario: bigint, qualidade?: string)
 
     if (topico) {
       const qualidadeNormalizada = qualidade?.toUpperCase() ?? '';
-      const concluiuTopico = !qualidadeNormalizada.includes('PARCIAL') && !qualidadeNormalizada.includes('_P_') && !qualidadeNormalizada.startsWith('NAO_ENTENDI');
+      const concluiuTopico = opcoes?.topicoConcluido ?? (!qualidadeNormalizada.includes('PARCIAL') && !qualidadeNormalizada.includes('_P_') && !qualidadeNormalizada.startsWith('NAO_ENTENDI'));
 
       await tx.sessao_estudo.create({
         data: {
@@ -604,37 +688,7 @@ export async function avancarCicloService(idUsuario: bigint, qualidade?: string)
         });
       }
 
-      const [totalTopicos, topicosConcluidos] = await Promise.all([
-        tx.topico.count({ where: { id_disciplina: slotAtual.id_disciplina } }),
-        tx.topico_progresso.count({
-          where: {
-            id_usuario: idUsuario,
-            concluido: true,
-            topico: { id_disciplina: slotAtual.id_disciplina },
-          },
-        }),
-      ]);
-
-      await tx.disciplina_progresso.upsert({
-        where: {
-          id_usuario_id_disciplina: {
-            id_usuario: idUsuario,
-            id_disciplina: slotAtual.id_disciplina,
-          },
-        },
-        update: {
-          total_topicos: totalTopicos,
-          topicos_concluidos: topicosConcluidos,
-          concluida: totalTopicos > 0 && topicosConcluidos >= totalTopicos,
-        },
-        create: {
-          id_usuario: idUsuario,
-          id_disciplina: slotAtual.id_disciplina,
-          total_topicos: totalTopicos,
-          topicos_concluidos: topicosConcluidos,
-          concluida: totalTopicos > 0 && topicosConcluidos >= totalTopicos,
-        },
-      });
+      await recalcularProgressoDisciplina(tx, idUsuario, slotAtual.id_disciplina);
     }
 
     await tx.ciclo_execucao.update({
@@ -649,6 +703,41 @@ export async function avancarCicloService(idUsuario: bigint, qualidade?: string)
     sessaoRegistrada: true,
     revisoesAgendadas: true,
   };
+}
+
+export async function marcarTopicoCicloService(idUsuario: bigint, idTopico: number, concluido: boolean) {
+  const topico = await prisma.topico.findUnique({
+    where: { id_topico: BigInt(idTopico) },
+    select: { id_topico: true, id_disciplina: true },
+  });
+  if (!topico?.id_disciplina) throw Object.assign(new Error('Tópico não encontrado.'), { status: 404 });
+
+  const agora = new Date();
+  const idDisciplina = topico.id_disciplina;
+  await prisma.$transaction(async (tx) => {
+    await tx.topico_progresso.upsert({
+      where: {
+        id_usuario_id_topico: {
+          id_usuario: idUsuario,
+          id_topico: topico.id_topico,
+        },
+      },
+      update: {
+        concluido,
+        data_conclusao: concluido ? agora : null,
+      },
+      create: {
+        id_usuario: idUsuario,
+        id_topico: topico.id_topico,
+        concluido,
+        data_conclusao: concluido ? agora : null,
+      },
+    });
+
+    await recalcularProgressoDisciplina(tx, idUsuario, idDisciplina);
+  });
+
+  return { idTopico, concluido };
 }
 
 export async function desativarCicloService(idUsuario: bigint) {

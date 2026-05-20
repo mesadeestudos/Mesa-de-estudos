@@ -17,7 +17,15 @@ interface HojeSlot {
   categoria: string;
   nivel: string | null;
   minutosAlocados: number;
-  topicosSugeridos: Array<{ idTopico: number; descricao: string; ordem: number | null }>;
+  topicosSugeridos: Array<{
+    idTopico: number;
+    descricao: string;
+    ordem: number | null;
+    minutosEstudados?: number;
+    sessoes?: number;
+    concluido?: boolean;
+    concluidoEm?: string | null;
+  }>;
 }
 
 interface CicloAtivo {
@@ -146,7 +154,7 @@ export default function MinhaMesaPage() {
   const progressoCronometro = Math.min(100, Math.round((segundosEstudados / totalSegundosSessao) * 100));
   const chaveSessaoAtual = sessaoAtual ? `${ciclo?.idCiclo}-${ciclo?.posicaoAtual}-${sessaoAtual.idDisciplina}` : '';
 
-  const executarAcaoCiclo = useCallback(async (acao?: 'pular' | 'remarcar') => {
+  const executarAcaoCiclo = useCallback(async (acao?: 'pular' | 'remarcar', topicoConcluido = cobriuTopicos) => {
     setCronometroAtivo(false);
     if (acao) setAcaoSecundaria(acao);
     else setConcluindo(true);
@@ -155,7 +163,11 @@ export default function MinhaMesaPage() {
       const res = await fetch('/api/ciclos', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(acao ? { acao } : { qualidade: `${qualidadeSessao}_${cobriuTopicos ? 'C' : 'P'}_F${nivelFoco}_${precisaRevisarAmanha ? 'R' : 'N'}${querQuestoes ? 'Q' : 'N'}${marcarDuvida ? 'D' : 'N'}` }),
+        body: JSON.stringify(acao ? { acao } : {
+          qualidade: `${qualidadeSessao}_${topicoConcluido ? 'C' : 'P'}_F${nivelFoco}_${precisaRevisarAmanha ? 'R' : 'N'}${querQuestoes ? 'Q' : 'N'}${marcarDuvida ? 'D' : 'N'}`,
+          topicoConcluido,
+          duracaoMinutos: Math.max(1, Math.round(segundosEstudados / 60)),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Não foi possível avançar o ciclo.');
@@ -166,9 +178,11 @@ export default function MinhaMesaPage() {
       setConcluindo(false);
       setAcaoSecundaria(null);
     }
-  }, [carregarCiclo, qualidadeSessao, cobriuTopicos, nivelFoco, precisaRevisarAmanha, querQuestoes, marcarDuvida]);
+  }, [carregarCiclo, qualidadeSessao, cobriuTopicos, nivelFoco, precisaRevisarAmanha, querQuestoes, marcarDuvida, segundosEstudados]);
 
   const concluirSessao = useCallback(() => executarAcaoCiclo(), [executarAcaoCiclo]);
+  const manterTopicoPendente = useCallback(() => executarAcaoCiclo(undefined, false), [executarAcaoCiclo]);
+  const concluirTopicoSessao = useCallback(() => executarAcaoCiclo(undefined, true), [executarAcaoCiclo]);
 
   useEffect(() => {
     setCronometroAtivo(false);
@@ -312,6 +326,12 @@ export default function MinhaMesaPage() {
                       <p className="mt-1 line-clamp-2 text-sm font-bold leading-relaxed text-sky-50">
                         {topicoAtual?.descricao ?? 'Sem tópico pendente cadastrado para esta disciplina'}
                       </p>
+                      {topicoAtual && (
+                        <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-black text-sky-100/80">
+                          <span>{topicoAtual.minutosEstudados ?? 0} min neste tópico</span>
+                          <span>{topicoAtual.sessoes ?? 0} sessão{(topicoAtual.sessoes ?? 0) === 1 ? '' : 'ões'}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
@@ -434,12 +454,20 @@ export default function MinhaMesaPage() {
 
                 <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                   <button
-                    onClick={concluirSessao}
+                    onClick={concluirTopicoSessao}
                     disabled={concluindo || Boolean(acaoSecundaria)}
                     className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 py-2.5 text-sm font-black text-slate-950 shadow-lg transition-all hover:bg-emerald-300 disabled:opacity-60"
                   >
                     {concluindo ? <RefreshCw size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                    {concluindo ? 'Concluindo...' : 'Concluir sessão'}
+                    {concluindo ? 'Concluindo...' : 'Concluir tópico'}
+                  </button>
+                  <button
+                    onClick={manterTopicoPendente}
+                    disabled={concluindo || Boolean(acaoSecundaria)}
+                    className="flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-2.5 text-sm font-black text-emerald-700 transition-all hover:bg-emerald-100 disabled:opacity-60"
+                  >
+                    {concluindo ? <RefreshCw size={16} className="animate-spin" /> : <Clock size={16} />}
+                    {concluindo ? 'Salvando...' : 'Salvar parcial'}
                   </button>
                   <button
                     onClick={() => executarAcaoCiclo('pular')}
@@ -513,6 +541,11 @@ export default function MinhaMesaPage() {
                       <p className="mt-2 line-clamp-2 text-xs font-bold leading-relaxed text-slate-600">
                         {slot.topicosSugeridos[0]?.descricao ?? 'Sem tópico pendente'}
                       </p>
+                      {slot.topicosSugeridos[0] && (
+                        <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-sky-600">
+                          {slot.topicosSugeridos[0].minutosEstudados ?? 0} min no tópico
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>

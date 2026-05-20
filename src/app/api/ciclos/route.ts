@@ -8,6 +8,7 @@ import {
   pularSessaoCicloService,
   remarcarSessaoCicloService,
   remarcarSessaoEspecificaCicloService,
+  marcarTopicoCicloService,
 } from '@/service/ciclo.service';
 import { autenticarUsuario, toHttpError } from '@/lib/auth';
 
@@ -40,17 +41,33 @@ export async function PATCH(req: Request) {
   try {
     const idUsuario = await autenticarUsuario();
     const rawBody = await req.text();
-    const body = rawBody ? JSON.parse(rawBody) as { acao?: string; ordem?: number; qualidade?: string } : null;
+    const body = rawBody ? JSON.parse(rawBody) as {
+      acao?: string;
+      ordem?: number;
+      qualidade?: string;
+      idTopico?: number;
+      concluido?: boolean;
+      topicoConcluido?: boolean;
+      duracaoMinutos?: number;
+    } : null;
+    if (body?.acao === 'marcar-topico' && !Number.isFinite(Number(body.idTopico))) {
+      return NextResponse.json({ message: 'Tópico inválido.' }, { status: 400 });
+    }
     const resultado =
       body?.acao === 'rebalancear'
         ? await rebalancearCicloService(idUsuario)
+        : body?.acao === 'marcar-topico'
+          ? await marcarTopicoCicloService(idUsuario, Number(body.idTopico), Boolean(body.concluido))
         : body?.acao === 'pular'
           ? await pularSessaoCicloService(idUsuario)
           : body?.acao === 'remarcar'
             ? body.ordem
               ? await remarcarSessaoEspecificaCicloService(idUsuario, Number(body.ordem))
               : await remarcarSessaoCicloService(idUsuario)
-            : await avancarCicloService(idUsuario, body?.qualidade);
+            : await avancarCicloService(idUsuario, body?.qualidade, {
+              topicoConcluido: body?.topicoConcluido,
+              duracaoMinutos: body?.duracaoMinutos,
+            });
     return NextResponse.json(resultado);
   } catch (err) {
     console.error('[PATCH /api/ciclos] erro:', err);

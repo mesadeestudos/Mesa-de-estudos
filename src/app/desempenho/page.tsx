@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   BarChart3, BookOpen, Calendar, Clock, LayoutDashboard, LineChart,
@@ -36,8 +36,21 @@ interface DesempenhoData {
     tendencia: 'SUBINDO' | 'CAINDO' | 'ESTAVEL';
     pontosFracos: Array<{ idDisciplina: number; nome: string; percentual: number; motivo: string }>;
     recomendacoes: string[];
-    topicos: Array<{ idTopico: number; disciplina: string; topico: string; concluidoEm: string | null }>;
+    topicos: Array<{ idTopico: number; disciplina: string; topico: string; concluidoEm: string | null; minutos: number; sessoes: number }>;
   };
+  topicos: Array<{
+    idTopico: number;
+    idDisciplina: number;
+    disciplina: string;
+    topico: string;
+    ordem: number | null;
+    concluido: boolean;
+    concluidoEm: string | null;
+    minutos: number;
+    sessoes: number;
+    ultimoEstudo: string | null;
+    status: 'CONCLUIDO' | 'EM_ANDAMENTO' | 'PENDENTE';
+  }>;
   recentes: Array<{
     idSessao: number;
     disciplina: string;
@@ -76,8 +89,11 @@ export default function DesempenhoPage() {
   const [erro, setErro] = useState('');
   const [dados, setDados] = useState<DesempenhoData | null>(null);
   const [questoes, setQuestoes] = useState<QuestoesData | null>(null);
+  const [topicoAtualizando, setTopicoAtualizando] = useState<number | null>(null);
 
-  useEffect(() => {
+  const carregarDados = useCallback(() => {
+    setErro('');
+    setCarregando(true);
     Promise.all([
       fetch('/api/desempenho'),
       fetch('/api/questoes'),
@@ -92,6 +108,10 @@ export default function DesempenhoPage() {
       .finally(() => setCarregando(false));
   }, []);
 
+  useEffect(() => {
+    carregarDados();
+  }, [carregarDados]);
+
   const maiorMinutoSemana = useMemo(() => Math.max(1, ...(dados?.semana.map(dia => dia.minutos) ?? [1])), [dados]);
   const disciplinasCriticas = useMemo(() => [...(dados?.disciplinas ?? [])].sort((a, b) => a.percentual - b.percentual).slice(0, 4), [dados]);
   const tendenciaTexto = {
@@ -103,6 +123,24 @@ export default function DesempenhoPage() {
   const handleLogout = async () => {
     await fetch('/api/logout', { method: 'POST' }).catch(() => null);
     router.push('/login');
+  };
+
+  const marcarTopico = async (idTopico: number, concluido: boolean) => {
+    setTopicoAtualizando(idTopico);
+    try {
+      const res = await fetch('/api/ciclos', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acao: 'marcar-topico', idTopico, concluido }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Não foi possível atualizar o tópico.');
+      carregarDados();
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : 'Não foi possível atualizar o tópico.');
+    } finally {
+      setTopicoAtualizando(null);
+    }
   };
 
   return (
@@ -230,14 +268,32 @@ export default function DesempenhoPage() {
 
               <section className="col-span-12 rounded-[32px] border border-white/70 bg-white/80 p-5 shadow-xl shadow-slate-200/60 backdrop-blur-xl">
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Desempenho por tópico</p>
+                <h2 className="mt-1 text-xl font-black text-slate-800">Tempo, status e avanço do edital</h2>
                 <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {dados.inteligencia.topicos.length === 0 ? <p className="text-sm font-semibold text-slate-500">Tópicos concluídos aparecerão aqui.</p> : dados.inteligencia.topicos.map((item) => (
+                  {dados.topicos.length === 0 ? <p className="text-sm font-semibold text-slate-500">Os tópicos do ciclo ativo aparecerão aqui.</p> : dados.topicos.map((item) => (
                     <div key={item.idTopico} className="rounded-2xl border border-slate-100 bg-white/80 p-4">
-                      <p className="text-sm font-black text-slate-800">{item.disciplina}</p>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-black text-slate-800">{item.disciplina}</p>
+                          <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            {item.status === 'CONCLUIDO' ? 'Concluído' : item.status === 'EM_ANDAMENTO' ? 'Em andamento' : 'Pendente'}
+                          </p>
+                        </div>
+                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${item.concluido ? 'bg-emerald-50 text-emerald-700' : item.sessoes > 0 ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-500'}`}>
+                          {item.minutos} min
+                        </span>
+                      </div>
                       <p className="mt-1 line-clamp-2 text-xs font-semibold text-slate-500">{item.topico}</p>
-                      <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-emerald-600">
-                        {item.concluidoEm ? new Date(item.concluidoEm).toLocaleDateString('pt-BR') : 'Concluído'}
+                      <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-sky-600">
+                        {item.sessoes} sessão{item.sessoes === 1 ? '' : 'ões'}{item.ultimoEstudo ? ` | último estudo ${new Date(item.ultimoEstudo).toLocaleDateString('pt-BR')}` : ''}
                       </p>
+                      <button
+                        onClick={() => marcarTopico(item.idTopico, !item.concluido)}
+                        disabled={topicoAtualizando === item.idTopico}
+                        className={`mt-3 w-full rounded-xl px-3 py-2 text-[11px] font-black transition-all disabled:opacity-60 ${item.concluido ? 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50' : 'bg-emerald-500 text-white hover:bg-emerald-600'}`}
+                      >
+                        {topicoAtualizando === item.idTopico ? 'Atualizando...' : item.concluido ? 'Reabrir tópico' : 'Concluir tópico'}
+                      </button>
                     </div>
                   ))}
                 </div>
