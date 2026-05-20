@@ -71,9 +71,9 @@ model banca {
 
 model cargo {
   id_cargo     Int            @id @default(autoincrement())
-  id_edital    Int
+  id_edital    Int?
   nome         String         @db.VarChar(150)
-  edital       edital         @relation(fields: [id_edital], references: [id_edital], onDelete: Cascade, onUpdate: NoAction)
+  edital       edital?        @relation(fields: [id_edital], references: [id_edital], onDelete: Cascade, onUpdate: NoAction)
   disciplina   disciplina[]
   plano_estudo plano_estudo[]
 
@@ -195,8 +195,9 @@ model disciplina_progresso {
   id_disciplina_progresso BigInt     @id @default(autoincrement())
   id_usuario              BigInt
   id_disciplina           Int
+  total_topicos           Int
   topicos_concluidos      Int?       @default(0)
-  percentual              Decimal?   @default(0) @db.Decimal(5, 2)
+  percentual              Decimal?   @default(dbgenerated("\nCASE\n    WHEN (total_topicos = 0) THEN (0)::numeric\n    ELSE (((topicos_concluidos)::numeric * 100.0) / (total_topicos)::numeric)\nEND")) @db.Decimal(5, 2)
   concluida               Boolean?   @default(false)
   disciplina              disciplina @relation(fields: [id_disciplina], references: [id_disciplina], onDelete: Cascade, onUpdate: NoAction)
   usuario                 usuario    @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, onUpdate: NoAction)
@@ -210,10 +211,10 @@ model plano_estudo {
   id_plano      BigInt         @id @default(autoincrement())
   id_usuario    BigInt
   id_cargo      Int
-  metodo        String         @default("AUTOMATICO") @db.VarChar(20)
-  ritmo         String         @default("EQUILIBRADO") @db.VarChar(20)
+  metodo        String         @default("FLEXIVEL") @db.VarChar(20)
   horas_por_dia Decimal        @db.Decimal(4, 2)
   data_criacao  DateTime?      @default(now()) @db.Timestamptz(6)
+  ritmo         String         @default("EQUILIBRADO") @db.VarChar(20)
   ciclo_estudo  ciclo_estudo[]
   cargo         cargo          @relation(fields: [id_cargo], references: [id_cargo], onDelete: NoAction, onUpdate: NoAction)
   usuario       usuario        @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, onUpdate: NoAction)
@@ -227,13 +228,13 @@ model sessao_estudo {
   id_usuario          BigInt
   id_disciplina       Int
   id_topico           BigInt
-  id_ciclo_disciplina BigInt?
   inicio              DateTime          @default(now()) @db.Timestamptz(6)
   fim                 DateTime?         @db.Timestamptz(6)
   duracao_minutos     Int?
   status              String            @db.VarChar(20)
+  id_ciclo_disciplina BigInt?
   qualidade           String?           @db.VarChar(20)
-  ciclo_disciplina    ciclo_disciplina? @relation(fields: [id_ciclo_disciplina], references: [id_ciclo_disciplina], onDelete: SetNull, onUpdate: NoAction)
+  ciclo_disciplina    ciclo_disciplina? @relation(fields: [id_ciclo_disciplina], references: [id_ciclo_disciplina], onUpdate: NoAction)
   disciplina          disciplina        @relation(fields: [id_disciplina], references: [id_disciplina], onDelete: NoAction, onUpdate: NoAction)
   topico              topico            @relation(fields: [id_topico], references: [id_topico], onDelete: NoAction, onUpdate: NoAction)
   usuario             usuario           @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, onUpdate: NoAction)
@@ -268,5 +269,131 @@ model disciplina_nivel_usuario {
   usuario          usuario    @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([id_usuario, id_disciplina])
+  @@schema("planejamento")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model ajuste_plano_usuario {
+  id_ajuste_plano BigInt   @id @default(autoincrement())
+  id_usuario      BigInt
+  tipo            String   @db.VarChar(30)
+  data_inicio     DateTime @db.Timestamptz(6)
+  data_fim        DateTime @db.Timestamptz(6)
+  horas_por_dia   Decimal? @db.Decimal(4, 2)
+  motivo          String?
+  data_criacao    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([id_usuario, data_inicio, data_fim], map: "idx_ajuste_plano_usuario_periodo")
+  @@index([id_usuario, tipo], map: "idx_ajuste_plano_usuario_tipo")
+  @@schema("planejamento")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model assinatura_usuario {
+  id_assinatura            BigInt    @id @default(autoincrement())
+  id_usuario               BigInt
+  plano                    String    @db.VarChar(40)
+  status                   String    @db.VarChar(30)
+  provider                 String    @default("MOCK") @db.VarChar(30)
+  provider_customer_id     String?   @db.VarChar(120)
+  provider_subscription_id String?   @db.VarChar(120)
+  checkout_id              String?   @db.VarChar(120)
+  valor_centavos           Int?
+  data_inicio              DateTime  @default(now()) @db.Timestamptz(6)
+  data_fim                 DateTime? @db.Timestamptz(6)
+  data_cancelamento        DateTime? @db.Timestamptz(6)
+  data_criacao             DateTime  @default(now()) @db.Timestamptz(6)
+  data_atualizacao         DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([checkout_id], map: "idx_assinatura_checkout")
+  @@index([id_usuario, status], map: "idx_assinatura_usuario_status")
+  @@schema("planejamento")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model diagnostico_inicial_usuario {
+  id_diagnostico        BigInt   @id @default(autoincrement())
+  id_usuario            BigInt   @unique
+  nivel_atual           String   @db.VarChar(30)
+  dias_ate_prova        Int?
+  estudou_edital_antes  Boolean  @default(false)
+  dificuldade_principal String   @db.VarChar(40)
+  preferencia_sessao    String   @db.VarChar(30)
+  materias_temidas      String[] @default([])
+  objetivo              String?
+  data_criacao          DateTime @default(now()) @db.Timestamptz(6)
+  data_atualizacao      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([id_usuario], map: "idx_diagnostico_inicial_usuario")
+  @@schema("planejamento")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model questao_treino {
+  id_questao_treino BigInt   @id @default(autoincrement())
+  id_usuario        BigInt
+  id_disciplina     Int
+  id_topico         BigInt?
+  total_questoes    Int
+  total_acertos     Int
+  percentual        Decimal  @db.Decimal(5, 2)
+  motivo_erro       String?  @db.VarChar(40)
+  confianca         String?  @db.VarChar(30)
+  observacao        String?
+  data_registro     DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([id_usuario, id_disciplina], map: "idx_questao_treino_disciplina")
+  @@index([id_usuario, motivo_erro], map: "idx_questao_treino_motivo")
+  @@index([id_usuario, id_topico], map: "idx_questao_treino_topico")
+  @@index([id_usuario], map: "idx_questao_treino_usuario")
+  @@schema("planejamento")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model simulado {
+  id_simulado         BigInt                @id @default(autoincrement())
+  id_usuario          BigInt
+  titulo              String                @db.VarChar(160)
+  data_realizacao     DateTime              @default(dbgenerated("CURRENT_DATE")) @db.Date
+  total_questoes      Int
+  total_acertos       Int
+  percentual          Decimal               @db.Decimal(5, 2)
+  observacao          String?
+  data_criacao        DateTime              @default(now()) @db.Timestamptz(6)
+  simulado_disciplina simulado_disciplina[]
+
+  @@index([id_usuario, data_realizacao(sort: Desc)], map: "idx_simulado_usuario_data")
+  @@schema("planejamento")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model simulado_disciplina {
+  id_simulado_disciplina BigInt   @id @default(autoincrement())
+  id_simulado            BigInt
+  id_disciplina          Int
+  total_questoes         Int
+  total_acertos          Int
+  percentual             Decimal  @db.Decimal(5, 2)
+  simulado               simulado @relation(fields: [id_simulado], references: [id_simulado], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([id_disciplina, percentual], map: "idx_simulado_disciplina")
+  @@schema("planejamento")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sugestao_usuario {
+  id_sugestao      BigInt   @id @default(autoincrement())
+  id_usuario       BigInt
+  categoria        String   @db.VarChar(40)
+  prioridade       String   @default("NORMAL") @db.VarChar(20)
+  titulo           String   @db.VarChar(140)
+  descricao        String
+  status           String   @default("NOVA") @db.VarChar(30)
+  pagina_origem    String?  @db.VarChar(120)
+  data_criacao     DateTime @default(now()) @db.Timestamptz(6)
+  data_atualizacao DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([status, data_criacao(sort: Desc)], map: "idx_sugestao_status")
+  @@index([id_usuario, data_criacao(sort: Desc)], map: "idx_sugestao_usuario_data")
   @@schema("planejamento")
 }

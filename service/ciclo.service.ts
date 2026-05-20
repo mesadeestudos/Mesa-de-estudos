@@ -627,6 +627,7 @@ export async function avancarCicloService(idUsuario: bigint, qualidade?: string)
           },
         },
         update: {
+          total_topicos: totalTopicos,
           topicos_concluidos: topicosConcluidos,
           percentual,
           concluida: totalTopicos > 0 && topicosConcluidos >= totalTopicos,
@@ -634,6 +635,7 @@ export async function avancarCicloService(idUsuario: bigint, qualidade?: string)
         create: {
           id_usuario: idUsuario,
           id_disciplina: slotAtual.id_disciplina,
+          total_topicos: totalTopicos,
           topicos_concluidos: topicosConcluidos,
           percentual,
           concluida: totalTopicos > 0 && topicosConcluidos >= totalTopicos,
