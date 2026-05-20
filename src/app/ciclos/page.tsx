@@ -287,8 +287,10 @@ export default function CiclosEstudo() {
     [disciplinasSelecionadas, dificuldades]
   );
   const podeContinuarEtapa2 = editalSelecionado !== null && cargoSelecionado !== null;
+  const temDisciplinasAutomaticas = disciplinasAutomatico.selecionadas.length > 0;
   const podeFinalizar = modoCiclo === 'automatico'
-    || (disciplinasSelecionadas.length > 0 && todasDificuldadesDefinidas);
+    ? temDisciplinasAutomaticas
+    : disciplinasSelecionadas.length > 0 && todasDificuldadesDefinidas;
   const visualizacaoProximasSessoes = useMemo(() => {
     if (!cicloAtivo?.cicloSlots?.length) return [] as HojeSlot[];
     return Array.from({ length: cicloAtivo.totalSlots }, (_, indice) => {
@@ -511,14 +513,20 @@ export default function CiclosEstudo() {
     setSalvando(true);
     setErroSalvar(null);
     try {
+        const disciplinasPayload = modoCiclo === 'personalizado'
+          ? disciplinasSelecionadas.map(id => ({ id, dificuldade: dificuldades[id] }))
+          : disciplinasAutomatico.selecionadas.map(d => ({ id: d.id }));
+
+        if (disciplinasPayload.length === 0) {
+          throw new Error('Nenhuma disciplina foi encontrada para este cargo. Selecione outro cargo ou aguarde o carregamento das disciplinas.');
+        }
+
         const payload = {
           horasDiarias: horasDiariasLimitadas,
           idCargo: cargoSelecionado.id,
           modo:    modoCiclo,
           momentoEstudo,
-          disciplinas: modoCiclo === 'personalizado'
-            ? disciplinasSelecionadas.map(id => ({ id, dificuldade: dificuldades[id] }))
-            : disciplinas.map(d => ({ id: d.id })), // algoritmo seleciona as melhores
+          disciplinas: disciplinasPayload,
       };
       const res  = await fetch('/api/ciclos', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -907,9 +915,9 @@ export default function CiclosEstudo() {
       {/* -- Sidebar -- */}
       <aside className={`fixed lg:static inset-y-0 left-0 z-40 w-64 border-r border-white/30 bg-slate-950/90 text-white shadow-2xl shadow-slate-950/20 backdrop-blur-xl flex flex-col shrink-0 h-screen transition-transform duration-300 lg:translate-x-0 ${sidebarAberta ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex flex-col items-center grow overflow-y-auto min-h-0">
-          <div className="w-full px-4 pt-5 pb-4 shrink-0">
-            <div className="rounded-[24px] border border-white/10 bg-white/95 px-4 py-3 shadow-xl shadow-sky-950/20">
-              <Image src="/logo_azul.png" alt="Logo" width={160} height={96} className="h-20 w-auto mx-auto" priority />
+          <div className="w-full shrink-0 px-4 pb-3 pt-4">
+            <div className="rounded-[20px] border border-white/10 bg-white/95 px-4 py-2.5 shadow-xl shadow-sky-950/20">
+              <img src="/logo_azul.png" alt="Logo" className="mx-auto h-16 w-auto" />
             </div>
           </div>
           <nav className="space-y-1 w-full px-3">
@@ -2256,13 +2264,15 @@ export default function CiclosEstudo() {
                           }`}>
                             {podeFinalizar
                               ? 'Tudo pronto para criar o ciclo'
-                              : disciplinasSelecionadas.length === 0
+                              : modoCiclo === 'automatico' || disciplinasSelecionadas.length === 0
                                 ? 'Selecione disciplinas para continuar'
                                 : 'Falta definir níveis'}
                           </p>
                           <p className="text-xs text-slate-500 leading-snug mb-4">
                             {modoCiclo === 'personalizado' && dificuldadesPendentesCount > 0
                               ? `${dificuldadesPendentesCount} ${dificuldadesPendentesCount === 1 ? 'disciplina ainda está sem nível definido.' : 'disciplinas ainda estão sem nível definido.'}`
+                              : modoCiclo === 'automatico' && !temDisciplinasAutomaticas
+                                ? 'As disciplinas deste cargo ainda nao foram carregadas ou nao estao cadastradas.'
                               : 'Revise o resumo acima e crie seu ciclo quando estiver tudo certo.'}
                           </p>
                           <div className="space-y-2">
