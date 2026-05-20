@@ -41,7 +41,6 @@ export async function createUser(user: CadastroDTO) {
     const novoUsuario = await tx.usuario.create({
       data: {
         nome_completo: user.nome,
-        nome_usuario: user.email.split("@")[0],
         email: user.email,
         ativo: true,
         primeiro_acesso: true

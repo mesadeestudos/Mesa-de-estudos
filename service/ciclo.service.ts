@@ -615,10 +615,6 @@ export async function avancarCicloService(idUsuario: bigint, qualidade?: string)
         }),
       ]);
 
-      const percentual = totalTopicos > 0
-        ? Number(((topicosConcluidos / totalTopicos) * 100).toFixed(2))
-        : 0;
-
       await tx.disciplina_progresso.upsert({
         where: {
           id_usuario_id_disciplina: {
@@ -629,7 +625,6 @@ export async function avancarCicloService(idUsuario: bigint, qualidade?: string)
         update: {
           total_topicos: totalTopicos,
           topicos_concluidos: topicosConcluidos,
-          percentual,
           concluida: totalTopicos > 0 && topicosConcluidos >= totalTopicos,
         },
         create: {
@@ -637,7 +632,6 @@ export async function avancarCicloService(idUsuario: bigint, qualidade?: string)
           id_disciplina: slotAtual.id_disciplina,
           total_topicos: totalTopicos,
           topicos_concluidos: topicosConcluidos,
-          percentual,
           concluida: totalTopicos > 0 && topicosConcluidos >= totalTopicos,
         },
       });

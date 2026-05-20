@@ -25,7 +25,13 @@ export async function autenticarUsuario(): Promise<bigint> {
 
 export function toHttpError(err: unknown): { status: number; message: string } {
   const e = err as { status?: number; name?: string; message?: string };
-  const status = e?.status ?? (e?.name === 'JsonWebTokenError' || e?.name === 'TokenExpiredError' ? 401 : 500);
+  const status = e?.status ?? (
+    e?.name === 'JsonWebTokenError' || e?.name === 'TokenExpiredError'
+      ? 401
+      : e?.name === 'ZodError'
+        ? 400
+        : 500
+  );
   const message = e?.message ?? String(e) ?? 'Erro desconhecido';
   return { status, message };
 }

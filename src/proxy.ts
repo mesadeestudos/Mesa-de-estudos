@@ -43,6 +43,9 @@ export async function proxy(request: NextRequest) {
   }
 
   try {
+    if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+      throw new Error('JWT_SECRET obrigatorio em producao.');
+    }
     const secretKey = process.env.JWT_SECRET || 'dev-secret-change-me';
     const secret = new TextEncoder().encode(secretKey);
     await jwtVerify(token, secret);

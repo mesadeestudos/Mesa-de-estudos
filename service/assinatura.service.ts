@@ -31,6 +31,20 @@ function normalizarPlano(plano?: string | null): PlanoAssinatura {
   return 'MENSAL';
 }
 
+function getCheckoutSecret() {
+  const secret = process.env.CHECKOUT_SECRET || process.env.JWT_SECRET;
+  if (!secret && process.env.NODE_ENV === 'production') {
+    throw new Error('CHECKOUT_SECRET ou JWT_SECRET obrigatorio em producao.');
+  }
+  return secret || 'dev-checkout-secret-change-me';
+}
+
+function getPaymentProvider() {
+  const provider = process.env.PAYMENT_PROVIDER;
+  if (provider) return provider;
+  return process.env.NODE_ENV === 'production' ? 'UNCONFIGURED' : 'MOCK';
+}
+
 async function tabelaAssinaturaExiste() {
   const resultado = await prisma.$queryRaw<AssinaturaExisteRow[]>`
     SELECT to_regclass('planejamento.assinatura_usuario')::text AS existe
@@ -96,14 +110,23 @@ export function criarCheckoutPendente(input: { plano?: string | null }) {
   const plano = normalizarPlano(input.plano);
   const checkoutId = crypto.randomUUID();
   const planoConfig = PLANOS[plano];
+  const provider = getPaymentProvider();
+
+  if (provider === 'UNCONFIGURED') {
+    throw Object.assign(new Error('Gateway de pagamento nao configurado.'), { status: 503 });
+  }
+
+  if (provider === 'MOCK' && process.env.NODE_ENV === 'production' && process.env.ALLOW_MOCK_PAYMENTS !== 'true') {
+    throw Object.assign(new Error('Pagamento mock bloqueado em producao.'), { status: 503 });
+  }
 
   return {
     checkoutId,
     plano,
-    provider: process.env.PAYMENT_PROVIDER ?? 'MOCK',
+    provider,
     valorCentavos: planoConfig.valorCentavos,
     label: planoConfig.label,
-    url: process.env.PAYMENT_PROVIDER === 'STRIPE'
+    url: provider === 'STRIPE'
       ? null
       : `/pagamento?checkout=${checkoutId}&plano=${encodeURIComponent(planoConfig.label)}&valor=${encodeURIComponent((planoConfig.valorCentavos / 100).toFixed(2).replace('.', ','))}`,
   };
@@ -125,7 +148,7 @@ export function criarCookieCheckoutAssinado(input: { checkoutId: string; plano: 
     valorCentavos: input.valorCentavos,
     aprovadoEm: Date.now(),
   });
-  const secret = process.env.CHECKOUT_SECRET || process.env.JWT_SECRET || 'secret';
+  const secret = getCheckoutSecret();
   const assinatura = crypto.createHmac('sha256', secret).update(payload).digest('hex');
   return `${Buffer.from(payload).toString('base64url')}.${assinatura}`;
 }
@@ -135,7 +158,7 @@ export function lerCookieCheckoutAssinado(valor?: string | null) {
   const [payloadBase64, assinatura] = valor.split('.');
   if (!payloadBase64 || !assinatura) return null;
   const payload = Buffer.from(payloadBase64, 'base64url').toString('utf8');
-  const secret = process.env.CHECKOUT_SECRET || process.env.JWT_SECRET || 'secret';
+  const secret = getCheckoutSecret();
   const assinaturaEsperada = crypto.createHmac('sha256', secret).update(payload).digest('hex');
   if (!crypto.timingSafeEqual(Buffer.from(assinatura), Buffer.from(assinaturaEsperada))) return null;
   const parsed = JSON.parse(payload) as { checkoutId: string; plano: PlanoAssinatura; valorCentavos: number; aprovadoEm: number };

@@ -21,3 +21,22 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS idx_sessao_estudo_ciclo_disciplina
   ON planejamento.sessao_estudo (id_ciclo_disciplina);
+
+ALTER TABLE planejamento.sessao_estudo
+  DROP CONSTRAINT IF EXISTS sessao_estudo_status_check;
+
+ALTER TABLE planejamento.sessao_estudo
+  ADD CONSTRAINT sessao_estudo_status_check
+  CHECK (status IN (
+    'EM_ANDAMENTO',
+    'PAUSADO',
+    'FINALIZADO',
+    'CONCLUIDA',
+    'PULADA',
+    'REMARCADA',
+    'REVISAO',
+    'REVISAO_FACIL',
+    'REVISAO_MEDIO',
+    'REVISAO_DIFICIL',
+    'REVISAO_ERREI'
+  ));

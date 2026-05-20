@@ -1,9 +1,7 @@
 ﻿import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { autenticarUsuario, toHttpError } from '@/lib/auth';
+import { AUTH_COOKIE, autenticarUsuario, getJwtSecret, toHttpError } from '@/lib/auth';
 import jwt from 'jsonwebtoken';
-
-const SECRET = process.env.JWT_SECRET || 'secret';
 
 export async function GET() {
   try {
@@ -89,7 +87,7 @@ export async function PATCH(req: Request) {
         nome: usuario.nome_completo,
         primeiro_acesso: false,
       },
-      SECRET,
+      getJwtSecret(),
       { expiresIn: '1h' },
     );
 
@@ -103,8 +101,9 @@ export async function PATCH(req: Request) {
       },
     });
 
-    res.cookies.set('authorization', token, {
-      httpOnly: false,
+    res.cookies.set(AUTH_COOKIE, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60,
