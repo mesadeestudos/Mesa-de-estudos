@@ -138,6 +138,7 @@ export default function MinhaMesaPage() {
 
   const sessaoAtual = ciclo?.hojeSlots[0] ?? null;
   const proximaSessao = ciclo?.hojeSlots[1] ?? null;
+  const topicoAtual = sessaoAtual?.topicosSugeridos[0] ?? null;
   const progresso = ciclo ? Math.round((ciclo.posicaoAtual / ciclo.totalSlots) * 100) : 0;
   const planoHoje = useMemo(() => ciclo?.hojeSlots ?? [], [ciclo]);
   const totalSegundosSessao = Math.max(60, (sessaoAtual?.minutosAlocados || 60) * 60);
@@ -306,6 +307,12 @@ export default function MinhaMesaPage() {
                   <div className="min-w-0">
                     <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-200">Sessão em andamento</p>
                     <h2 className="mt-2 truncate text-2xl font-black leading-tight">{sessaoAtual.nome}</h2>
+                    <div className="mt-3 rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-100/70">Tópico atual</p>
+                      <p className="mt-1 line-clamp-2 text-sm font-bold leading-relaxed text-sky-50">
+                        {topicoAtual?.descricao ?? 'Sem tópico pendente cadastrado para esta disciplina'}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
                   <Badge>{getTipoDisciplinaLabel(sessaoAtual.tipo)}</Badge>
@@ -503,6 +510,9 @@ export default function MinhaMesaPage() {
                       </p>
                       <p className="mt-2 truncate text-sm font-black text-slate-800">{slot.nome}</p>
                       <p className="mt-1 text-xs font-semibold text-slate-500">{getTipoDisciplinaLabel(slot.tipo)} · {slot.minutosAlocados || 60} min</p>
+                      <p className="mt-2 line-clamp-2 text-xs font-bold leading-relaxed text-slate-600">
+                        {slot.topicosSugeridos[0]?.descricao ?? 'Sem tópico pendente'}
+                      </p>
                     </div>
                   ))}
                 </div>

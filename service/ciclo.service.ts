@@ -251,7 +251,7 @@ export async function buscarCicloService(idUsuario: bigint) {
         ],
       },
       orderBy: [{ id_disciplina: 'asc' }, { ordem: 'asc' }, { id_topico: 'asc' }],
-      take: Math.max(20, idsUnicos.length * 4),
+      select: { id_topico: true, id_disciplina: true, descricao: true, ordem: true },
     }),
   ]);
   const nivelMap = new Map(niveis.map(nivel => [nivel.id_disciplina, nivel.nivel]));
