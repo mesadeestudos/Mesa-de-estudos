@@ -6,6 +6,7 @@ import {
   BarChart3, BookOpen, Calendar, Clock, LayoutDashboard, LineChart,
   LogOut, Menu, RefreshCw, Settings, Target, TrendingUp, User,
   ClipboardCheck, CalendarDays, Flame, ChevronRight, ChevronDown, Search,
+  FileCheck2, Lightbulb, MessageCircle, NotebookTabs,
 } from 'lucide-react';
 
 type TopicoStatus = 'CONCLUIDO' | 'EM_ANDAMENTO' | 'PENDENTE';
@@ -97,6 +98,8 @@ export default function DesempenhoPage() {
   const [filtroTopico, setFiltroTopico] = useState<FiltroTopico>('TODOS');
   const [disciplinaAberta, setDisciplinaAberta] = useState<number | null>(null);
   const [paginasTopicos, setPaginasTopicos] = useState<Record<number, number>>({});
+  const [rebalanceando, setRebalanceando] = useState(false);
+  const [mensagemRebalanceamento, setMensagemRebalanceamento] = useState('');
 
   const carregarDados = useCallback(() => {
     setErro('');
@@ -215,13 +218,33 @@ export default function DesempenhoPage() {
     }
   };
 
+  const rebalancearCiclo = async () => {
+    setRebalanceando(true);
+    setMensagemRebalanceamento('');
+    try {
+      const res = await fetch('/api/ciclos', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acao: 'rebalancear' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Não foi possível rebalancear o ciclo.');
+      setMensagemRebalanceamento('Ciclo rebalanceado com sucesso.');
+      carregarDados();
+    } catch (error) {
+      setMensagemRebalanceamento(error instanceof Error ? error.message : 'Não foi possível rebalancear o ciclo.');
+    } finally {
+      setRebalanceando(false);
+    }
+  };
+
   return (
     <div className="relative h-screen w-full overflow-hidden bg-[linear-gradient(135deg,#eef9ff_0%,#f8fafc_38%,#ecfdf5_100%)] text-slate-600">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.14),transparent_30%)]" />
       <div className="relative flex h-full overflow-hidden">
         {sidebarAberta && <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setSidebarAberta(false)} />}
         <aside className={`fixed inset-y-0 left-0 z-40 flex h-screen w-64 shrink-0 flex-col border-r border-white/30 bg-slate-950/90 text-white shadow-2xl shadow-slate-950/20 backdrop-blur-xl transition-transform lg:static lg:translate-x-0 ${sidebarAberta ? 'translate-x-0' : '-translate-x-full'}`}>
-          <div className="min-h-0 grow overflow-y-auto px-3">
+          <div className="min-h-0 grow overflow-hidden px-3">
             <div className="px-1 pb-3 pt-4">
               <div className="rounded-[20px] border border-white/10 bg-white/95 px-4 py-2.5 shadow-xl shadow-sky-950/20">
                 <img src="/logo_azul.png" alt="Logo" className="mx-auto h-16 w-auto" />
@@ -232,9 +255,13 @@ export default function DesempenhoPage() {
               <MenuItem icon={<BookOpen size={18} />} label="Minha Mesa" onClick={() => router.push('/minha-mesa')} />
               <MenuItem icon={<RefreshCw size={18} />} label="Ciclos de estudo" onClick={() => router.push('/ciclos')} />
               <MenuItem icon={<ClipboardCheck size={18} />} label="Questões" onClick={() => router.push('/questoes')} />
+              <MenuItem icon={<NotebookTabs size={18} />} label="Caderno de erros" onClick={() => router.push('/caderno-erros')} />
+              <MenuItem icon={<FileCheck2 size={18} />} label="Simulados" onClick={() => router.push('/simulados')} />
+              <MenuItem icon={<MessageCircle size={18} />} label="Assistente IA" onClick={() => router.push('/assistente')} />
               <MenuItem icon={<CalendarDays size={18} />} label="Agenda" onClick={() => router.push('/agenda')} />
               <MenuItem icon={<LineChart size={18} />} label="Desempenho" active onClick={() => setSidebarAberta(false)} />
               <MenuItem icon={<Calendar size={18} />} label="Revisões" onClick={() => router.push('/revisoes')} />
+              <MenuItem icon={<Lightbulb size={18} />} label="Sugestões" onClick={() => router.push('/sugestoes')} />
               <MenuItem icon={<Settings size={18} />} label="Configurações" onClick={() => router.push('/configuracoes')} />
               <MenuItem icon={<User size={18} />} label="Perfil" onClick={() => router.push('/perfil')} />
             </nav>
@@ -303,13 +330,23 @@ export default function DesempenhoPage() {
                         <button onClick={() => router.push(`/questoes?disciplina=${item.idDisciplina}`)} className="flex items-center gap-1.5 rounded-xl bg-slate-950 px-3 py-2 text-[11px] font-black text-white transition-all hover:bg-slate-800">
                           Ver tópicos críticos <ChevronRight size={13} />
                         </button>
-                        <button onClick={() => router.push('/ciclos')} className="flex items-center gap-1.5 rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-[11px] font-black text-sky-700 transition-all hover:bg-sky-100">
-                          Rebalancear ciclo
+                        <button
+                          onClick={rebalancearCiclo}
+                          disabled={rebalanceando}
+                          className="flex items-center gap-1.5 rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-[11px] font-black text-sky-700 transition-all hover:bg-sky-100 disabled:opacity-60"
+                        >
+                          {rebalanceando ? <RefreshCw size={13} className="animate-spin" /> : null}
+                          {rebalanceando ? 'Rebalanceando...' : 'Rebalancear ciclo'}
                         </button>
                       </div>
                     </div>
                   ))}
                 </div>
+                {mensagemRebalanceamento && (
+                  <p className={`mt-4 rounded-2xl px-4 py-3 text-xs font-black ${mensagemRebalanceamento.includes('sucesso') ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                    {mensagemRebalanceamento}
+                  </p>
+                )}
               </section>
 
               <section className="col-span-12 rounded-[32px] border border-white/70 bg-white/80 p-5 shadow-xl shadow-slate-200/60 backdrop-blur-xl lg:col-span-7">

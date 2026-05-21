@@ -31,6 +31,17 @@ interface CicloResumo {
   proximaSessao: { nome: string; categoria: string } | null;
 }
 
+interface CicloApiResumo {
+  idCiclo?: number;
+  cargoNome: string;
+  concursoNome: string;
+  bancaSigla: string;
+  totalSlots: number;
+  posicaoAtual: number;
+  horasPorDia: number;
+  hojeSlots?: Array<{ nome: string; categoria: string }>;
+}
+
 interface ResumoPainel {
   revisoesPendentes: number;
   revisoesAtrasadas: number;
@@ -47,6 +58,7 @@ interface AssistentePainel {
   narrativa?: string;
   etapaPedagogica?: string;
   prioridadeScore?: number;
+  sinais?: { precisaRebalancear?: boolean };
   explicacao?: {
     principal: string;
     sinaisUsados: string[];
@@ -64,6 +76,8 @@ export default function PainelEstudante() {
   const [abaAtiva, setAbaAtiva]         = useState('Visão Geral');
   const [nomeUsuario, setNomeUsuario]   = useState('');
   const [sidebarAberta, setSidebarAberta] = useState(false);
+  const [rebalanceando, setRebalanceando] = useState(false);
+  const [mensagemRebalanceamento, setMensagemRebalanceamento] = useState('');
   const [resumo, setResumo] = useState<ResumoPainel>({
     revisoesPendentes: 0,
     revisoesAtrasadas: 0,
@@ -77,6 +91,43 @@ export default function PainelEstudante() {
     router.push('/login');
   };
 
+  const aplicarCicloResumo = (data: CicloApiResumo | null) => {
+    if (data?.idCiclo) {
+      setTemCiclo(true);
+      setCiclo({
+        cargoNome:     data.cargoNome,
+        concursoNome:  data.concursoNome,
+        bancaSigla:    data.bancaSigla,
+        totalSlots:    data.totalSlots,
+        posicaoAtual:  data.posicaoAtual,
+        horasPorDia:   data.horasPorDia,
+        proximaSessao: data.hojeSlots?.[0]
+          ? { nome: data.hojeSlots[0].nome, categoria: data.hojeSlots[0].categoria }
+          : null,
+      });
+    }
+  };
+
+  const rebalancearCiclo = async () => {
+    setRebalanceando(true);
+    setMensagemRebalanceamento('');
+    try {
+      const res = await fetch('/api/ciclos', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acao: 'rebalancear' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Não foi possível rebalancear o ciclo.');
+      aplicarCicloResumo(data);
+      setMensagemRebalanceamento('Ciclo rebalanceado com sucesso.');
+    } catch (error) {
+      setMensagemRebalanceamento(error instanceof Error ? error.message : 'Não foi possível rebalancear o ciclo.');
+    } finally {
+      setRebalanceando(false);
+    }
+  };
+
   useEffect(() => {
     queueMicrotask(() => {
       setMounted(true);
@@ -85,20 +136,7 @@ export default function PainelEstudante() {
     fetch('/api/ciclos')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (data?.idCiclo) {
-          setTemCiclo(true);
-          setCiclo({
-            cargoNome:     data.cargoNome,
-            concursoNome:  data.concursoNome,
-            bancaSigla:    data.bancaSigla,
-            totalSlots:    data.totalSlots,
-            posicaoAtual:  data.posicaoAtual,
-            horasPorDia:   data.horasPorDia,
-            proximaSessao: data.hojeSlots?.[0]
-              ? { nome: data.hojeSlots[0].nome, categoria: data.hojeSlots[0].categoria }
-              : null,
-          });
-        }
+        aplicarCicloResumo(data);
       })
       .catch(() => {})
       .finally(() => setCarregandoCiclo(false));
@@ -127,9 +165,14 @@ export default function PainelEstudante() {
   if (!mounted) return <div className="min-h-screen w-full bg-slate-50" />;
 
   const progresso = ciclo ? Math.round((ciclo.posicaoAtual / ciclo.totalSlots) * 100) : 0;
-  const passosConcluidos = temCiclo ? 2 : 1; // conta criada + ciclo
-  const totalPassos = 4;
-  const pctAtivacao = Math.round((passosConcluidos / totalPassos) * 100);
+  const assistentePedeRebalanceamento = Boolean(
+    assistente && (
+      assistente.sinais?.precisaRebalancear
+      || assistente.tipo === 'AJUSTAR_PLANO'
+      || assistente.acaoPrimaria?.toLowerCase().includes('rebalance')
+      || assistente.titulo.toLowerCase().includes('rebalance')
+    )
+  );
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-[linear-gradient(135deg,#eef9ff_0%,#f8fafc_34%,#f4f7ff_68%,#ecfdf5_100%)] text-[#475569] font-sans">
@@ -143,7 +186,7 @@ export default function PainelEstudante() {
 
       {/* Sidebar */}
       <aside className={`fixed lg:static inset-y-0 left-0 z-40 w-64 border-r border-white/30 bg-slate-950/90 text-white shadow-2xl shadow-slate-950/20 backdrop-blur-xl flex flex-col shrink-0 h-screen transition-transform duration-300 lg:translate-x-0 ${sidebarAberta ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="no-scrollbar flex min-h-0 grow flex-col items-center overflow-y-auto">
+        <div className="flex min-h-0 grow flex-col items-center overflow-hidden">
           <div className="w-full shrink-0 px-4 pb-3 pt-4">
             <div className="rounded-[20px] border border-white/10 bg-white/95 px-4 py-2.5 shadow-xl shadow-sky-950/20">
               <img src="/logo_azul.png" alt="Logo" className="mx-auto h-16 w-auto" />
@@ -240,182 +283,146 @@ export default function PainelEstudante() {
           </div>
         )}
 
-        {!carregandoCiclo && <div className="grid grid-cols-12 gap-6 pb-8">
-
-          {/* ── Coluna principal ── */}
-          <div className="col-span-12 lg:col-span-9 flex flex-col gap-5">
-
-            {/* Saudação */}
-            <div>
-              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-sky-50 text-sky-500 ring-1 ring-sky-100">
-                  <span className="text-xl leading-none">👋</span>
-                </span>
-                Bem-vindo de volta, {nomeUsuario}!
-              </h2>
-              <p className="text-slate-400 text-xs italic ml-1 mt-0.5">
-                {temCiclo ? 'Seu ciclo está ativo e pronto para continuar.' : 'Seu painel ainda está se preparando.'}
-              </p>
+        {!carregandoCiclo && <div className="grid grid-cols-12 gap-5 pb-8">
+          <section className="col-span-12">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-sky-500">Controle do estudo</p>
+                <h2 className="text-2xl font-black text-slate-800">Olá, {nomeUsuario || 'estudante'}</h2>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  {temCiclo ? 'Acompanhe o que pede ação e deixe a execução para a Minha Mesa.' : 'Crie o ciclo para liberar a rotina guiada.'}
+                </p>
+              </div>
+              {temCiclo && ciclo && (
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => router.push('/minha-mesa')} className="flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-emerald-100 transition-all hover:bg-emerald-600">
+                    <Zap size={16} /> Estudar agora
+                  </button>
+                  <button onClick={() => router.push('/ciclos')} className="flex items-center gap-2 rounded-2xl border border-sky-100 bg-white/80 px-4 py-2.5 text-sm font-black text-sky-700 transition-all hover:bg-sky-50">
+                    <RefreshCw size={16} /> Ver ciclo
+                  </button>
+                </div>
+              )}
             </div>
+          </section>
 
-            {/* ══ COM CICLO ══ */}
-            {temCiclo && ciclo ? (
-              <>
-                {assistente && (
-                  <div className="rounded-[28px] border border-emerald-100 bg-white/85 p-5 shadow-xl shadow-slate-200/60 backdrop-blur-xl">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">{assistente.etapaPedagogica ?? 'Faça isso agora'}</p>
-                        <h3 className="mt-1 truncate text-xl font-black text-slate-800">{assistente.titulo}</h3>
-                        <p className="mt-1 text-sm font-semibold text-slate-500">{assistente.narrativa ?? assistente.mensagem}</p>
-                        {assistente.explicacao && (
-                          <p className="mt-2 text-xs font-bold text-slate-500">{assistente.explicacao.consequencia}</p>
-                        )}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
-                          {assistente.tipo}{assistente.prioridadeScore ? ` · ${assistente.prioridadeScore}` : ''}
-                        </span>
-                        <button onClick={() => router.push(assistente.destino)} className="flex items-center gap-2 rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-white transition-all hover:bg-emerald-600">
-                          {assistente.acaoPrimaria ?? 'Abrir'} <ChevronRight size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Hero — próxima sessão */}
-                <div className="relative overflow-hidden rounded-[32px] border border-white/70 bg-linear-to-br from-slate-950 via-sky-950 to-sky-700 p-6 text-white shadow-2xl shadow-sky-200/50 animate-in fade-in duration-500">
-                  <div className="flex items-start justify-between gap-4 mb-5">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-black text-sky-500 uppercase tracking-widest mb-1">Próxima na fila</p>
-                      <h3 className="text-xl font-bold text-white truncate">
-                        {ciclo.proximaSessao?.nome ?? '—'}
-                      </h3>
-                      <p className="text-xs text-sky-100/75 mt-0.5 truncate">
-                        {[ciclo.cargoNome, ciclo.concursoNome || ciclo.bancaSigla].filter(Boolean).join(' · ')}
+          {temCiclo && ciclo ? (
+            <>
+              <section className="col-span-12 rounded-[30px] border border-white/70 bg-slate-950 p-5 text-white shadow-2xl shadow-sky-200/40 lg:col-span-8">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">
+                      {assistente?.etapaPedagogica ?? 'Próxima melhor ação'}
+                    </p>
+                    <h3 className="mt-2 text-2xl font-black leading-tight">
+                      {assistente?.titulo ?? `Continuar com ${ciclo.proximaSessao?.nome ?? 'a próxima sessão'}`}
+                    </h3>
+                    <p className="mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-slate-300">
+                      {assistente?.narrativa ?? assistente?.mensagem ?? 'A Mesa já sabe qual é a próxima ação do seu ciclo. Abra a execução quando estiver pronto.'}
+                    </p>
+                    {assistente?.explicacao && (
+                      <p className="mt-3 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-bold text-slate-200">
+                        {assistente.explicacao.consequencia}
                       </p>
-                    </div>
-                    {ciclo.proximaSessao && (
-                      <span className={`text-[11px] font-black uppercase px-2.5 py-1 rounded-full shrink-0 ring-1 ring-white/20 ${
-                        ciclo.proximaSessao.categoria === 'R' ? 'bg-violet-400/20 text-violet-100' : 'bg-amber-300/20 text-amber-100'
-                      }`}>
-                        {ciclo.proximaSessao.categoria === 'R' ? 'Raciocínio' : 'Memorização'}
-                      </span>
                     )}
                   </div>
+                  <button
+                    onClick={assistentePedeRebalanceamento ? rebalancearCiclo : () => router.push(assistente?.destino ?? '/minha-mesa')}
+                    disabled={rebalanceando}
+                    className="flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 shadow-lg shadow-emerald-950/20 transition-all hover:bg-emerald-300 disabled:opacity-70"
+                  >
+                    {rebalanceando && assistentePedeRebalanceamento ? <RefreshCw size={16} className="animate-spin" /> : null}
+                    {rebalanceando && assistentePedeRebalanceamento ? 'Rebalanceando...' : (assistente?.acaoPrimaria ?? 'Abrir Minha Mesa')}
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+                {mensagemRebalanceamento && (
+                  <p className={`mt-4 rounded-2xl px-4 py-2 text-xs font-black ${mensagemRebalanceamento.includes('sucesso') ? 'bg-emerald-400/15 text-emerald-100' : 'bg-red-400/15 text-red-100'}`}>
+                    {mensagemRebalanceamento}
+                  </p>
+                )}
+              </section>
 
-                  {/* Progresso na fila */}
-                  <div className="mb-5">
-                    <div className="flex justify-between text-[10px] font-bold text-sky-100/80 mb-1.5 [&>span:last-child]:text-white">
-                      <span>Posição na fila</span>
-                      <span className="text-slate-600">#{ciclo.posicaoAtual} de {ciclo.totalSlots} · {progresso}%</span>
-                    </div>
-                    <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-linear-to-r from-emerald-300 to-sky-300 rounded-full transition-all duration-700"
-                        style={{ width: `${progresso}%` }}
-                      />
-                    </div>
+              <section className="col-span-12 rounded-[30px] border border-white/70 bg-white/82 p-5 shadow-xl shadow-slate-200/60 backdrop-blur-xl lg:col-span-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-black uppercase tracking-[0.22em] text-sky-500">Sessão atual</p>
+                    <h3 className="mt-2 truncate text-xl font-black text-slate-800">{ciclo.proximaSessao?.nome ?? 'Ciclo em ajuste'}</h3>
+                    <p className="mt-1 truncate text-xs font-bold text-slate-500">
+                      {[ciclo.cargoNome, ciclo.concursoNome || ciclo.bancaSigla].filter(Boolean).join(' · ')}
+                    </p>
                   </div>
+                  {ciclo.proximaSessao && (
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase ${ciclo.proximaSessao.categoria === 'R' ? 'bg-violet-50 text-violet-700' : 'bg-amber-50 text-amber-700'}`}>
+                      {ciclo.proximaSessao.categoria === 'R' ? 'Raciocínio' : 'Memorização'}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-5">
+                  <div className="mb-2 flex justify-between text-xs font-black text-slate-500">
+                    <span>Posição no ciclo</span>
+                    <span>{ciclo.posicaoAtual}/{ciclo.totalSlots}</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full rounded-full bg-linear-to-r from-emerald-400 to-sky-400 transition-all" style={{ width: `${progresso}%` }} />
+                  </div>
+                  <p className="mt-2 text-xs font-bold text-slate-400">{progresso}% do ciclo percorrido.</p>
+                </div>
+              </section>
 
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => router.push('/ciclos')}
-                      className="flex items-center gap-2 px-5 py-2.5 bg-white text-sky-700 hover:bg-sky-50 rounded-xl font-bold text-sm transition-all shadow-sm"
-                    >
-                      <RefreshCw size={14} /> Ver ciclo
-                    </button>
-                    <button onClick={() => router.push('/minha-mesa')} className="flex items-center gap-2 px-5 py-2.5 bg-emerald-400 hover:bg-emerald-300 text-slate-950 rounded-xl font-bold text-sm transition-all shadow-sm">
-                      <Zap size={14} /> Minha Mesa
-                    </button>
+              <section className="col-span-12 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <PainelMetric icon={<Target size={18} />} label="Meta diária" value={`${ciclo.horasPorDia} sessões`} detail="Regra do seu ciclo" tone="emerald" />
+                <PainelMetric icon={<Calendar size={18} />} label="Revisões" value={String(resumo.revisoesPendentes)} detail={resumo.revisoesAtrasadas > 0 ? `${resumo.revisoesAtrasadas} atrasada(s)` : 'Em dia'} tone={resumo.revisoesAtrasadas > 0 ? 'amber' : 'sky'} />
+                <PainelMetric icon={<CheckCircle2 size={18} />} label="Concluídas" value={String(resumo.sessoesConcluidas)} detail="Sessões registradas" tone="sky" />
+                <PainelMetric icon={<Clock size={18} />} label="Horas totais" value={`${resumo.horasTotais}h`} detail="Histórico de estudo" tone="slate" />
+              </section>
+
+              <section className="col-span-12 grid gap-4 lg:grid-cols-[1fr_0.9fr]">
+                <div className="rounded-[28px] border border-white/70 bg-white/82 p-5 shadow-xl shadow-slate-200/60 backdrop-blur-xl">
+                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Alertas importantes</p>
+                  <div className="mt-4 grid gap-3">
+                    <AlertRow
+                      icon={<Calendar size={16} />}
+                      title={resumo.revisoesAtrasadas > 0 ? 'Revisões atrasadas pedem atenção' : 'Revisões sob controle'}
+                      detail={resumo.revisoesAtrasadas > 0 ? `Resolva ${resumo.revisoesAtrasadas} antes de avançar muito conteúdo novo.` : 'Nenhuma revisão crítica agora.'}
+                      tone={resumo.revisoesAtrasadas > 0 ? 'amber' : 'emerald'}
+                      onClick={() => router.push('/revisoes')}
+                    />
+                    <AlertRow
+                      icon={<RefreshCw size={16} />}
+                      title={assistentePedeRebalanceamento ? 'Ciclo pode ser ajustado' : 'Ciclo ativo'}
+                      detail={assistentePedeRebalanceamento ? 'Aplique o rebalanceamento sem sair da Visão Geral.' : `${ciclo.totalSlots} sessões organizadas para sua rotina.`}
+                      tone={assistentePedeRebalanceamento ? 'sky' : 'emerald'}
+                      onClick={assistentePedeRebalanceamento ? rebalancearCiclo : () => router.push('/ciclos')}
+                    />
                   </div>
                 </div>
 
-                {/* Stats do ciclo */}
-                <div className="grid grid-cols-3 gap-4">
-                  <StatCard icon={<RefreshCw size={16} />} label="Sessões no ciclo" valor={String(ciclo.totalSlots)}           cor="sky" />
-                  <StatCard icon={<Target size={16} />}    label="Meta diária"      valor={`${ciclo.horasPorDia} sessões`}      cor="emerald" />
-                  <StatCard icon={<Clock size={16} />}     label="Por sessão"       valor="60 min"                              cor="slate" />
+                <div className="rounded-[28px] border border-white/70 bg-white/82 p-5 shadow-xl shadow-slate-200/60 backdrop-blur-xl">
+                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Atalhos rápidos</p>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <QuickLink icon={<BookOpen size={17} />} label="Minha Mesa" onClick={() => router.push('/minha-mesa')} />
+                    <QuickLink icon={<ClipboardCheck size={17} />} label="Questões" onClick={() => router.push('/questoes')} />
+                    <QuickLink icon={<Calendar size={17} />} label="Revisões" onClick={() => router.push('/revisoes')} />
+                    <QuickLink icon={<BarChart3 size={17} />} label="Desempenho" onClick={() => router.push('/desempenho')} />
+                  </div>
                 </div>
-
-                {/* Resumos de acompanhamento */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <ResumoCard
-                    icon={<Calendar size={20} />}
-                    title="Revisões pendentes"
-                    value={String(resumo.revisoesPendentes)}
-                    description={resumo.revisoesAtrasadas > 0
-                      ? `${resumo.revisoesAtrasadas} atrasadas pedem atenção hoje.`
-                      : 'Sua fila de revisões está sob controle.'}
-                    actionLabel="Ver revisões"
-                    onClick={() => router.push('/revisoes')}
-                    tone="sky"
-                  />
-                  <ResumoCard
-                    icon={<BarChart3 size={20} />}
-                    title="Sessões concluídas"
-                    value={String(resumo.sessoesConcluidas)}
-                    description={`${resumo.horasTotais}h registradas no histórico de estudos.`}
-                    actionLabel="Ver desempenho"
-                    onClick={() => router.push('/desempenho')}
-                    tone="emerald"
-                  />
-                </div>
-              </>
-            ) : (
-              /* ══ SEM CICLO — Onboarding ══ */
-              <div className="rounded-[32px] border border-white/70 bg-white/78 py-10 px-8 text-center shadow-2xl shadow-slate-200/60 backdrop-blur-xl flex flex-col items-center">
-                <div className="mb-6">
-                  <h3 className="text-xl font-bold text-slate-800 mb-2">Para começar, crie o seu ciclo de estudos.</h3>
-                  <p className="text-slate-400 text-sm italic">É rápido, fácil e personalizado para o seu edital.</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 w-full max-w-2xl">
-                  <FeatureItem icon={<Clock size={20} />}      title="Organize seu tempo"     description="Defina quantas horas por dia você pode estudar." />
-                  <FeatureItem icon={<Target size={20} />}     title="Foque no que importa"   description="Disciplinas e pesos automáticos baseados no edital." />
-                  <FeatureItem icon={<TrendingUp size={20} />} title="Acompanhe sua evolução" description="Visão Geral, metas e revisões inteligentes." />
-                </div>
-                <button
-                  onClick={() => router.push('/ciclos')}
-                  className="px-8 py-3 rounded-xl font-bold text-base shadow-md transition-all flex items-center gap-2 mb-3 hover:scale-105 active:scale-95 bg-sky-500 hover:bg-sky-600 text-white shadow-sky-200"
-                >
-                  Criar meu ciclo de estudos <ChevronRight size={18} />
-                </button>
+              </section>
+            </>
+          ) : (
+            <section className="col-span-12 rounded-[32px] border border-white/70 bg-white/82 px-6 py-10 text-center shadow-2xl shadow-slate-200/60 backdrop-blur-xl">
+              <h3 className="text-2xl font-black text-slate-800">Crie seu ciclo para liberar a rotina guiada.</h3>
+              <p className="mx-auto mt-2 max-w-xl text-sm font-semibold text-slate-500">O sistema usa edital, cargo e tempo disponível para montar a sequência de estudos, revisões e acompanhamento.</p>
+              <div className="mx-auto mt-7 grid max-w-3xl grid-cols-1 gap-4 md:grid-cols-3">
+                <FeatureItem icon={<Clock size={20} />} title="Organize seu tempo" description="Transforme horas disponíveis em sessões práticas." />
+                <FeatureItem icon={<Target size={20} />} title="Priorize o edital" description="Use disciplinas e pesos do cargo escolhido." />
+                <FeatureItem icon={<TrendingUp size={20} />} title="Acompanhe evolução" description="Ganhe metas, revisões e recomendações." />
               </div>
-            )}
-          </div>
-
-          {/* ── Sidebar direita ── */}
-          <div className="hidden lg:flex col-span-3">
-            <div className="rounded-[28px] border border-white/70 bg-white/78 p-6 shadow-xl shadow-slate-200/60 backdrop-blur-xl flex flex-col w-full h-fit sticky top-6">
-              <h3 className="font-bold text-slate-800 mb-1 text-sm">
-                {temCiclo ? 'Próximos marcos' : 'Progresso de ativação'}
-              </h3>
-              <p className="text-slate-400 mb-6 text-xs italic">
-                {temCiclo
-                  ? 'Complete os marcos para aproveitar tudo.'
-                  : 'Complete os passos para desbloquear a plataforma.'}
-              </p>
-              <div className="space-y-5">
-                <CheckStep label="Conta criada"    done />
-                <CheckStep label="Ciclo criado"    done={temCiclo}  active={!temCiclo} onClick={!temCiclo ? () => router.push('/ciclos') : undefined} />
-                <CheckStep label="Primeiro estudo" done={false} />
-                <CheckStep label="Primeira revisão" done={false} />
-              </div>
-              <div className="mt-8 pt-6 border-t border-slate-50">
-                <div className="w-full h-1.5 bg-slate-100 rounded-full mb-2 overflow-hidden">
-                  <div
-                    className="h-full bg-emerald-400 transition-all duration-1000 rounded-full"
-                    style={{ width: `${pctAtivacao}%` }}
-                  />
-                </div>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  {pctAtivacao}% concluído
-                </span>
-              </div>
-            </div>
-          </div>
-
+              <button onClick={() => router.push('/ciclos')} className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-sky-500 px-7 py-3 text-sm font-black text-white shadow-lg shadow-sky-100 transition-all hover:bg-sky-600">
+                Criar ciclo de estudos <ChevronRight size={18} />
+              </button>
+            </section>
+          )}
         </div>}
 
       </main>
@@ -444,67 +451,71 @@ function HeaderIcon({ icon, label, onClick }: { icon: React.ReactNode; label: st
   );
 }
 
-function StatCard({ icon, label, valor, cor }: { icon: React.ReactNode; label: string; valor: string; cor: 'sky' | 'emerald' | 'slate' }) {
-  const s = {
-    sky:     { icon: 'text-sky-400',     text: 'text-sky-600' },
-    emerald: { icon: 'text-emerald-400', text: 'text-emerald-600' },
-    slate:   { icon: 'text-slate-400',   text: 'text-slate-700' },
-  }[cor];
+function PainelMetric({
+  icon,
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  detail: string;
+  tone: 'sky' | 'emerald' | 'amber' | 'slate';
+}) {
+  const colors = {
+    sky: 'bg-sky-50 text-sky-700 border-sky-100',
+    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+    amber: 'bg-amber-50 text-amber-700 border-amber-100',
+    slate: 'bg-slate-50 text-slate-700 border-slate-100',
+  }[tone];
+
   return (
-    <div className="rounded-[24px] border border-white/70 bg-white/78 p-4 shadow-lg shadow-slate-200/50 backdrop-blur-xl flex flex-col gap-2">
-      <div className={s.icon}>{icon}</div>
-      <p className={`text-xl font-black ${s.text}`}>{valor}</p>
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+    <div className="rounded-[24px] border border-white/70 bg-white/82 p-4 shadow-lg shadow-slate-200/50 backdrop-blur-xl">
+      <div className={`flex h-10 w-10 items-center justify-center rounded-2xl border ${colors}`}>{icon}</div>
+      <p className="mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{label}</p>
+      <p className="mt-1 text-2xl font-black text-slate-800">{value}</p>
+      <p className="mt-1 text-xs font-bold text-slate-500">{detail}</p>
     </div>
   );
 }
 
-function ResumoCard({
+function AlertRow({
   icon,
   title,
-  value,
-  description,
-  actionLabel,
-  onClick,
+  detail,
   tone,
+  onClick,
 }: {
   icon: React.ReactNode;
   title: string;
-  value: string;
-  description: string;
-  actionLabel: string;
+  detail: string;
+  tone: 'sky' | 'emerald' | 'amber';
   onClick: () => void;
-  tone: 'sky' | 'emerald';
 }) {
   const colors = {
-    sky: {
-      icon: 'text-sky-500 bg-sky-50',
-      value: 'text-sky-600',
-      button: 'text-sky-700 bg-sky-50 hover:bg-sky-100',
-    },
-    emerald: {
-      icon: 'text-emerald-500 bg-emerald-50',
-      value: 'text-emerald-600',
-      button: 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100',
-    },
+    sky: 'bg-sky-50 text-sky-700 border-sky-100',
+    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+    amber: 'bg-amber-50 text-amber-700 border-amber-100',
   }[tone];
 
   return (
-    <button
-      onClick={onClick}
-      className="group rounded-[24px] border border-white/70 bg-white/78 p-5 text-left shadow-lg shadow-slate-200/50 backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:shadow-xl"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-2xl ${colors.icon}`}>{icon}</div>
-          <h4 className="text-sm font-black text-slate-800">{title}</h4>
-        </div>
-        <p className={`text-4xl font-black leading-none ${colors.value}`}>{value}</p>
+    <button onClick={onClick} className="flex w-full items-start gap-3 rounded-2xl border border-slate-100 bg-white/70 p-3 text-left transition-all hover:border-sky-100 hover:bg-sky-50/60">
+      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${colors}`}>{icon}</div>
+      <div className="min-w-0">
+        <p className="text-sm font-black text-slate-800">{title}</p>
+        <p className="mt-0.5 text-xs font-semibold leading-relaxed text-slate-500">{detail}</p>
       </div>
-      <p className="mt-3 min-h-8 text-xs font-semibold leading-relaxed text-slate-400">{description}</p>
-      <span className={`mt-4 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest transition-colors ${colors.button}`}>
-        {actionLabel} <ChevronRight size={12} />
-      </span>
+    </button>
+  );
+}
+
+function QuickLink({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="flex items-center gap-2 rounded-2xl border border-slate-100 bg-white/75 px-3 py-3 text-left text-xs font-black text-slate-700 transition-all hover:border-sky-100 hover:bg-sky-50 hover:text-sky-700">
+      <span className="text-sky-500">{icon}</span>
+      {label}
     </button>
   );
 }
@@ -515,20 +526,6 @@ function FeatureItem({ icon, title, description }: { icon: React.ReactNode; titl
       <div className="text-sky-500 mb-2">{icon}</div>
       <h4 className="text-[11px] lg:text-[12px] font-bold text-slate-700 leading-tight">{title}</h4>
       <p className="text-[10px] text-slate-400 italic mt-1 leading-tight">{description}</p>
-    </div>
-  );
-}
-
-function CheckStep({ label, done = false, active = false, onClick }: { label: string; done?: boolean; active?: boolean; onClick?: () => void }) {
-  return (
-    <div className={`flex items-center gap-3 ${onClick ? 'cursor-pointer hover:opacity-80' : ''}`} onClick={onClick}>
-      {done
-        ? <div className="bg-emerald-100 text-emerald-500 rounded-full p-0.5 shrink-0"><CheckCircle2 size={14} /></div>
-        : <div className={`w-4 h-4 rounded-full border-2 shrink-0 transition-colors ${active ? 'border-sky-500 bg-sky-50 shadow-[0_0_8px_rgba(59,130,246,0.3)]' : 'border-slate-200'}`} />
-      }
-      <span className={`text-[11px] font-bold transition-colors ${done ? 'text-slate-700 line-through decoration-slate-300' : active ? 'text-slate-700' : 'text-slate-400'}`}>
-        {label}
-      </span>
     </div>
   );
 }

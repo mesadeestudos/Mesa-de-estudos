@@ -202,7 +202,7 @@ export default function QuestoesPage() {
         )}
 
         <aside className={`fixed lg:static inset-y-0 left-0 z-40 flex h-screen w-64 shrink-0 flex-col border-r border-white/30 bg-slate-950/90 text-white shadow-2xl shadow-slate-950/20 backdrop-blur-xl transition-transform duration-300 lg:translate-x-0 ${sidebarAberta ? 'translate-x-0' : '-translate-x-full'}`}>
-          <div className="no-scrollbar flex min-h-0 grow flex-col items-center overflow-y-auto">
+          <div className="flex min-h-0 grow flex-col items-center overflow-hidden">
             <div className="w-full shrink-0 px-4 pb-3 pt-4">
               <div className="rounded-[20px] border border-white/10 bg-white/95 px-4 py-2.5 shadow-xl shadow-sky-950/20">
                 <img src="/logo_azul.png" alt="Logo" className="mx-auto h-16 w-auto" />

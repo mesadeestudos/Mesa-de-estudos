@@ -11,7 +11,7 @@ import {
   Bell, Settings, User, LayoutDashboard, BookOpen, RefreshCw,
   LineChart, Calendar, LogOut, Search, ChevronDown, ChevronRight, Check,
   Lock, Zap, SlidersHorizontal, Info, CheckCircle2, Menu, AlertCircle,
-  Pencil, ClipboardCheck, CalendarDays, type LucideIcon,
+  Pencil, ClipboardCheck, CalendarDays, FileCheck2, Lightbulb, MessageCircle, NotebookTabs, type LucideIcon,
 } from 'lucide-react';
 
 interface Edital      { id: number; nome: string; descricao: string; banca: string; status: string; data: string; }
@@ -587,9 +587,13 @@ export default function CiclosEstudo() {
     { icon: <BookOpen size={18} />,        label: 'Minha Mesa',       active: false, href: '/minha-mesa' },
     { icon: <RefreshCw size={18} />,       label: 'Ciclos de estudo', active: true,  href: '/ciclos' },
     { icon: <ClipboardCheck size={18} />,  label: 'Questões',         active: false, href: '/questoes' },
+    { icon: <NotebookTabs size={18} />,    label: 'Caderno de erros', active: false, href: '/caderno-erros' },
+    { icon: <FileCheck2 size={18} />,      label: 'Simulados',        active: false, href: '/simulados' },
+    { icon: <MessageCircle size={18} />,   label: 'Assistente IA',    active: false, href: '/assistente' },
     { icon: <CalendarDays size={18} />,    label: 'Agenda',           active: false, href: '/agenda' },
     { icon: <LineChart size={18} />,       label: 'Desempenho',       active: false, href: '/desempenho' },
     { icon: <Calendar size={18} />,        label: 'Revisões',         active: false, href: '/revisoes' },
+    { icon: <Lightbulb size={18} />,       label: 'Sugestões',        active: false, href: '/sugestoes' },
     { icon: <Settings size={18} />,        label: 'Configurações',    active: false, href: '/configuracoes' },
     { icon: <User size={18} />,            label: 'Perfil',            active: false, href: '/perfil' },
   ];
@@ -914,7 +918,7 @@ export default function CiclosEstudo() {
 
       {/* -- Sidebar -- */}
       <aside className={`fixed lg:static inset-y-0 left-0 z-40 w-64 border-r border-white/30 bg-slate-950/90 text-white shadow-2xl shadow-slate-950/20 backdrop-blur-xl flex flex-col shrink-0 h-screen transition-transform duration-300 lg:translate-x-0 ${sidebarAberta ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex flex-col items-center grow overflow-y-auto min-h-0">
+        <div className="flex min-h-0 grow flex-col items-center overflow-hidden">
           <div className="w-full shrink-0 px-4 pb-3 pt-4">
             <div className="rounded-[20px] border border-white/10 bg-white/95 px-4 py-2.5 shadow-xl shadow-sky-950/20">
               <img src="/logo_azul.png" alt="Logo" className="mx-auto h-16 w-auto" />
@@ -2392,19 +2396,4 @@ function HeaderIcon({ icon, label, onClick }: { icon: React.ReactNode; label: st
     </button>
   );
 }
-
-function StatCard({ cor, label, valor }: { cor: 'sky' | 'slate'; label: string; valor: string }) {
-  const s = {
-    sky:   { wrap: 'bg-sky-50 border-sky-100',     label: 'text-sky-400',   valor: 'text-sky-600' },
-    slate: { wrap: 'bg-slate-50 border-slate-200', label: 'text-slate-400', valor: 'text-slate-700' },
-  }[cor];
-  return (
-    <div className={`rounded-xl p-4 text-center border ${s.wrap}`}>
-      <p className={`text-[11px] font-black uppercase tracking-widest mb-1 ${s.label}`}>{label}</p>
-      <p className={`text-2xl font-black ${s.valor}`}>{valor}</p>
-    </div>
-  );
-}
-
-
 

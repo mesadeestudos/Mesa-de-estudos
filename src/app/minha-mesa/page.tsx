@@ -98,12 +98,15 @@ export default function MinhaMesaPage() {
   const [precisaRevisarAmanha, setPrecisaRevisarAmanha] = useState(false);
   const [querQuestoes, setQuerQuestoes] = useState(false);
   const [marcarDuvida, setMarcarDuvida] = useState(false);
+  const [modoFoco, setModoFoco] = useState(true);
   const [metaDia, setMetaDia] = useState({
     sessoesConcluidas: 0,
     revisoesPendentes: 0,
     revisoesAtrasadas: 0,
   });
   const [assistente, setAssistente] = useState<AssistenteEstudo | null>(null);
+  const [rebalanceando, setRebalanceando] = useState(false);
+  const [mensagemRebalanceamento, setMensagemRebalanceamento] = useState('');
 
   const handleLogout = async () => {
     await fetch('/api/logout', { method: 'POST' }).catch(() => null);
@@ -153,6 +156,15 @@ export default function MinhaMesaPage() {
   const segundosEstudados = Math.max(0, totalSegundosSessao - segundosRestantes);
   const progressoCronometro = Math.min(100, Math.round((segundosEstudados / totalSegundosSessao) * 100));
   const chaveSessaoAtual = sessaoAtual ? `${ciclo?.idCiclo}-${ciclo?.posicaoAtual}-${sessaoAtual.idDisciplina}` : '';
+  const assistentePedeRebalanceamento = Boolean(
+    assistente && (
+      assistente.sinais?.precisaRebalancear
+      || assistente.tipo === 'AJUSTAR_PLANO'
+      || assistente.acaoPrimaria?.toLowerCase().includes('rebalance')
+      || assistente.titulo.toLowerCase().includes('rebalance')
+    )
+  );
+  const interfaceFoco = modoFoco || cronometroAtivo;
 
   const executarAcaoCiclo = useCallback(async (acao?: 'pular' | 'remarcar', topicoConcluido = cobriuTopicos) => {
     setCronometroAtivo(false);
@@ -179,6 +191,28 @@ export default function MinhaMesaPage() {
       setAcaoSecundaria(null);
     }
   }, [carregarCiclo, qualidadeSessao, cobriuTopicos, nivelFoco, precisaRevisarAmanha, querQuestoes, marcarDuvida, segundosEstudados]);
+
+  const rebalancearCiclo = useCallback(async () => {
+    setCronometroAtivo(false);
+    setRebalanceando(true);
+    setMensagemRebalanceamento('');
+    setErro('');
+    try {
+      const res = await fetch('/api/ciclos', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acao: 'rebalancear' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Não foi possível rebalancear o ciclo.');
+      await carregarCiclo();
+      setMensagemRebalanceamento('Ciclo rebalanceado com sucesso. A mesa foi atualizada.');
+    } catch (error) {
+      setMensagemRebalanceamento(error instanceof Error ? error.message : 'Não foi possível rebalancear o ciclo.');
+    } finally {
+      setRebalanceando(false);
+    }
+  }, [carregarCiclo]);
 
   const concluirSessao = useCallback(() => executarAcaoCiclo(), [executarAcaoCiclo]);
   const manterTopicoPendente = useCallback(() => executarAcaoCiclo(undefined, false), [executarAcaoCiclo]);
@@ -221,7 +255,7 @@ export default function MinhaMesaPage() {
         )}
 
         <aside className={`fixed lg:static inset-y-0 left-0 z-40 flex h-screen w-64 shrink-0 flex-col border-r border-white/30 bg-slate-950/90 text-white shadow-2xl shadow-slate-950/20 backdrop-blur-xl transition-transform duration-300 lg:translate-x-0 ${sidebarAberta ? 'translate-x-0' : '-translate-x-full'}`}>
-          <div className="no-scrollbar flex min-h-0 grow flex-col items-center overflow-y-auto">
+          <div className="flex min-h-0 grow flex-col items-center overflow-hidden">
             <div className="w-full shrink-0 px-4 pb-3 pt-4">
               <div className="rounded-[20px] border border-white/10 bg-white/95 px-4 py-2.5 shadow-xl shadow-sky-950/20">
                 <img src="/logo_azul.png" alt="Logo" className="mx-auto h-16 w-auto" />
@@ -262,9 +296,20 @@ export default function MinhaMesaPage() {
                 <h1 className="truncate text-lg font-black text-slate-800">Minha Mesa</h1>
               </div>
             </div>
-            <div className="flex gap-4 border-r border-slate-200 pr-6">
-              <HeaderIcon icon={<Bell size={18} />} label="Notificações" />
-              <HeaderIcon icon={<Settings size={18} />} label="Ajustes" />
+            <div className="flex items-center gap-3">
+              {ciclo && sessaoAtual && (
+                <button
+                  type="button"
+                  onClick={() => setModoFoco((atual) => !atual)}
+                  className={`hidden rounded-2xl px-4 py-2 text-xs font-black transition-all sm:inline-flex ${interfaceFoco ? 'bg-slate-950 text-white' : 'bg-sky-50 text-sky-700 hover:bg-sky-100'}`}
+                >
+                  {modoFoco ? 'Sair do foco' : cronometroAtivo ? 'Foco ativo' : 'Modo foco'}
+                </button>
+              )}
+              <div className="hidden gap-4 border-r border-slate-200 pr-6 sm:flex">
+                <HeaderIcon icon={<Bell size={18} />} label="Notificações" />
+                <HeaderIcon icon={<Settings size={18} />} label="Ajustes" />
+              </div>
             </div>
           </header>
 
@@ -286,7 +331,7 @@ export default function MinhaMesaPage() {
             </div>
           ) : (
             <div className="grid grid-cols-12 gap-5 pb-8">
-              {assistente && (
+              {assistente && !interfaceFoco && (
                 <section className="col-span-12 rounded-[28px] border border-emerald-100 bg-white/85 p-4 shadow-xl shadow-slate-200/60 backdrop-blur-xl">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
@@ -308,18 +353,28 @@ export default function MinhaMesaPage() {
                       <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
                         {assistente.tipo}{assistente.prioridadeScore ? ` · ${assistente.prioridadeScore}` : ''}
                       </span>
-                      <button onClick={() => router.push(assistente.destino)} className="flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2.5 text-xs font-black text-white transition-all hover:bg-emerald-600">
-                        {assistente.acaoPrimaria ?? 'Fazer agora'} <ChevronRight size={14} />
+                      <button
+                        onClick={assistentePedeRebalanceamento ? rebalancearCiclo : () => router.push(assistente.destino)}
+                        disabled={rebalanceando}
+                        className="flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2.5 text-xs font-black text-white transition-all hover:bg-emerald-600 disabled:opacity-70"
+                      >
+                        {rebalanceando && assistentePedeRebalanceamento ? <RefreshCw size={14} className="animate-spin" /> : null}
+                        {rebalanceando && assistentePedeRebalanceamento ? 'Rebalanceando...' : (assistente.acaoPrimaria ?? 'Fazer agora')} <ChevronRight size={14} />
                       </button>
                     </div>
                   </div>
+                  {mensagemRebalanceamento && (
+                    <p className={`mt-3 rounded-2xl px-4 py-2 text-xs font-black ${mensagemRebalanceamento.includes('sucesso') ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                      {mensagemRebalanceamento}
+                    </p>
+                  )}
                 </section>
               )}
 
-              <section className="col-span-12 overflow-hidden rounded-[28px] border border-white/70 bg-linear-to-br from-slate-950 via-sky-950 to-sky-700 p-5 text-white shadow-2xl shadow-sky-200/50 lg:col-span-8">
+              <section className={`col-span-12 overflow-hidden rounded-[28px] border border-white/70 bg-linear-to-br from-slate-950 via-sky-950 to-sky-700 p-5 text-white shadow-2xl shadow-sky-200/50 ${interfaceFoco ? 'lg:col-span-12' : 'lg:col-span-8'}`}>
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-200">Sessão em andamento</p>
+                    <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-200">Sessão atual</p>
                     <h2 className="mt-2 truncate text-2xl font-black leading-tight">{sessaoAtual.nome}</h2>
                     <div className="mt-3 rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-100/70">Tópico atual</p>
@@ -335,9 +390,9 @@ export default function MinhaMesaPage() {
                     </div>
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
-                  <Badge>{getTipoDisciplinaLabel(sessaoAtual.tipo)}</Badge>
-                  <Badge>{sessaoAtual.minutosAlocados || 60} min</Badge>
-                  <Badge>Sessão {ciclo.posicaoAtual} de {ciclo.totalSlots}</Badge>
+                    <Badge>{getTipoDisciplinaLabel(sessaoAtual.tipo)}</Badge>
+                    <Badge>{sessaoAtual.minutosAlocados || 60} min</Badge>
+                    <Badge>Sessão {ciclo.posicaoAtual} de {ciclo.totalSlots}</Badge>
                   </div>
                 </div>
                 <div className="mt-5">
@@ -386,7 +441,7 @@ export default function MinhaMesaPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
+                <div className={`mt-4 grid gap-3 ${interfaceFoco ? 'lg:grid-cols-[1fr_1fr]' : 'lg:grid-cols-[1.2fr_0.8fr]'}`}>
                   <div className="rounded-[22px] border border-white/15 bg-white/10 p-4 shadow-lg shadow-slate-950/10 backdrop-blur">
                     <p className="text-[10px] font-black uppercase tracking-[0.22em] text-sky-100/70">Checklist da sessão</p>
                     <div className="mt-3 space-y-2">
@@ -485,15 +540,15 @@ export default function MinhaMesaPage() {
                     {acaoSecundaria === 'remarcar' ? <RefreshCw size={16} className="animate-spin" /> : <Calendar size={16} />}
                     {acaoSecundaria === 'remarcar' ? 'Remarcando...' : 'Remarcar'}
                   </button>
-                  <button onClick={() => router.push('/ciclos')} className="flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-2.5 text-sm font-black text-sky-700 transition-all hover:bg-sky-50">
+                  {!interfaceFoco && <button onClick={() => router.push('/ciclos')} className="flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-2.5 text-sm font-black text-sky-700 transition-all hover:bg-sky-50">
                     Ver ciclo <ChevronRight size={16} />
-                  </button>
+                  </button>}
                 </div>
                 {erro && <p className="mt-4 rounded-2xl bg-red-500/15 px-4 py-3 text-sm font-bold text-red-100">{erro}</p>}
               </section>
 
-              <aside className="col-span-12 rounded-[28px] border border-white/70 bg-white/78 p-4 shadow-xl shadow-slate-200/60 backdrop-blur-xl lg:col-span-4">
-                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-500">Resumo do fluxo</p>
+              {!interfaceFoco && <aside className="col-span-12 rounded-[28px] border border-white/70 bg-white/78 p-4 shadow-xl shadow-slate-200/60 backdrop-blur-xl lg:col-span-4">
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-500">Depois desta sessão</p>
                 <h3 className="mt-2 truncate text-lg font-black text-slate-800">
                   {proximaSessao?.nome ?? ciclo.cicloSlots[0]?.nome ?? 'Volta para o início do ciclo'}
                 </h3>
@@ -520,9 +575,9 @@ export default function MinhaMesaPage() {
                     </span>
                   </div>
                 </div>
-              </aside>
+              </aside>}
 
-              <section className="col-span-12 rounded-[32px] border border-white/70 bg-white/78 p-5 shadow-xl shadow-slate-200/60 backdrop-blur-xl">
+              {!interfaceFoco && <section className="col-span-12 rounded-[32px] border border-white/70 bg-white/78 p-5 shadow-xl shadow-slate-200/60 backdrop-blur-xl">
                 <div className="mb-4 flex items-end justify-between gap-3">
                   <div>
                     <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Plano de hoje</p>
@@ -549,7 +604,7 @@ export default function MinhaMesaPage() {
                     </div>
                   ))}
                 </div>
-              </section>
+              </section>}
             </div>
           )}
         </main>

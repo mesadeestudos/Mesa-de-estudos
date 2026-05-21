@@ -493,12 +493,7 @@ export async function rebalancearCicloService(idUsuario: bigint) {
     });
   });
 
-  return {
-    idCiclo: Number(ciclo.id_ciclo),
-    totalSlots: distribuicao.length,
-    fatoresDesempenho: Object.fromEntries(desempenhoPorDisciplina),
-    distribuicao,
-  };
+  return buscarCicloService(idUsuario);
 }
 
 async function registrarSessaoSemConclusao(idUsuario: bigint, status: 'PULADA' | 'REMARCADA') {
