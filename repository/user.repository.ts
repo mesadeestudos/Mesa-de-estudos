@@ -41,7 +41,6 @@ export async function createUser(user: CadastroDTO) {
     const novoUsuario = await tx.usuario.create({
       data: {
         nome_completo: user.nome,
-        nome_usuario: user.email.split("@")[0],
         email: user.email,
         ativo: true,
         primeiro_acesso: true
@@ -116,7 +115,7 @@ export async function findByToken(token: string) {
 
   const credencial = await prisma.credencial.findFirst({
     where: {
-      reset_token: token
+      reset_token: tokenLimpo
     },
     include: {
       usuario: true

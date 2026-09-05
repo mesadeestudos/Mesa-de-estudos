@@ -1,228 +1,115 @@
-// ========================
-// IMPORTS
-// ========================
-
-// JWT (autenticação)
-import jwt from "jsonwebtoken"
-
-// criptografia de senha
-import bcrypt from "bcryptjs"
-
-// importar o função do email.service
-import { sendEmail } from "@/service/email.service"
-
-// geração de token seguro (reset)
-import crypto from "crypto"
-
-// geração de id (compatibilidade)
-import { randomUUID } from "crypto"
-
-// DTOs
-import { LoginDTO } from "@/dto/login.dto"
-import { CadastroDTO } from "@/dto/cadastro.dto"
-import { RequestResetDTO, ResetPasswordDTO } from "@/dto/reset.dto"
-
-// schemas (validação)
-import {
-  requestResetSchema,
-  resetPasswordSchema
-} from "@/schema/reset.schema"
-
-// repository (acesso ao banco)
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
+import { getJwtSecret } from '@/lib/auth';
+import { sendEmail } from '@/service/email.service';
+import { LoginDTO } from '@/dto/login.dto';
+import { CadastroDTO } from '@/dto/cadastro.dto';
+import { RequestResetDTO, ResetPasswordDTO } from '@/dto/reset.dto';
+import { requestResetSchema, resetPasswordSchema } from '@/schema/reset.schema';
 import {
   findUserByEmail,
   createUser,
   createSession,
   saveResetToken,
   findByToken,
-  updatePassword
-} from "@/repository/user.repository"
+  updatePassword,
+} from '@/repository/user.repository';
 
+const SESSION_TTL_SECONDS = 60 * 60 * 8;
 
-// ========================
-// CONFIG
-// ========================
+type AuthUser = NonNullable<Awaited<ReturnType<typeof findUserByEmail>>>;
 
-// chave secreta do JWT
-const SECRET =
-  process.env.JWT_SECRET || "secret"
-
-
-// ========================
-// GERAR TOKEN JWT
-// ========================
-function createToken(user: any) {
-
+function createToken(user: AuthUser) {
   return jwt.sign(
     {
       id: user.id,
       email: user.email,
       nome: user.nome,
-      primeiro_acesso: user.primeiroAcesso
+      primeiro_acesso: user.primeiroAcesso,
     },
-    SECRET,
-    {
-      expiresIn: "1h"
-    }
-  )
+    getJwtSecret(),
+    { expiresIn: SESSION_TTL_SECONDS },
+  );
 }
 
-
-// ========================
-// CADASTRO
-// ========================
-export async function cadastroService(
-  body: CadastroDTO) {
-
-  // 1. verifica se usuário já existe
-  const userExistente =
-    await findUserByEmail(body.email)
-
+export async function cadastroService(body: CadastroDTO) {
+  const userExistente = await findUserByEmail(body.email);
   if (userExistente) {
-    throw new Error("Usuário já cadastrado")
+    throw new Error('Usuario ja cadastrado');
   }
 
-  // 2. criptografa senha
-  const senhaHash =
-    await bcrypt.hash(body.senha, 10)
-
-  // 3. cria usuário (usuario + credencial)
-  const novoUsuario =
-  await createUser({
+  const senhaHash = await bcrypt.hash(body.senha, 10);
+  return createUser({
     nome: body.nome,
     email: body.email,
-    senha: senhaHash
-  })
-
-  return novoUsuario
+    senha: senhaHash,
+  });
 }
 
-
-// ========================
-// LOGIN
-// ========================
-export async function loginService(
-  body: LoginDTO) {
-
-  // 1. busca usuário
-  const user =
-    await findUserByEmail(body.email)
-
-  if (!user) {
-    throw new Error("Usuário e Senha Inválidos")
+export async function loginService(body: LoginDTO) {
+  const user = await findUserByEmail(body.email);
+  if (!user || !user.senha) {
+    throw new Error('E-mail ou senha incorretos. Verifique seus dados e tente novamente.');
   }
 
-  const userSafe = user
-
-  // 2. valida senha
-  if (!userSafe.senha) {
-    throw new Error("Erro interno: senha não encontrada")
-  }
-
-  const senhaValida =
-    await bcrypt.compare(body.senha, userSafe.senha)
-
+  const senhaValida = await bcrypt.compare(body.senha, user.senha);
   if (!senhaValida) {
-    throw new Error("Usuário e Senha Inválidos")
+    throw new Error('E-mail ou senha incorretos. Verifique seus dados e tente novamente.');
   }
 
-  // 3. gera token JWT
-  const token = createToken(userSafe)
-
-  // 4. cria sessão no banco
+  const token = createToken(user);
   await createSession({
-    id_usuario: Number(userSafe.id),
+    id_usuario: Number(user.id),
     refresh_token: token,
-    expira_em: new Date(Date.now() + 60 * 60 * 1000)
-  })
+    expira_em: new Date(Date.now() + SESSION_TTL_SECONDS * 1000),
+  });
 
-  // 5. retorna para o frontend
   return {
+    idUsuario: user.id,
     token,
-    primeiroAcesso: userSafe.primeiroAcesso
-  }
+    primeiroAcesso: user.primeiroAcesso,
+    expiresIn: SESSION_TTL_SECONDS,
+  };
 }
 
-
-// ========================
-// SOLICITAR RESET DE SENHA
-// ========================
-export async function requestResetService(
-  data: RequestResetDTO) {
-
-  // 1. valida dados
-  const parsed =
-    requestResetSchema.parse(data)
-
-  // 2. busca usuário
-  const user =
-    await findUserByEmail(parsed.email)
+export async function requestResetService(data: RequestResetDTO) {
+  const parsed = requestResetSchema.parse(data);
+  const user = await findUserByEmail(parsed.email);
 
   if (!user) {
-    throw new Error("Usuário não encontrado")
+    return true;
   }
 
-  // 3. gera token seguro
-  const token =
-    crypto.randomBytes(32).toString("hex")
+  const token = crypto.randomBytes(32).toString('hex');
+  const expire = new Date(Date.now() + 1000 * 60 * 15);
+  await saveResetToken(parsed.email, token, expire);
 
-  // 4. define expiração (15 min)
-  const expire =
-    new Date(Date.now() + 1000 * 60 * 15)
-
-  // 5. salva no banco
-  await saveResetToken(
-    parsed.email,
-    token,
-    expire
-  )
-
-  // 6. gera link e-mail
-  const link =
-  `http://localhost:3000/redefinir?token=${token}`
-
-  // ✉️ enviar email
+  const link = `${process.env.APP_URL || 'http://localhost:3000'}/redefinir?token=${token}`;
   await sendEmail(
     parsed.email,
-    "Recuperação de senha",
+    'Recuperacao de senha',
     `
-    <h2>Recuperação de senha</h2>
-    <p>Olá!</p>
-    <p>Clique no link abaixo para redefinir sua senha da plataforma Mesa de Estudo:</p>
+    <h2>Recuperacao de senha</h2>
+    <p>Ola!</p>
+    <p>Clique no link abaixo para redefinir sua senha da plataforma Mesa de Estudos:</p>
     <a href="${link}">${link}</a>
-    <p>Esse link expira em 15 minutos.</p>  
-    `
-  )
+    <p>Esse link expira em 15 minutos.</p>
+    `,
+  );
+
+  return true;
 }
 
-
-// ========================
-// REDEFINIR SENHA
-// ========================
-export async function resetPasswordService(
-  data: ResetPasswordDTO) {
-
-  // 1. valida dados
-  const parsed =
-    resetPasswordSchema.parse(data)
-
-  // 2. valida token (já valida expiração no repository)
-  const user =
-    await findByToken(parsed.token)
+export async function resetPasswordService(data: ResetPasswordDTO) {
+  const parsed = resetPasswordSchema.parse(data);
+  const user = await findByToken(parsed.token);
 
   if (!user) {
-    throw new Error("Token inválido ou expirado")
+    throw new Error('Token invalido ou expirado');
   }
 
-  // 3. gera hash da nova senha
-  const senhaHash =
-    await bcrypt.hash(parsed.senha, 10)
-
-  // 4. atualiza senha + limpa token
-  await updatePassword(
-    user.id,
-    senhaHash
-  )
-
-  return true
+  const senhaHash = await bcrypt.hash(parsed.senha, 10);
+  await updatePassword(user.id, senhaHash);
+  return true;
 }

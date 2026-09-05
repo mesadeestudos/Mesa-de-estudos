@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation'; // ✅ pegar token da URL
 
@@ -20,7 +20,7 @@ const EyeIcon = ({ visible }: { visible: boolean }) => (
   )
 );
 
-export default function RedefinirSenhaPage() {
+function RedefinirSenhaContent() {
 
   const params = useSearchParams();
   const token = params.get("token"); // ✅ token vindo do link
@@ -30,6 +30,7 @@ export default function RedefinirSenhaPage() {
   const [novaSenha, setNovaSenha] = useState({ senha: '', confirmar: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [sucesso, setSucesso] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   // --- REGRAS DE SENHA FORTE ---
   const regras = {
@@ -51,7 +52,7 @@ export default function RedefinirSenhaPage() {
 
 
   // ✅ ALTERADO PARA USAR BACKEND
-  const handleReset = async (e: React.FormEvent) => {
+  const handleReset = async (e: { preventDefault(): void }) => {
 
     e.preventDefault();
 
@@ -78,9 +79,7 @@ export default function RedefinirSenhaPage() {
       const data = await response.json();
 
       if (!response.ok) {
-
-        alert(data.error || "Erro ao redefinir");
-
+        setErrorMsg(data.error || 'Não foi possível atualizar sua senha. O link pode ter expirado.');
         setIsLoading(false);
         return;
       }
@@ -88,38 +87,38 @@ export default function RedefinirSenhaPage() {
       setSucesso(true);
       setIsLoading(false);
 
-    } catch (err) {
-
+    } catch {
       setIsLoading(false);
-      alert("Erro ao conectar com servidor");
-
+      setErrorMsg('Não foi possível conectar ao servidor. Tente novamente.');
     }
 
   };
 
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-6 relative overflow-hidden text-left">
-      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-indigo-50 rounded-full blur-[100px] opacity-60" />
+    <div className="min-h-screen bg-[linear-gradient(135deg,#eef9ff_0%,#f8fafc_34%,#f4f7ff_68%,#ecfdf5_100%)] flex items-center justify-center p-4 relative overflow-hidden text-left">
+
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(14,165,233,0.08)_0%,transparent_28%,rgba(16,185,129,0.07)_58%,transparent_100%)]" />
 
       <div className="w-full max-w-md z-10">
-        <div className="text-center mb-10">
+        <div className="text-center mb-5">
           <Link href="/">
-            <img src="/logo_azul.png" alt="Logo" className="h-50 mx-auto mb-6" />
+            <img src="/logo_azul.png" alt="Logo" className="h-20 sm:h-24 w-auto mx-auto mb-5 sm:mb-7" />
           </Link>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tighter">
+          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tighter">
             Nova Senha
           </h2>
-          <p className="text-slate-500 mt-2 font-medium italic text-sm">
-            Crie uma senha mestre para sua segurança.
+          <p className="text-slate-400 mt-1 text-sm font-medium">
+            Defina sua nova senha de acesso.
           </p>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-2xl p-8 rounded-[32px] border border-slate-100 shadow-xl">
+        <div className="bg-white/80 p-5 sm:p-6 rounded-3xl border border-white/70 shadow-2xl shadow-slate-200/60 backdrop-blur-xl">
           {!sucesso ? (
             <form
               onSubmit={handleReset}
-              className="space-y-6 animate-in slide-in-from-right-4 duration-500"
+              noValidate
+              className="space-y-4 animate-in slide-in-from-right-4 duration-500"
             >
 
               {/* Campo: Nova Senha */}
@@ -130,7 +129,6 @@ export default function RedefinirSenhaPage() {
 
                 <div className="relative group">
                   <input
-                    required
                     type={showPass ? "text" : "password"}
                     value={novaSenha.senha}
                     onChange={(e) =>
@@ -139,7 +137,7 @@ export default function RedefinirSenhaPage() {
                         senha: e.target.value
                       })
                     }
-                    className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-100 focus:border-cyan-500 outline-none font-medium transition-all pr-12 group-hover:bg-white"
+                    className="w-full px-5 py-3.5 rounded-2xl bg-white border border-slate-200 focus:border-cyan-500 outline-none font-medium transition-all pr-12"
                     placeholder="••••••••"
                   />
 
@@ -176,7 +174,6 @@ export default function RedefinirSenhaPage() {
 
                 <div className="relative group">
                   <input
-                    required
                     type={showConfirm ? "text" : "password"}
                     value={novaSenha.confirmar}
                     onChange={(e) =>
@@ -185,10 +182,10 @@ export default function RedefinirSenhaPage() {
                         confirmar: e.target.value
                       })
                     }
-                    className={`w-full px-5 py-4 rounded-2xl bg-slate-50 border outline-none font-medium transition-all pr-12 group-hover:bg-white
+                    className={`w-full px-5 py-3.5 rounded-2xl bg-white border outline-none font-medium transition-all pr-12
                       ${novaSenha.confirmar && !regras.match
                         ? 'border-rose-300'
-                        : 'border-slate-100 focus:border-cyan-500'
+                        : 'border-slate-200 focus:border-cyan-500'
                       }`}
                     placeholder="••••••••"
                   />
@@ -206,20 +203,37 @@ export default function RedefinirSenhaPage() {
                 </div>
 
                 {novaSenha.confirmar && !regras.match && (
-                  <p className="text-[10px] text-rose-500 font-black uppercase mt-2 ml-1 italic tracking-widest">
-                    As senhas não coincidem
+                  <p className="mt-2 ml-1 text-xs font-semibold text-red-500 flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4 shrink-0">
+                      <path fillRule="evenodd" d="M6.701 2.25c.577-1 2.02-1 2.598 0l5.196 9a1.5 1.5 0 01-1.299 2.25H2.804a1.5 1.5 0 01-1.3-2.25l5.197-9zM8 4.5a.75.75 0 01.75.75v2.5a.75.75 0 01-1.5 0v-2.5A.75.75 0 018 4.5zm0 7a.75.75 0 100-1.5.75.75 0 000 1.5z" clipRule="evenodd" />
+                    </svg>
+                    As senhas não coincidem.
                   </p>
                 )}
               </div>
+
+              {errorMsg && (
+                <div role="alert" className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-red-50 border border-red-100">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-red-500 shrink-0 mt-0.5">
+                    <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-sm font-semibold text-red-600 flex-1">{errorMsg}</p>
+                  <button type="button" onClick={() => setErrorMsg('')} className="text-red-300 hover:text-red-500 transition-colors shrink-0" aria-label="Fechar">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                      <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                    </svg>
+                  </button>
+                </div>
+              )}
 
               {/* Botão */}
               <button
                 type="submit"
                 disabled={isLoading || !formValido}
-                className={`w-full py-5 text-white font-black rounded-2xl shadow-xl transition-all duration-300
+                className={`w-full py-4 text-white font-black rounded-2xl shadow-xl transition-all duration-300 tracking-wider uppercase
                   ${isLoading || !formValido
                     ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-700 hover:scale-[1.02]'
+                    : 'bg-linear-to-r from-cyan-500 to-indigo-600 hover:scale-[1.02] hover:shadow-xl hover:shadow-cyan-400/40 active:scale-[0.98] shadow-lg shadow-cyan-200'
                   }`}
               >
                 {isLoading ? "SALVANDO..." : "ATUALIZAR SENHA"}
@@ -242,15 +256,23 @@ export default function RedefinirSenhaPage() {
 
               <Link
                 href="/login"
-                className="block w-full py-5 bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-700 text-white font-black rounded-2xl text-center"
+                className="block w-full py-5 bg-linear-to-r from-cyan-500 to-indigo-600 text-white font-black rounded-2xl text-center shadow-lg shadow-cyan-200 hover:shadow-xl hover:shadow-cyan-400/40 hover:scale-[1.02] active:scale-[0.98] transition-all"
               >
-                ACESSAR MINHA CONTA
+                ACESSAR MINHA MESA
               </Link>
             </div>
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RedefinirSenhaPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-linear-to-br from-cyan-50/50 via-white to-indigo-50/50" />}>
+      <RedefinirSenhaContent />
+    </Suspense>
   );
 }
 

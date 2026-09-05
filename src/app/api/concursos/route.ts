@@ -16,7 +16,7 @@ export async function GET() {
     // Retorna JSON
     return NextResponse.json(concursos)
 
-  } catch (error) {
+  } catch {
 
     // Tratamento de erro
     return NextResponse.json(

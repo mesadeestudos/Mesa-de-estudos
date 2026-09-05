@@ -1,0 +1,791 @@
+﻿<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Relatorio de Melhorias - Mesa de Estudos</title>
+  <style>
+    @page { size: A4; margin: 17mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #1f2937; background: #fff; line-height: 1.45; font-size: 12px; }
+    h1, h2, h3 { margin: 0; color: #0f172a; }
+    h1 { font-size: 28px; line-height: 1.1; }
+    h2 { font-size: 18px; margin-top: 25px; padding-bottom: 6px; border-bottom: 1px solid #dbeafe; }
+    h3 { font-size: 14px; margin-top: 16px; }
+    p { margin: 7px 0; }
+    ul, ol { margin: 7px 0 10px 18px; padding: 0; }
+    li { margin: 4px 0; }
+    code { font-family: Consolas, "Courier New", monospace; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 1px 4px; font-size: 11px; }
+    pre { white-space: pre-wrap; background: #0f172a; color: #e5e7eb; border-radius: 8px; padding: 12px; font-size: 10.2px; line-height: 1.42; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+    th, td { border: 1px solid #e2e8f0; padding: 7px; vertical-align: top; text-align: left; }
+    th { background: #f8fafc; color: #0f172a; }
+    .cover { border: 1px solid #dbeafe; border-radius: 16px; padding: 24px; background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 52%, #ecfdf5 100%); margin-bottom: 22px; }
+    .subtitle { color: #475569; font-size: 13px; margin-top: 10px; max-width: 640px; }
+    .meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; }
+    .meta div, .card { border: 1px solid #e2e8f0; background: #fff; border-radius: 10px; padding: 10px; }
+    .label { display: block; color: #0284c7; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; font-size: 9px; margin-bottom: 3px; }
+    .note { border-left: 4px solid #0ea5e9; background: #f0f9ff; padding: 10px 12px; border-radius: 8px; margin: 10px 0; }
+    .warn { border-left-color: #f59e0b; background: #fffbeb; }
+    .ok { border-left-color: #10b981; background: #ecfdf5; }
+    .break { page-break-before: always; }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <h1>Relatorio de Melhorias Implementadas</h1>
+    <p class="subtitle">
+      Sistema Mesa de Estudos: consolidacao das melhorias feitas em 03/05/2026, atualizacao comercial de 04/05/2026
+      e atualizacao de IA orientadora, teste gratis, planos e scripts de banco de 10/05/2026
+      e atualizacao de UX e banco de 04/05/2026, incluindo assistente inteligente, agenda, questoes, revisao adaptativa,
+      ajustes de rotina, fluxo comercial, seguranca, onboarding, assinatura, sugestoes dos usuarios,
+      redesign da etapa 1 de criacao de ciclo, home funcional com Tutoriais/Ajuda, checklist da sessao,
+      feedback de aprendizagem e correcao da constraint de metodo no banco.
+    </p>
+    <div class="meta">
+      <div><span class="label">Data</span>03/05/2026, 04/05/2026, 10/05/2026</div>
+      <div><span class="label">Branch</span>jardel</div>
+      <div><span class="label">Ultimo commit remoto</span>Atualizado nesta entrega</div>
+    </div>
+  </section>
+
+  <h2>1. Resumo Executivo</h2>
+  <p>
+    As melhorias implementadas transformam o sistema de um organizador de ciclos em uma plataforma mais proativa.
+    O usuario continua podendo alterar manualmente o plano quando necessario, mas agora o sistema interpreta sinais
+    de desempenho, revisoes, questoes, agenda e indisponibilidade para sugerir a proxima melhor acao.
+  </p>
+  <div class="note ok">
+    <strong>Resultado principal:</strong> o sistema ficou mais automatico sem retirar o controle do usuario. A logica dos ciclos foi preservada;
+    foram adicionadas camadas de inteligencia, agenda, ajustes e padronizacao visual.
+  </div>
+
+  <h2>2. Melhorias Implementadas</h2>
+
+  <h3>2.1 Assistente de Estudo com explicacao detalhada</h3>
+  <p><strong>Arquivos principais:</strong> <code>service/assistente-estudo.service.ts</code>, <code>src/app/api/assistente/route.ts</code>.</p>
+  <ul>
+    <li>O assistente agora decide a proxima melhor acao com base em ciclo, revisoes, questoes, desempenho e ajustes da agenda.</li>
+    <li>Foi adicionada uma explicacao detalhada com sinal principal, sinais usados e alternativas consideradas.</li>
+    <li>Quando existe pausa ativa, o assistente respeita esse contexto e evita pressionar o usuario.</li>
+    <li>Quando existem questoes com baixo aproveitamento, o assistente pode recomendar pratica focada.</li>
+  </ul>
+
+  <h3>2.2 Agenda inteligente</h3>
+  <p><strong>Arquivos principais:</strong> <code>service/agenda.service.ts</code>, <code>src/app/api/agenda/route.ts</code>, <code>src/app/agenda/page.tsx</code>.</p>
+  <ul>
+    <li>Novo menu <strong>Agenda</strong> para centralizar planejamento diario e semanal.</li>
+    <li>Exibe plano do dia, sessoes previstas, revisoes vencidas/futuras e questoes recomendadas.</li>
+    <li>Mostra historico por dia, dias sem estudo, meta semanal e previsao de conclusao do edital.</li>
+    <li>Destaca prova/data do edital quando disponivel.</li>
+    <li>Permite remarcar a sessao atual ou uma sessao especifica da fila.</li>
+    <li>Permite pausar o plano por periodo e reduzir temporariamente a meta diaria.</li>
+    <li>Agora destaca alerta urgente quando a previsao de conclusao passa da data da prova.</li>
+  </ul>
+
+  <h3>2.2.1 Minha Mesa com sessao focada e feedback de aprendizagem</h3>
+  <p><strong>Arquivos principais:</strong> <code>service/ciclo.service.ts</code>, <code>src/app/minha-mesa/page.tsx</code>, <code>src/app/api/ciclos/route.ts</code>.</p>
+  <ul>
+    <li>A sessao atual passou a exibir uma checklist de topicos sugeridos da disciplina, baseada em topicos ainda nao concluidos.</li>
+    <li>Ao concluir a sessao, o usuario informa se entendeu bem, se foi normal, dificil ou se nao entendeu.</li>
+    <li>O usuario tambem informa se cobriu os topicos ou se faltou parte da sessao.</li>
+    <li>O campo <code>qualidade</code> em <code>planejamento.sessao_estudo</code> guarda esse feedback para alimentar o historico e o assistente.</li>
+    <li>Quando o usuario marca que nao entendeu ou que faltou parte, o topico nao e marcado automaticamente como concluido.</li>
+  </ul>
+
+  <h3>2.3 Ajustes de rotina do plano</h3>
+  <p><strong>Arquivos principais:</strong> <code>service/ajuste-plano.service.ts</code>, <code>src/app/api/ajustes-plano/route.ts</code>, <code>scripts/create-ajustes-plano-table.sql</code>.</p>
+  <ul>
+    <li>Foi criado suporte para <code>PAUSA</code>, usado quando o usuario nao pode estudar por alguns dias.</li>
+    <li>Foi criado suporte para <code>META_TEMPORARIA</code>, usado quando o usuario precisa reduzir a carga diaria por um periodo.</li>
+    <li>A Agenda passa a exibir se existe pausa ativa ou meta temporaria ativa.</li>
+    <li>O sistema trata a tabela como opcional ate ela existir no banco real, evitando quebra total da tela.</li>
+  </ul>
+
+  <h3>2.4 Ciclos de estudo: remarcar sessao especifica</h3>
+  <p><strong>Arquivos principais:</strong> <code>service/ciclo.service.ts</code>, <code>src/app/api/ciclos/route.ts</code>.</p>
+  <ul>
+    <li><code>PATCH /api/ciclos</code> agora aceita a acao <code>remarcar</code> com uma ordem especifica da sessao.</li>
+    <li>A sessao pode ser movida na fila sem marcar topico como concluido.</li>
+    <li>A regra do ciclo continua a mesma; a melhoria apenas permite reorganizar a fila quando houver impossibilidade de estudo.</li>
+  </ul>
+
+  <h3>2.5 Questoes mais completas</h3>
+  <p><strong>Arquivos principais:</strong> <code>service/questoes.service.ts</code>, <code>src/app/api/questoes/route.ts</code>, <code>src/app/questoes/page.tsx</code>.</p>
+  <ul>
+    <li>A tela de Questoes permite escolher disciplina e topico.</li>
+    <li>Permite registrar total de questoes, acertos, erros e percentual.</li>
+    <li>Permite editar lancamentos recentes usando <code>PUT /api/questoes</code>.</li>
+    <li>Retorna opcoes de topicos para deixar o registro mais preciso.</li>
+    <li>Alimenta Agenda, Desempenho e Assistente com dados reais de aprendizado.</li>
+    <li>O rebalanceamento do ciclo passou a considerar aproveitamento em questoes, separando progresso por tempo de entendimento real.</li>
+  </ul>
+
+  <h3>2.6 Revisoes com botoes de resultado</h3>
+  <p><strong>Arquivos principais:</strong> <code>src/app/revisoes/page.tsx</code>, <code>src/app/api/revisoes/route.ts</code>, <code>service/revisao-adaptativa.service.ts</code>.</p>
+  <ul>
+    <li>A tela de Revisoes agora usa botoes <strong>Facil</strong>, <strong>Medio</strong>, <strong>Dificil</strong> e <strong>Errei</strong>.</li>
+    <li>O resultado enviado altera o intervalo futuro da revisao.</li>
+    <li>Isso aproxima o sistema de uma revisao espacada adaptativa.</li>
+    <li>As revisoes agora exibem topico exato, motivo da revisao e dificuldade historica.</li>
+  </ul>
+
+  <h3>2.7 Layout/menu compartilhado</h3>
+  <p><strong>Arquivos criados:</strong> <code>src/components/app/AppShell.tsx</code>, <code>Sidebar.tsx</code>, <code>MenuItem.tsx</code>, <code>Header.tsx</code>, <code>src/components/ui/MetricCard.tsx</code>, <code>EmptyState.tsx</code>.</p>
+  <ul>
+    <li>Foi criada uma estrutura compartilhada para menu, cabecalho, logout, logo e navegacao.</li>
+    <li>As telas <strong>Agenda</strong>, <strong>Questoes</strong> e <strong>Revisoes</strong> ja usam o novo padrao.</li>
+    <li>Isso reduz duplicacao visual e facilita manutencao do menu em um unico lugar.</li>
+    <li>Nao altera a logica dos ciclos; e uma melhoria de organizacao, experiencia e manutencao.</li>
+  </ul>
+
+  <h2 class="break">3. APIs Criadas ou Alteradas</h2>
+  <table>
+    <thead><tr><th>Endpoint</th><th>Funcao</th><th>Banco/observacao</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET /api/agenda</code></td><td>Consolida plano do dia, semana, revisoes, questoes, edital e ajustes.</td><td>Usa dados existentes e <code>ajuste_plano_usuario</code> se existir.</td></tr>
+      <tr><td><code>POST /api/ajustes-plano</code></td><td>Cria pausa ou meta temporaria.</td><td>Requer <code>planejamento.ajuste_plano_usuario</code>.</td></tr>
+      <tr><td><code>PATCH /api/ciclos</code></td><td>Concluir, pular, remarcar, remarcar ordem especifica e rebalancear.</td><td>Mantem compatibilidade com o fluxo antigo.</td></tr>
+      <tr><td><code>GET /api/questoes</code></td><td>Resumo, topicos criticos, historico recente e opcoes de topicos.</td><td>Requer <code>planejamento.questao_treino</code> para dados reais.</td></tr>
+      <tr><td><code>POST /api/questoes</code></td><td>Registra bateria de questoes.</td><td>Insere em <code>questao_treino</code>.</td></tr>
+      <tr><td><code>PUT /api/questoes</code></td><td>Edita lancamento de questoes existente.</td><td>Atualiza <code>questao_treino</code>.</td></tr>
+      <tr><td><code>POST /api/revisoes</code></td><td>Registra revisao com resultado.</td><td>Usa status de revisao adaptativa.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4. Mudancas Necessarias no Banco Real</h2>
+
+  <h3>4.1 Criar tabela de questoes</h3>
+  <p>
+    Necessaria para que Questoes, Desempenho, Agenda e Assistente usem acertos/erros reais. O SQL tambem esta em
+    <code>scripts/create-questoes-table.sql</code>.
+  </p>
+  <pre>CREATE TABLE IF NOT EXISTS planejamento.questao_treino (
+  id_questao_treino BIGSERIAL PRIMARY KEY,
+  id_usuario BIGINT NOT NULL,
+  id_disciplina INT NOT NULL,
+  id_topico BIGINT NULL,
+  total_questoes INT NOT NULL,
+  total_acertos INT NOT NULL,
+  percentual NUMERIC(5,2) NOT NULL,
+  data_registro TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT questao_treino_total_check CHECK (total_questoes &gt; 0),
+  CONSTRAINT questao_treino_acertos_check CHECK (total_acertos &gt;= 0 AND total_acertos &lt;= total_questoes)
+);
+
+CREATE INDEX IF NOT EXISTS idx_questao_treino_usuario
+  ON planejamento.questao_treino (id_usuario);
+
+CREATE INDEX IF NOT EXISTS idx_questao_treino_disciplina
+  ON planejamento.questao_treino (id_usuario, id_disciplina);
+
+CREATE INDEX IF NOT EXISTS idx_questao_treino_topico
+  ON planejamento.questao_treino (id_usuario, id_topico);</pre>
+
+  <h3>4.2 Criar tabela de ajustes do plano</h3>
+  <p>
+    Necessaria para pausa do plano e reducao temporaria de meta diaria. O SQL tambem esta em
+    <code>scripts/create-ajustes-plano-table.sql</code>.
+  </p>
+  <pre>CREATE TABLE IF NOT EXISTS planejamento.ajuste_plano_usuario (
+  id_ajuste_plano BIGSERIAL PRIMARY KEY,
+  id_usuario BIGINT NOT NULL,
+  tipo VARCHAR(30) NOT NULL,
+  data_inicio TIMESTAMPTZ NOT NULL,
+  data_fim TIMESTAMPTZ NOT NULL,
+  horas_por_dia NUMERIC(4,2) NULL,
+  motivo TEXT NULL,
+  data_criacao TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT ajuste_plano_tipo_check CHECK (tipo IN ('PAUSA', 'META_TEMPORARIA')),
+  CONSTRAINT ajuste_plano_periodo_check CHECK (data_fim &gt;= data_inicio),
+  CONSTRAINT ajuste_plano_horas_check CHECK (horas_por_dia IS NULL OR (horas_por_dia &gt;= 1 AND horas_por_dia &lt;= 12))
+);
+
+CREATE INDEX IF NOT EXISTS idx_ajuste_plano_usuario_periodo
+  ON planejamento.ajuste_plano_usuario (id_usuario, data_inicio, data_fim);
+
+CREATE INDEX IF NOT EXISTS idx_ajuste_plano_usuario_tipo
+  ON planejamento.ajuste_plano_usuario (id_usuario, tipo);</pre>
+
+  <h3>4.3 Alinhar coluna da tabela sessao_estudo</h3>
+  <p>
+    O Prisma/schema espera a coluna <code>planejamento.sessao_estudo.id_ciclo_disciplina</code>. O banco real apresentou erro porque ela nao existe.
+    A Agenda foi protegida com consulta seletiva, mas para funcionamento perfeito e sem surpresas o banco deve ser alinhado.
+  </p>
+  <pre>ALTER TABLE planejamento.sessao_estudo
+  ADD COLUMN IF NOT EXISTS id_ciclo_disciplina BIGINT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_sessao_estudo_ciclo_disciplina
+  ON planejamento.sessao_estudo (id_ciclo_disciplina);
+
+ALTER TABLE planejamento.sessao_estudo
+  ADD CONSTRAINT fk_sessao_estudo_ciclo_disciplina
+  FOREIGN KEY (id_ciclo_disciplina)
+  REFERENCES planejamento.ciclo_disciplina (id_ciclo_disciplina)
+  ON DELETE SET NULL;</pre>
+  <div class="note warn">
+    Antes de executar a constraint, conferir se <code>planejamento.ciclo_disciplina</code> existe no banco real com esse nome e chave primaria. Se o nome real da tabela for diferente, ajustar o SQL.
+  </div>
+
+  <h3>4.4 Conferir status aceitos em sessao_estudo</h3>
+  <p>Se existir constraint de status, ela precisa aceitar:</p>
+  <ul>
+    <li><code>CONCLUIDA</code></li>
+    <li><code>REVISAO</code></li>
+    <li><code>REVISAO_FACIL</code></li>
+    <li><code>REVISAO_MEDIO</code></li>
+    <li><code>REVISAO_DIFICIL</code></li>
+    <li><code>REVISAO_ERREI</code></li>
+    <li><code>PULADA</code></li>
+    <li><code>REMARCADA</code></li>
+  </ul>
+
+  <h3>4.5 Permissoes necessarias</h3>
+  <p>O usuario da aplicacao precisa ter:</p>
+  <ul>
+    <li><code>USAGE</code> no schema <code>planejamento</code> e nos demais schemas consultados.</li>
+    <li><code>SELECT</code>, <code>INSERT</code>, <code>UPDATE</code> em <code>planejamento.questao_treino</code>.</li>
+    <li><code>SELECT</code>, <code>INSERT</code> em <code>planejamento.ajuste_plano_usuario</code>.</li>
+    <li><code>SELECT</code>, <code>INSERT</code>, <code>UPDATE</code> nas tabelas de ciclos, sessoes, progresso e revisoes.</li>
+    <li><code>SELECT</code> nas tabelas de edital, cargo, disciplina, topico e concurso.</li>
+  </ul>
+
+  <h2 class="break">5. Arquivos Criados ou Adicionados</h2>
+  <ul>
+    <li><code>service/ajuste-plano.service.ts</code></li>
+    <li><code>src/app/api/ajustes-plano/route.ts</code></li>
+    <li><code>scripts/create-ajustes-plano-table.sql</code></li>
+    <li><code>src/components/app/AppShell.tsx</code></li>
+    <li><code>src/components/app/Sidebar.tsx</code></li>
+    <li><code>src/components/app/MenuItem.tsx</code></li>
+    <li><code>src/components/app/Header.tsx</code></li>
+    <li><code>src/components/ui/MetricCard.tsx</code></li>
+    <li><code>src/components/ui/EmptyState.tsx</code></li>
+  </ul>
+
+  <h2>6. Arquivos Principais Alterados</h2>
+  <ul>
+    <li><code>service/agenda.service.ts</code></li>
+    <li><code>service/assistente-estudo.service.ts</code></li>
+    <li><code>service/ciclo.service.ts</code></li>
+    <li><code>service/questoes.service.ts</code></li>
+    <li><code>src/app/agenda/page.tsx</code></li>
+    <li><code>src/app/questoes/page.tsx</code></li>
+    <li><code>src/app/revisoes/page.tsx</code></li>
+    <li><code>src/app/api/ciclos/route.ts</code></li>
+    <li><code>src/app/api/questoes/route.ts</code></li>
+  </ul>
+
+  <h2>7. Validacoes Realizadas</h2>
+  <ul>
+    <li><code>npx.cmd tsc --noEmit</code>: executado com sucesso, sem erros.</li>
+    <li><code>npm.cmd run lint</code>: executado com sucesso, apenas warnings antigos de <code>&lt;img&gt;</code> e imports nao relacionados.</li>
+    <li>Commit enviado ao remoto: <code>724c8fc feat: improve intelligent study workflows and app shell</code>.</li>
+  </ul>
+
+  <h2>8. Ordem Recomendada Para Atualizar o Banco Real</h2>
+  <ol>
+    <li>Executar <code>scripts/create-questoes-table.sql</code>.</li>
+    <li>Executar <code>scripts/create-ajustes-plano-table.sql</code>.</li>
+    <li>Adicionar <code>id_ciclo_disciplina</code> em <code>planejamento.sessao_estudo</code>, validando antes o nome real da tabela <code>ciclo_disciplina</code>.</li>
+    <li>Conferir/ajustar constraint de status da tabela <code>sessao_estudo</code>.</li>
+    <li>Garantir permissoes para o usuario da aplicacao.</li>
+    <li>Testar os fluxos: Agenda, Questoes, Revisoes, Minha Mesa, Ciclos e Desempenho.</li>
+  </ol>
+
+  <h2 class="break">9. Atualizacao de 04/05/2026 - Preparacao Comercial, Seguranca, Onboarding e Sugestoes</h2>
+  <p>
+    Nesta atualizacao, o sistema foi evoluido para ficar mais proximo de um MVP comercial. Foram adicionados fluxo de assinatura,
+    checkout em modo mock preparado para gateway real, status de assinatura, webhook base, cookies httpOnly, logout pelo servidor,
+    onboarding guiado e um canal para usuarios enviarem sugestoes de melhoria.
+  </p>
+  <div class="note ok">
+    <strong>Commit remoto:</strong> <code>0105b9f Implementa fluxo comercial e sugestoes de usuarios</code>, enviado para <code>origin/jardel</code>.
+  </div>
+
+  <h3>9.1 Pagamentos, assinatura e bloqueio de acesso</h3>
+  <p><strong>Arquivos principais:</strong> <code>service/assinatura.service.ts</code>, <code>src/app/api/assinatura/route.ts</code>, <code>src/app/api/assinatura/checkout/route.ts</code>, <code>src/app/api/webhooks/pagamento/route.ts</code>, <code>src/app/assinatura/page.tsx</code>, <code>src/app/pagamento/page.tsx</code>.</p>
+  <ul>
+    <li>Criada estrutura de assinatura por usuario com plano, status, provider, checkout, valor e datas.</li>
+    <li>Adicionado checkout em modo <code>MOCK</code> para desenvolvimento, com desenho preparado para troca por gateway real.</li>
+    <li>Cadastro agora pode vincular um checkout aprovado a uma nova conta.</li>
+    <li>Login retorna status de assinatura e grava cookie auxiliar <code>subscription_status</code>.</li>
+    <li>Proxy pode bloquear rotas internas quando <code>SUBSCRIPTION_REQUIRED=true</code>.</li>
+    <li>Webhook base em <code>/api/webhooks/pagamento</code> recebe eventos e valida segredo por header <code>x-webhook-secret</code>.</li>
+  </ul>
+
+  <h3>9.2 Seguranca e autenticacao</h3>
+  <p><strong>Arquivos principais:</strong> <code>lib/auth.ts</code>, <code>service/user.auth.service.ts</code>, <code>src/app/api/login/route.ts</code>, <code>src/app/api/logout/route.ts</code>, <code>src/proxy.ts</code>.</p>
+  <ul>
+    <li>Cookie de autenticacao passou a ser <code>httpOnly</code>, reduzindo exposicao via JavaScript no navegador.</li>
+    <li>Logout agora passa por endpoint de servidor e remove cookies seguros.</li>
+    <li><code>JWT_SECRET</code> passa a ser obrigatorio em producao.</li>
+    <li>Sessao JWT foi padronizada para 8 horas.</li>
+    <li>Recuperacao de senha deixou de revelar se o e-mail existe.</li>
+    <li>Link de redefinicao usa <code>APP_URL</code> quando configurado.</li>
+    <li>Proxy foi reestruturado para proteger rotas logadas, onboarding e bloqueio por assinatura.</li>
+  </ul>
+
+  <h3>9.3 Onboarding guiado</h3>
+  <p><strong>Arquivos principais:</strong> <code>src/app/onboarding/page.tsx</code>, <code>src/app/api/onboarding/status/route.ts</code>, <code>src/app/api/onboarding/concluir/route.ts</code>.</p>
+  <ul>
+    <li>Nova pagina <code>/onboarding</code> guia o usuario pelos passos assinatura, ciclo e primeira sessao.</li>
+    <li>Usuario novo passa a ter um caminho claro do cadastro ate a primeira sessao de estudo.</li>
+    <li>Endpoint de status consolida assinatura, ciclo e assistente para orientar o proximo passo.</li>
+    <li>Endpoint de conclusao atualiza <code>auth.usuario.primeiro_acesso</code> para encerrar o onboarding.</li>
+  </ul>
+
+  <h3>9.4 Menu de sugestoes dos usuarios</h3>
+  <p><strong>Arquivos principais:</strong> <code>service/sugestao.service.ts</code>, <code>src/app/api/sugestoes/route.ts</code>, <code>src/app/sugestoes/page.tsx</code>, <code>src/components/app/Sidebar.tsx</code>.</p>
+  <ul>
+    <li>Novo menu <strong>Sugestoes</strong> no menu lateral.</li>
+    <li>Usuario pode enviar sugestoes com categoria, prioridade, titulo, descricao e pagina de origem.</li>
+    <li>Usuario visualiza historico das proprias sugestoes e status.</li>
+    <li>Criado servico e endpoint para gravar e listar sugestoes no banco real.</li>
+  </ul>
+
+  <h3>9.5 Ajuste visual do menu lateral</h3>
+  <p><strong>Arquivos principais:</strong> <code>src/app/globals.css</code>, <code>src/components/app/Sidebar.tsx</code>, <code>src/components/app/MenuItem.tsx</code>, <code>src/app/dashboard/page.tsx</code>, <code>src/app/minha-mesa/page.tsx</code>.</p>
+  <ul>
+    <li>Adicionada classe <code>.no-scrollbar</code> para esconder a barra visual do menu mantendo rolagem funcional em telas menores.</li>
+    <li>Logo e espacamentos do menu foram compactados para acomodar mais itens.</li>
+    <li>Menus proprios de Dashboard e Minha Mesa foram ajustados para seguir o mesmo comportamento.</li>
+  </ul>
+
+  <h3>9.6 Redesign da Etapa 1 de criacao de ciclo</h3>
+  <p><strong>Arquivo principal:</strong> <code>src/app/ciclos/page.tsx</code>, <code>lib/studyMethods.ts</code>.</p>
+  <p>
+    A primeira etapa do fluxo de criacao de ciclo foi reestruturada para ser mais objetiva.
+    Antes, o usuario precisava definir horas por dia antes de entender por que estava criando o ciclo.
+    Agora a hierarquia e invertida: o momento de estudo e a escolha principal, as horas sao consequencia.
+  </p>
+  <ul>
+    <li>A pergunta principal passou a ser <strong>"Qual e o seu momento de estudo?"</strong>, com 6 cards em grid (2 col mobile / 3 col desktop).</li>
+    <li>Cada card ganhou um icone visual distinto (<code>BookOpen</code>, <code>CalendarDays</code>, <code>AlertCircle</code>, <code>RefreshCw</code>, <code>ClipboardCheck</code>, <code>Zap</code>) e realce colorido ao ser selecionado.</li>
+    <li>A secao de horas ficou abaixo como escolha secundaria, com um subtitulo <em>"Sugestao para este momento: Xh"</em> que muda dinamicamente.</li>
+    <li>Foi adicionado um <code>useEffect</code> que pre-preenche as horas com o valor sugerido ao trocar de momento (COMECO_ZERO→2h, PROVA_DATA→3h, ATRASADO→4h, REVISAR→2h, QUESTOES→2h, CICLO_AUTOMATICO→2h).</li>
+    <li>Os stats de impacto (sessoes/dia e max disciplinas) foram movidos para dentro do painel de horas, compactando a tela.</li>
+    <li>O label do step 1 no indicador de progresso passou de <em>"Tempo"</em> para <em>"Perfil"</em>, refletindo a nova abrangencia da etapa.</li>
+  </ul>
+
+  <h3>9.7 Correcao da constraint plano_estudo_metodo_check</h3>
+  <p><strong>Arquivos alterados:</strong> <code>repository/ciclo.repository.ts</code>. <strong>Script:</strong> <code>scripts/update-plano-metodo-constraint.sql</code>.</p>
+  <p>
+    O campo <code>metodo</code> em <code>planejamento.plano_estudo</code> possuia uma check constraint criada quando o sistema
+    so aceitava o valor <code>'AUTOMATICO'</code>. Com a introducao de <code>lib/studyMethods.ts</code>, o servico passou a
+    gerar valores como <code>TRILHA_OBJETIVO</code>, <code>RECUPERACAO_ATRASO</code> etc., causando erro 500 ao finalizar
+    a criacao de qualquer ciclo com momento diferente do padrao.
+  </p>
+  <ul>
+    <li>Criado <code>scripts/update-plano-metodo-constraint.sql</code> que dropa e recria a constraint com todos os valores atuais.</li>
+    <li>Adicionada funcao <code>normalizarMetodoDB</code> em <code>repository/ciclo.repository.ts</code> como fallback: enquanto o script SQL nao for executado no banco, o sistema grava <code>'AUTOMATICO'</code> e nao quebra.</li>
+    <li>Apos executar o script SQL, a funcao deve ser simplificada para retornar o metodo diretamente (instrucao incluida no script).</li>
+  </ul>
+  <div class="note warn">
+    <strong>Acao obrigatoria no banco:</strong> executar <code>scripts/update-plano-metodo-constraint.sql</code> para que o metodo de estudo selecionado seja persistido corretamente. Sem esse script o ciclo funciona, mas todos os planos ficam gravados com metodo <code>AUTOMATICO</code>.
+  </div>
+
+  <h3>9.8 Home publica funcional</h3>
+  <p><strong>Arquivos principais:</strong> <code>src/app/page.tsx</code>, <code>src/app/tutoriais/page.tsx</code>, <code>src/app/ajuda/page.tsx</code>.</p>
+  <ul>
+    <li>A home deixou de exibir botoes decorativos de Editais e Blog.</li>
+    <li>Foram mantidos apenas Tutoriais e Ajuda, ambos direcionando para paginas reais.</li>
+    <li>A pagina <code>/tutoriais</code> apresenta o passo a passo do cadastro ate a primeira sessao.</li>
+    <li>A pagina <code>/ajuda</code> explica ciclo, dificuldade, questoes, revisoes, agenda e previsao ate a prova.</li>
+    <li>A imagem lateral da home foi reenquadrada dentro do objeto visual com altura controlada e <code>object-contain</code>.</li>
+  </ul>
+
+  <h2 class="break">10. Scripts SQL Necessarios no Banco Real</h2>
+  <p>
+    Abaixo estao todos os scripts necessarios para ativar as tabelas e campos usados pelas melhorias recentes. Recomenda-se executar em ambiente de homologacao antes da producao.
+  </p>
+
+  <h3>10.1 Tabela de questoes</h3>
+  <pre>CREATE TABLE IF NOT EXISTS planejamento.questao_treino (
+  id_questao_treino BIGSERIAL PRIMARY KEY,
+  id_usuario BIGINT NOT NULL,
+  id_disciplina INT NOT NULL,
+  id_topico BIGINT NULL,
+  total_questoes INT NOT NULL,
+  total_acertos INT NOT NULL,
+  percentual NUMERIC(5,2) NOT NULL,
+  data_registro TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT questao_treino_total_check CHECK (total_questoes &gt; 0),
+  CONSTRAINT questao_treino_acertos_check CHECK (total_acertos &gt;= 0 AND total_acertos &lt;= total_questoes)
+);
+
+CREATE INDEX IF NOT EXISTS idx_questao_treino_usuario
+  ON planejamento.questao_treino (id_usuario);
+
+CREATE INDEX IF NOT EXISTS idx_questao_treino_disciplina
+  ON planejamento.questao_treino (id_usuario, id_disciplina);
+
+CREATE INDEX IF NOT EXISTS idx_questao_treino_topico
+  ON planejamento.questao_treino (id_usuario, id_topico);</pre>
+
+  <h3>10.2 Tabela de ajustes do plano</h3>
+  <pre>CREATE TABLE IF NOT EXISTS planejamento.ajuste_plano_usuario (
+  id_ajuste_plano BIGSERIAL PRIMARY KEY,
+  id_usuario BIGINT NOT NULL,
+  tipo VARCHAR(30) NOT NULL,
+  data_inicio TIMESTAMPTZ NOT NULL,
+  data_fim TIMESTAMPTZ NOT NULL,
+  horas_por_dia NUMERIC(4,2) NULL,
+  motivo TEXT NULL,
+  data_criacao TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT ajuste_plano_tipo_check CHECK (tipo IN ('PAUSA', 'META_TEMPORARIA')),
+  CONSTRAINT ajuste_plano_periodo_check CHECK (data_fim &gt;= data_inicio),
+  CONSTRAINT ajuste_plano_horas_check CHECK (horas_por_dia IS NULL OR (horas_por_dia &gt;= 1 AND horas_por_dia &lt;= 12))
+);
+
+CREATE INDEX IF NOT EXISTS idx_ajuste_plano_usuario_periodo
+  ON planejamento.ajuste_plano_usuario (id_usuario, data_inicio, data_fim);
+
+CREATE INDEX IF NOT EXISTS idx_ajuste_plano_usuario_tipo
+  ON planejamento.ajuste_plano_usuario (id_usuario, tipo);</pre>
+
+  <h3>10.3 Tabela de assinaturas</h3>
+  <pre>CREATE TABLE IF NOT EXISTS planejamento.assinatura_usuario (
+  id_assinatura BIGSERIAL PRIMARY KEY,
+  id_usuario BIGINT NOT NULL,
+  plano VARCHAR(40) NOT NULL,
+  status VARCHAR(30) NOT NULL,
+  provider VARCHAR(30) NOT NULL DEFAULT 'MOCK',
+  provider_customer_id VARCHAR(120) NULL,
+  provider_subscription_id VARCHAR(120) NULL,
+  checkout_id VARCHAR(120) NULL,
+  valor_centavos INTEGER NULL,
+  data_inicio TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  data_fim TIMESTAMPTZ NULL,
+  data_cancelamento TIMESTAMPTZ NULL,
+  data_criacao TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  data_atualizacao TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT assinatura_status_check CHECK (status IN ('ACTIVE', 'TRIALING', 'PAST_DUE', 'CANCELED', 'PENDING')),
+  CONSTRAINT assinatura_plano_check CHECK (plano IN ('MENSAL', 'TRIMESTRAL', 'ANUAL'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_assinatura_usuario_status
+  ON planejamento.assinatura_usuario (id_usuario, status);
+
+CREATE INDEX IF NOT EXISTS idx_assinatura_checkout
+  ON planejamento.assinatura_usuario (checkout_id);</pre>
+
+  <h3>10.4 Tabela de sugestoes dos usuarios</h3>
+  <pre>CREATE TABLE IF NOT EXISTS planejamento.sugestao_usuario (
+  id_sugestao BIGSERIAL PRIMARY KEY,
+  id_usuario BIGINT NOT NULL,
+  categoria VARCHAR(40) NOT NULL,
+  prioridade VARCHAR(20) NOT NULL DEFAULT 'NORMAL',
+  titulo VARCHAR(140) NOT NULL,
+  descricao TEXT NOT NULL,
+  status VARCHAR(30) NOT NULL DEFAULT 'NOVA',
+  pagina_origem VARCHAR(120) NULL,
+  data_criacao TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  data_atualizacao TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT sugestao_categoria_check CHECK (categoria IN ('MELHORIA', 'BUG', 'CONTEUDO', 'USABILIDADE', 'OUTRO')),
+  CONSTRAINT sugestao_prioridade_check CHECK (prioridade IN ('BAIXA', 'NORMAL', 'ALTA')),
+  CONSTRAINT sugestao_status_check CHECK (status IN ('NOVA', 'EM_ANALISE', 'PLANEJADA', 'CONCLUIDA', 'RECUSADA'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_sugestao_usuario_data
+  ON planejamento.sugestao_usuario (id_usuario, data_criacao DESC);
+
+CREATE INDEX IF NOT EXISTS idx_sugestao_status
+  ON planejamento.sugestao_usuario (status, data_criacao DESC);</pre>
+
+  <h3>10.5 Campo id_ciclo_disciplina em sessao_estudo</h3>
+  <pre>ALTER TABLE planejamento.sessao_estudo
+  ADD COLUMN IF NOT EXISTS id_ciclo_disciplina BIGINT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_sessao_estudo_ciclo_disciplina
+  ON planejamento.sessao_estudo (id_ciclo_disciplina);
+
+ALTER TABLE planejamento.sessao_estudo
+  ADD CONSTRAINT fk_sessao_estudo_ciclo_disciplina
+  FOREIGN KEY (id_ciclo_disciplina)
+  REFERENCES planejamento.ciclo_disciplina (id_ciclo_disciplina)
+  ON DELETE SET NULL;</pre>
+  <div class="note warn">
+    Se a constraint <code>fk_sessao_estudo_ciclo_disciplina</code> ja existir, nao execute novamente sem antes conferir no catalogo do banco.
+  </div>
+
+  <h3>10.6 Atualizar constraint de metodo em plano_estudo</h3>
+  <p>
+    Obrigatorio para que o metodo de estudo selecionado pelo usuario (ex.: <code>TRILHA_OBJETIVO</code>,
+    <code>RECUPERACAO_ATRASO</code>) seja persistido no banco. Sem esse script o ciclo e criado com metodo <code>AUTOMATICO</code>.
+    O script tambem esta em <code>scripts/update-plano-metodo-constraint.sql</code>.
+  </p>
+  <pre>-- 1. Remove a constraint antiga (que so aceitava AUTOMATICO)
+ALTER TABLE planejamento.plano_estudo
+  DROP CONSTRAINT IF EXISTS plano_estudo_metodo_check;
+
+-- 2. Recria com todos os valores usados pelo sistema
+ALTER TABLE planejamento.plano_estudo
+  ADD CONSTRAINT plano_estudo_metodo_check
+  CHECK (metodo IN (
+    'AUTOMATICO',
+    'CICLO_INTELIGENTE',
+    'PLANO_POR_PRAZO',
+    'MODO_QUESTOES',
+    'REVISAO_INTENSIVA',
+    'RECUPERACAO_ATRASO',
+    'RETA_FINAL',
+    'POMODORO_BLOCOS',
+    'TRILHA_OBJETIVO',
+    'MANUAL_ASSISTIDO'
+  ));
+
+-- 3. Apos executar este script, simplificar normalizarMetodoDB em
+--    repository/ciclo.repository.ts para retornar o metodo diretamente:
+--
+--    function normalizarMetodoDB(metodo: string): string {
+--      return metodo;
+--    }</pre>
+  <div class="note ok">
+    Execute este script antes de testar o fluxo completo de criacao de ciclo em producao.
+    Apos executa-lo, ajuste o codigo no repositorio conforme o comentario acima.
+  </div>
+
+  <h3>10.7 Campo qualidade em sessao_estudo</h3>
+  <p>
+    Necessario para registrar o feedback da sessao em Minha Mesa. Esse campo guarda sinais como
+    <code>FACIL_COBRIU</code>, <code>MEDIO_COBRIU</code>, <code>DIFICIL_PARCIAL</code> ou
+    <code>NAO_ENTENDI_PARCIAL</code>.
+  </p>
+  <pre>ALTER TABLE planejamento.sessao_estudo
+  ADD COLUMN IF NOT EXISTS qualidade VARCHAR(20);
+
+COMMENT ON COLUMN planejamento.sessao_estudo.qualidade IS
+  'Feedback do usuario ao concluir a sessao: entendimento e cobertura dos topicos.';</pre>
+
+  <h3>10.8 Status necessarios em sessao_estudo</h3>
+  <p>Se houver constraint de status na tabela <code>planejamento.sessao_estudo</code>, recriar com todos os valores necessarios:</p>
+  <pre>ALTER TABLE planejamento.sessao_estudo
+  DROP CONSTRAINT IF EXISTS sessao_estudo_status_check;
+
+ALTER TABLE planejamento.sessao_estudo
+  ADD CONSTRAINT sessao_estudo_status_check
+  CHECK (status IN (
+    'CONCLUIDA',
+    'REVISAO',
+    'REVISAO_FACIL',
+    'REVISAO_MEDIO',
+    'REVISAO_DIFICIL',
+    'REVISAO_ERREI',
+    'PULADA',
+    'REMARCADA'
+  ));</pre>
+
+  <h3>10.9 Variaveis de ambiente recomendadas para producao</h3>
+  <pre>JWT_SECRET=um_segredo_forte
+CHECKOUT_SECRET=outro_segredo_forte
+APP_URL=https://seu-dominio.com
+SUBSCRIPTION_REQUIRED=true
+PAYMENT_PROVIDER=MOCK
+PAYMENT_WEBHOOK_SECRET=segredo_do_webhook</pre>
+
+  <h3>10.10 Permissoes minimas para o usuario da aplicacao</h3>
+  <pre>GRANT USAGE ON SCHEMA auth, concurso, planejamento TO usuario_da_aplicacao;
+
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA planejamento TO usuario_da_aplicacao;
+GRANT SELECT ON ALL TABLES IN SCHEMA concurso TO usuario_da_aplicacao;
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA auth TO usuario_da_aplicacao;
+
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA planejamento TO usuario_da_aplicacao;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA auth TO usuario_da_aplicacao;</pre>
+
+  <h2>11. Ordem Completa Para Deixar o Banco Pronto Para Producao</h2>
+  <ol>
+    <li>Executar <code>scripts/create-questoes-table.sql</code>.</li>
+    <li>Executar <code>scripts/create-ajustes-plano-table.sql</code>.</li>
+    <li>Executar <code>scripts/create-assinaturas-table.sql</code>.</li>
+    <li>Executar <code>scripts/create-sugestoes-table.sql</code>.</li>
+    <li>Adicionar <code>id_ciclo_disciplina</code> em <code>planejamento.sessao_estudo</code>, se ainda nao existir.</li>
+    <li><strong>Executar <code>scripts/update-plano-metodo-constraint.sql</code></strong> — obrigatorio para ciclos criados com qualquer momento de estudo.</li>
+    <li>Adicionar <code>qualidade</code> em <code>planejamento.sessao_estudo</code> para feedback de aprendizagem.</li>
+    <li>Ajustar constraint de status de <code>sessao_estudo</code> conforme item 10.8.</li>
+    <li>Configurar variaveis de ambiente de producao (item 10.9).</li>
+    <li>Garantir permissoes para o usuario da aplicacao (item 10.10).</li>
+    <li>Apos executar o script SQL do metodo, simplificar <code>normalizarMetodoDB</code> em <code>repository/ciclo.repository.ts</code> para retornar o metodo diretamente.</li>
+    <li>Testar todos os fluxos: Assinatura, Pagamento, Cadastro, Login, Onboarding, Ciclos (todos os momentos), Minha Mesa, Agenda, Revisoes, Questoes e Sugestoes.</li>
+  </ol>
+
+  <div class="note ok">
+    <strong>Conclusao:</strong> com todos os scripts executados, variaveis configuradas e permissoes aplicadas, o sistema esta pronto para venda:
+    fluxo comercial completo (assinatura, checkout, webhook), seguranca (httpOnly, JWT obrigatorio), onboarding guiado, criacao de ciclo com 6 momentos de estudo,
+    agenda inteligente, revisoes adaptativas, lancamento de questoes, assistente de estudo proativo e canal de sugestoes dos usuarios.
+  </div>
+
+  <h2 class="break">12. Checklist de Producao</h2>
+  <table>
+    <thead>
+      <tr><th>Item</th><th>Script / Acao</th><th>Obrigatorio</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Tabela questao_treino</td><td><code>scripts/create-questoes-table.sql</code></td><td>Sim</td></tr>
+      <tr><td>Tabela ajuste_plano_usuario</td><td><code>scripts/create-ajustes-plano-table.sql</code></td><td>Sim</td></tr>
+      <tr><td>Tabela assinatura_usuario</td><td><code>scripts/create-assinaturas-table.sql</code></td><td>Sim</td></tr>
+      <tr><td>Tabela sugestao_usuario</td><td><code>scripts/create-sugestoes-table.sql</code></td><td>Sim</td></tr>
+      <tr><td>Constraint metodo em plano_estudo</td><td><code>scripts/update-plano-metodo-constraint.sql</code></td><td>Sim — sem isso todos os ciclos ficam com metodo AUTOMATICO</td></tr>
+      <tr><td>Campo id_ciclo_disciplina em sessao_estudo</td><td>ALTER TABLE (item 10.5)</td><td>Sim — alinhar schema Prisma com banco</td></tr>
+      <tr><td>Campo qualidade em sessao_estudo</td><td>ALTER TABLE (item 10.7)</td><td>Sim — necessario para feedback de aprendizagem na Minha Mesa</td></tr>
+      <tr><td>Constraint de status em sessao_estudo</td><td>ALTER TABLE (item 10.8)</td><td>Sim — sem isso revisoes com resultado falham</td></tr>
+      <tr><td>Variaveis de ambiente</td><td>Configurar no servidor (item 10.9)</td><td>Sim — JWT_SECRET obrigatorio em producao</td></tr>
+      <tr><td>Permissoes do usuario da aplicacao</td><td>GRANT (item 10.10)</td><td>Sim</td></tr>
+      <tr><td>Restaurar normalizarMetodoDB</td><td>Editar <code>repository/ciclo.repository.ts</code></td><td>Apos executar update-plano-metodo-constraint.sql</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="break">13. Atualizacao de 10/05/2026 - IA Orientadora, Trial, Planos e Banco</h2>
+  <p>
+    Nesta entrega o sistema foi evoluido para parecer uma mentoria inteligente de estudo. Foram adicionados diagnostico inicial,
+    plano diario narrativo, assistente conversacional, caderno de erros, simulados, registro de motivo do erro, feedback pos-sessao
+    mais completo, teste gratis de 7 dias e novos valores dos planos.
+  </p>
+
+  <h3>13.1 Funcionalidades entregues</h3>
+  <ul>
+    <li><strong>Diagnostico inicial:</strong> nova pagina <code>/diagnostico</code> e API <code>/api/diagnostico</code>.</li>
+    <li><strong>Assistente IA:</strong> nova pagina <code>/assistente</code> e API conversacional <code>/api/assistente/conversa</code>.</li>
+    <li><strong>Caderno de erros:</strong> nova pagina <code>/caderno-erros</code> e API <code>/api/caderno-erros</code>.</li>
+    <li><strong>Simulados:</strong> nova pagina <code>/simulados</code> e API <code>/api/simulados</code>.</li>
+    <li><strong>Questoes:</strong> registro passou a aceitar motivo do erro, confianca e observacao.</li>
+    <li><strong>Minha Mesa:</strong> feedback pos-sessao passou a registrar foco, revisao amanha, questoes e duvida.</li>
+    <li><strong>Assistente:</strong> motor de decisao agora considera diagnostico, revisoes, questoes, erros, simulados, metodo e rebalanceamento.</li>
+    <li><strong>Rebalanceamento:</strong> assistente pode sugerir e aplicar ajuste recomendado no ciclo.</li>
+    <li><strong>Trial:</strong> home ganhou CTA de teste gratis por 7 dias em <code>/api/assinatura/trial</code>.</li>
+    <li><strong>Planos:</strong> mensal R$ 19,90; semestral R$ 17,90/mes; anual R$ 15,90/mes.</li>
+    <li><strong>Menu:</strong> pagina de Questoes passou a ter menu local proprio, mantendo o padrao visual das demais paginas com menus separados.</li>
+  </ul>
+
+  <h3>13.2 Scripts novos ou atualizados</h3>
+  <table>
+    <thead><tr><th>Script</th><th>Finalidade</th><th>Quando executar</th></tr></thead>
+    <tbody>
+      <tr><td><code>scripts/create-ia-orientadora-tables.sql</code></td><td>Cria diagnostico inicial, campos inteligentes em questoes e tabelas de simulados.</td><td>Obrigatorio para salvar diagnostico, motivos de erro e simulados.</td></tr>
+      <tr><td><code>scripts/create-questoes-table.sql</code></td><td>Cria/atualiza <code>questao_treino</code> com motivo do erro, confianca e observacao.</td><td>Obrigatorio para modulo de questoes.</td></tr>
+      <tr><td><code>scripts/create-assinaturas-table.sql</code></td><td>Cria assinatura com plano <code>SEMESTRAL</code>.</td><td>Obrigatorio para ambientes novos.</td></tr>
+      <tr><td><code>scripts/update-assinatura-planos-semestral.sql</code></td><td>Migra constraint antiga de <code>TRIMESTRAL</code> para <code>SEMESTRAL</code>.</td><td>Obrigatorio em bancos ja criados com a constraint antiga.</td></tr>
+      <tr><td><code>scripts/create-ajustes-plano-table.sql</code></td><td>Cria pausas e metas temporarias.</td><td>Obrigatorio para Agenda e ajustes de rotina.</td></tr>
+      <tr><td><code>scripts/create-sugestoes-table.sql</code></td><td>Cria sugestoes dos usuarios.</td><td>Obrigatorio para menu Sugestoes.</td></tr>
+      <tr><td><code>scripts/update-plano-metodo-constraint.sql</code></td><td>Libera os metodos de estudo no banco.</td><td>Obrigatorio para persistir metodos diferentes de AUTOMATICO.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>13.3 Script principal da IA orientadora</h3>
+  <p>
+    Execute o SQL abaixo, ou diretamente o arquivo <code>scripts/create-ia-orientadora-tables.sql</code>.
+  </p>
+  <pre>CREATE TABLE IF NOT EXISTS planejamento.diagnostico_inicial_usuario (
+  id_diagnostico BIGSERIAL PRIMARY KEY,
+  id_usuario BIGINT NOT NULL UNIQUE,
+  nivel_atual VARCHAR(30) NOT NULL,
+  dias_ate_prova INTEGER NULL,
+  estudou_edital_antes BOOLEAN NOT NULL DEFAULT false,
+  dificuldade_principal VARCHAR(40) NOT NULL,
+  preferencia_sessao VARCHAR(30) NOT NULL,
+  materias_temidas TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  objetivo TEXT NULL,
+  data_criacao TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  data_atualizacao TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT diagnostico_nivel_check CHECK (nivel_atual IN ('INICIANTE', 'INTERMEDIARIO', 'AVANCADO')),
+  CONSTRAINT diagnostico_dificuldade_check CHECK (dificuldade_principal IN ('CONSTANCIA', 'TEORIA', 'REVISAO', 'QUESTOES', 'TEMPO')),
+  CONSTRAINT diagnostico_sessao_check CHECK (preferencia_sessao IN ('CURTA', 'MEDIA', 'LONGA'))
+);
+
+ALTER TABLE planejamento.questao_treino
+  ADD COLUMN IF NOT EXISTS motivo_erro VARCHAR(40) NULL,
+  ADD COLUMN IF NOT EXISTS confianca VARCHAR(30) NULL,
+  ADD COLUMN IF NOT EXISTS observacao TEXT NULL;
+
+CREATE TABLE IF NOT EXISTS planejamento.simulado (
+  id_simulado BIGSERIAL PRIMARY KEY,
+  id_usuario BIGINT NOT NULL,
+  titulo VARCHAR(160) NOT NULL,
+  data_realizacao DATE NOT NULL DEFAULT CURRENT_DATE,
+  total_questoes INTEGER NOT NULL,
+  total_acertos INTEGER NOT NULL,
+  percentual NUMERIC(5,2) NOT NULL,
+  observacao TEXT NULL,
+  data_criacao TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT simulado_total_check CHECK (total_questoes &gt; 0),
+  CONSTRAINT simulado_acertos_check CHECK (total_acertos &gt;= 0 AND total_acertos &lt;= total_questoes)
+);
+
+CREATE TABLE IF NOT EXISTS planejamento.simulado_disciplina (
+  id_simulado_disciplina BIGSERIAL PRIMARY KEY,
+  id_simulado BIGINT NOT NULL REFERENCES planejamento.simulado(id_simulado) ON DELETE CASCADE,
+  id_disciplina INTEGER NOT NULL,
+  total_questoes INTEGER NOT NULL,
+  total_acertos INTEGER NOT NULL,
+  percentual NUMERIC(5,2) NOT NULL,
+  CONSTRAINT simulado_disc_total_check CHECK (total_questoes &gt; 0),
+  CONSTRAINT simulado_disc_acertos_check CHECK (total_acertos &gt;= 0 AND total_acertos &lt;= total_questoes)
+);
+
+CREATE INDEX IF NOT EXISTS idx_diagnostico_inicial_usuario
+  ON planejamento.diagnostico_inicial_usuario (id_usuario);
+
+CREATE INDEX IF NOT EXISTS idx_questao_treino_motivo
+  ON planejamento.questao_treino (id_usuario, motivo_erro);
+
+CREATE INDEX IF NOT EXISTS idx_simulado_usuario_data
+  ON planejamento.simulado (id_usuario, data_realizacao DESC);
+
+CREATE INDEX IF NOT EXISTS idx_simulado_disciplina
+  ON planejamento.simulado_disciplina (id_disciplina, percentual);</pre>
+
+  <h3>13.4 Atualizacao da tabela de questoes</h3>
+  <p>
+    Para bancos que ja possuem <code>planejamento.questao_treino</code>, os campos abaixo sao necessarios para o caderno de erros inteligente.
+  </p>
+  <pre>ALTER TABLE planejamento.questao_treino
+  ADD COLUMN IF NOT EXISTS motivo_erro VARCHAR(40) NULL,
+  ADD COLUMN IF NOT EXISTS confianca VARCHAR(30) NULL,
+  ADD COLUMN IF NOT EXISTS observacao TEXT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_questao_treino_motivo
+  ON planejamento.questao_treino (id_usuario, motivo_erro);</pre>
+
+  <h3>13.5 Atualizacao dos planos de assinatura</h3>
+  <p>
+    Bancos novos devem usar <code>scripts/create-assinaturas-table.sql</code>. Bancos ja existentes devem executar o script de migracao abaixo.
+  </p>
+  <pre>UPDATE planejamento.assinatura_usuario
+SET plano = 'SEMESTRAL'
+WHERE plano = 'TRIMESTRAL';
+
+ALTER TABLE planejamento.assinatura_usuario
+DROP CONSTRAINT IF EXISTS assinatura_plano_check;
+
+ALTER TABLE planejamento.assinatura_usuario
+ADD CONSTRAINT assinatura_plano_check
+CHECK (plano IN ('MENSAL', 'SEMESTRAL', 'ANUAL'));</pre>
+
+  <h3>13.6 Campo qualidade e novos sinais pos-sessao</h3>
+  <p>
+    O campo <code>qualidade</code> deve existir em <code>planejamento.sessao_estudo</code>. Ele guarda sinais compactos do feedback pos-sessao.
+    Exemplo: <code>DIFICIL_P_F2_RQD</code> indica dificuldade, cobertura parcial, foco 2, revisar amanha, gerar questoes e marcar duvida.
+  </p>
+  <pre>ALTER TABLE planejamento.sessao_estudo
+  ADD COLUMN IF NOT EXISTS qualidade VARCHAR(20);
+
+COMMENT ON COLUMN planejamento.sessao_estudo.qualidade IS
+  'Feedback pos-sessao: entendimento, cobertura, foco, revisao, questoes e duvida.';</pre>
+
+  <h3>13.7 Ordem atual recomendada para preparar o banco</h3>
+  <ol>
+    <li>Executar <code>scripts/create-questoes-table.sql</code>.</li>
+    <li>Executar <code>scripts/create-ia-orientadora-tables.sql</code>.</li>
+    <li>Executar <code>scripts/create-ajustes-plano-table.sql</code>.</li>
+    <li>Executar <code>scripts/create-assinaturas-table.sql</code> em bancos novos ou <code>scripts/update-assinatura-planos-semestral.sql</code> em bancos existentes.</li>
+    <li>Executar <code>scripts/create-sugestoes-table.sql</code>.</li>
+    <li>Executar <code>scripts/update-plano-metodo-constraint.sql</code>.</li>
+    <li>Conferir <code>id_ciclo_disciplina</code>, <code>qualidade</code> e constraint de status em <code>planejamento.sessao_estudo</code>.</li>
+    <li>Rodar os testes de fluxo: cadastro/trial, diagnostico, ciclo, Minha Mesa, questoes, caderno de erros, simulados, assistente e assinatura.</li>
+  </ol>
+
+  <div class="note ok">
+    <strong>Validacao tecnica de 10/05/2026:</strong> <code>npm run lint</code> e <code>npm run build</code> foram executados com sucesso durante a entrega.
+  </div>
+</body>
+</html>

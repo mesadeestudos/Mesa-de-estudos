@@ -1,34 +1,40 @@
-// utilitário do Next para responder requisições
-import { NextResponse } from "next/server"
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
+import { cadastroService } from '@/service/user.auth.service';
+import {
+  ativarAssinaturaUsuario,
+  lerCookieCheckoutAssinado,
+} from '@/service/assinatura.service';
 
-// função de cadastro que criamos no service
-import { cadastroService } from "@/service/user.auth.service"
+const getErrorMessage = (err: unknown) =>
+  err instanceof Error ? err.message : 'Erro ao realizar cadastro';
 
-// função de cadastroSchema que criamos no schema
-import { cadastroSchema } from "@/schema/cadastro.schema"
-
-// função que responde requisições POST
 export async function POST(req: Request) {
-
   try {
+    const body = await req.json();
+    const newUser = await cadastroService(body);
+    const cookieStore = await cookies();
+    const checkout = lerCookieCheckoutAssinado(cookieStore.get('checkout_aprovado')?.value);
 
-    // pega os dados enviados no body
-    const body = await req.json()
+    if (checkout) {
+      await ativarAssinaturaUsuario(BigInt(newUser.id), {
+        plano: checkout.plano,
+        checkoutId: checkout.checkoutId,
+        valorCentavos: checkout.valorCentavos,
+        provider: process.env.PAYMENT_PROVIDER ?? 'MOCK',
+        status: checkout.valorCentavos === 0 ? 'TRIALING' : 'ACTIVE',
+        dias: checkout.valorCentavos === 0 ? 7 : undefined,
+      });
+    }
 
-    // chama o service responsável pelo cadastro
-    const newUser = await cadastroService(body)
-
-    // retorna usuário criado
-    return NextResponse.json(newUser, { status: 201 })
-
-  } catch (err: any) {
-
-    // se ocorrer erro, retorna mensagem
+    const res = NextResponse.json({ ...newUser, assinaturaAtivada: Boolean(checkout) }, { status: 201 });
+    res.cookies.delete('checkout_aprovado');
+    res.cookies.set('step', 'LOGIN', { path: '/', maxAge: 60 * 30, sameSite: 'lax' });
+    return res;
+  } catch (err: unknown) {
     return NextResponse.json(
-      { message: err.message },
-      { status: 400 }
-    )
-
+      { message: getErrorMessage(err) },
+      { status: 400 },
+    );
   }
-
 }

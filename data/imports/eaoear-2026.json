@@ -1,0 +1,447 @@
+{
+  "fonte": {
+    "arquivo": "C:/Users/Lopes/Downloads/edital EAOEAR 2026.pdf",
+    "texto_extraido": "C:\\Users\\Lopes\\Documents\\PROJETOS\\dev\\Mesa-de-estudos\\data\\imports\\eaoear-2026-raw.txt",
+    "paginas": 108,
+    "observacoes": [
+      "Dados estruturados a partir do Anexo III, Anexo IV e Art. 143-148 do edital.",
+      "Banca/organizador inferido como DIRENS/CIAAR porque o edital não indica uma banca externa contratada.",
+      "Questões: Art. 144 informa 30 questões de GIT e 30 de CE para EAOEAR; Redação não possui quantidade de questões."
+    ]
+  },
+  "orgao": {
+    "nome": "Comando da Aeronáutica",
+    "sigla": "COMAER"
+  },
+  "banca": {
+    "nome": "Diretoria de Ensino da Aeronáutica / CIAAR",
+    "sigla": "DIRENS-CIAAR"
+  },
+  "concurso": {
+    "nome": "Exame de Admissão ao Estágio de Adaptação de Oficiais Engenheiros da Aeronáutica 2026",
+    "sigla": "EAOEAR 2026"
+  },
+  "edital": {
+    "ano": 2026,
+    "status": "PUBLICADO",
+    "data_prova": null
+  },
+  "cargos": [
+    {
+      "nome": "EAOEAR - Engenharia Cartográfica (CGR)",
+      "especialidade": "Engenharia Cartográfica",
+      "sigla": "CGR",
+      "vagas": {
+        "total": 1,
+        "ampla_concorrencia": 1,
+        "reservadas": 0
+      },
+      "disciplinas": [
+        {
+          "nome": "Gramática e Interpretação de Textos",
+          "tipo": "B",
+          "peso": 1,
+          "qtd_questoes": 30,
+          "topicos": [
+            {
+              "titulo": "Gramática",
+              "descricao": "Gramática: Acentuação gráfica. Ortografia. Estrutura e formação de palavras. Classes de palavras: Substantivo (classificação e flexão); Adjetivo (classificação, flexão e locução adjetiva); Artigo; Pronomes; Advérbio (classificação e locução adverbial); Preposição; Conjunções (coordenativas e subordinativas); Verbo: flexão (número, pessoa, modo, tempo, voz), classificação (regulares, irregulares, defectivos, abundantes, auxiliares e principais), conjugação e emprego do infinitivo. Numeral. Sintaxe: Período simples (termos essenciais, integrantes e acessórios da oração) e Período composto (coordenação e subordinação); Sintaxe de colocação. Concordância verbal e nominal. Regência verbal e nominal. Pontuação. Emprego do sinal indicativo de crase. Hífen. Emprego das iniciais maiúsculas. Vocativo."
+            },
+            {
+              "titulo": "Interpretação de Textos",
+              "descricao": "Interpretação Textual: Compreensão e interpretação de textos literários e não literários, textos não verbais e verbovisuais. Reconhecimento de tipos e gêneros textuais. Domínio dos mecanismos de coesão e coerência textual: emprego dos elementos de referenciação, substituição e repetição, de conectores e outros elementos de sequenciação textual. Intertextualidade. Denotação e Conotação. Análise do discurso: pressupostos, subentendidos e implícitos."
+            }
+          ]
+        },
+        {
+          "nome": "Redação",
+          "tipo": "B",
+          "peso": 1,
+          "qtd_questoes": null,
+          "topicos": [
+            {
+              "titulo": "Texto dissertativo-argumentativo",
+              "descricao": "Elaboração de texto manuscrito, dissertativo-argumentativo, em prosa, sobre assunto da atualidade, com avaliação da capacidade de expressão conforme a norma culta da Língua Portuguesa."
+            }
+          ]
+        },
+        {
+          "nome": "Engenharia Cartográfica",
+          "tipo": "E",
+          "peso": 1,
+          "qtd_questoes": 30,
+          "topicos": [
+            {
+              "titulo": "Cartografia",
+              "descricao": "Cartografia: definições. Forma da Terra. Datum. Sistemas de coordenadas. Sistema de projeção. Tipos de projeção. Projeções planas, projeções cônicas e projeções cilíndricas. Sistema UTM: transformação de coordenadas geográficas em coordenadas planas UTM e vice-versa. Transporte de coordenadas UTM. Precisão gráfica e escalas. Classificação de cartas. Índice de nomenclatura. Representação cartográfica. Fases de elaboração de uma carta. Técnicas de cartografia digital. Sistema de informações geográficas: definições; diferenças entre sistemas SIG, CAD, CAM e AM/FM. Estrutura de dados em SIG. Componentes e características de um SIG. Aquisição e conversão de dados. Modelos de bancos de dados e SGBD. Sistema de análise geográfica. Softwares de SIG. Aplicações de SIG. Fotogrametria: definições. Aparelhos aerofotogramétricos. Plano de voo: aviões e VANTs. Cobertura aerofotogramétrica. Relações fotogramétricas fundamentais. Reambulação. Aerotriangulação. Restituição fotogramétrica. Mosaicos e Ortofotos. Fotointerpretação. Topografia e Geodésia: definições. Equipamentos topográficos. Erros instrumentais. Transporte de coordenadas. Medição de ângulos e distâncias. Rumos e azimutes. Poligonais. Planimetria e altimetria. Cálculo de áreas. Elementos do Desenho Topográfico: Planimetria, Altimetria e Planialtimetria. Fundamentos de Terraplenagem. Transformação de Data Geodésicos. Cálculos Topográficos e Geodésicos. Geodésia física: conceitos e definições, teoria do potencial, campo da gravidade normal, campo da gravidade terrestre. Equação fundamental da Geodésia Física. Determinações gravimétricas da ondulação do geoide e do desvio da vertical. Reduções gravimétricas. Altitudes. Geodésia por satélites (GNSS); o sistema de posicionamento global (GPS); sistemas de referência. Coordenadas dos satélites GPS. Técnicas de posicionamento GPS. Aplicações do GPS. Sistemas Galileo e Glonass. Equipamentos GPS. Ajustamento de observações: Teoria dos erros. Método dos mínimos quadrados. Sensoriamento Remoto: definições. Radiação solar. Atmosfera terrestre e sua interação com a radiação solar. Sistemas sensores. Sistema sensores utilizados em nível terrestre, suborbital e orbital. Satélites. Análise de imagens coletadas por sensores orbitais. Interpretação visual de imagens orbitais. Processamento de imagens digitais. Tratamento de imagens digitais. Correções geométricas de imagens orbitais. Georreferenciamento, modelos matemáticos utilizados no georreferenciamento. Ortorretificação de imagens orbitais."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "nome": "EAOEAR - Engenharia da Computação (CMP)",
+      "especialidade": "Engenharia da Computação",
+      "sigla": "CMP",
+      "vagas": {
+        "total": 3,
+        "ampla_concorrencia": 2,
+        "reservadas": 1
+      },
+      "disciplinas": [
+        {
+          "nome": "Gramática e Interpretação de Textos",
+          "tipo": "B",
+          "peso": 1,
+          "qtd_questoes": 30,
+          "topicos": [
+            {
+              "titulo": "Gramática",
+              "descricao": "Gramática: Acentuação gráfica. Ortografia. Estrutura e formação de palavras. Classes de palavras: Substantivo (classificação e flexão); Adjetivo (classificação, flexão e locução adjetiva); Artigo; Pronomes; Advérbio (classificação e locução adverbial); Preposição; Conjunções (coordenativas e subordinativas); Verbo: flexão (número, pessoa, modo, tempo, voz), classificação (regulares, irregulares, defectivos, abundantes, auxiliares e principais), conjugação e emprego do infinitivo. Numeral. Sintaxe: Período simples (termos essenciais, integrantes e acessórios da oração) e Período composto (coordenação e subordinação); Sintaxe de colocação. Concordância verbal e nominal. Regência verbal e nominal. Pontuação. Emprego do sinal indicativo de crase. Hífen. Emprego das iniciais maiúsculas. Vocativo."
+            },
+            {
+              "titulo": "Interpretação de Textos",
+              "descricao": "Interpretação Textual: Compreensão e interpretação de textos literários e não literários, textos não verbais e verbovisuais. Reconhecimento de tipos e gêneros textuais. Domínio dos mecanismos de coesão e coerência textual: emprego dos elementos de referenciação, substituição e repetição, de conectores e outros elementos de sequenciação textual. Intertextualidade. Denotação e Conotação. Análise do discurso: pressupostos, subentendidos e implícitos."
+            }
+          ]
+        },
+        {
+          "nome": "Redação",
+          "tipo": "B",
+          "peso": 1,
+          "qtd_questoes": null,
+          "topicos": [
+            {
+              "titulo": "Texto dissertativo-argumentativo",
+              "descricao": "Elaboração de texto manuscrito, dissertativo-argumentativo, em prosa, sobre assunto da atualidade, com avaliação da capacidade de expressão conforme a norma culta da Língua Portuguesa."
+            }
+          ]
+        },
+        {
+          "nome": "Engenharia da Computação",
+          "tipo": "E",
+          "peso": 1,
+          "qtd_questoes": 30,
+          "topicos": [
+            {
+              "titulo": "Fundamentos de Computação",
+              "descricao": "Fundamentos de Computação: conceitos. Componentes e arquiteturas de sistemas computacionais (hardware e software). Linguagens de programação, compiladores e interpretadores. Representação de dados: binário, hexadecimal e decimal. Processamento paralelo e distribuído. Componentes e arquiteturas de processadores. Conjuntos de instrução do processador. Aritmética computacional. Pipeline, Hierarquia de memória; Interface entre processadores e periféricos. Multiprocessamento simétrico e assimétrico. Fundamentos de sistemas operacionais. Gerenciamento de processos e fluxos de execução (threads): escalonamento, comunicação e sincronização entre processos, impasses (deadlocks) e esgotamento de recursos (starvation). Gerenciamento de memória: alocação, paginação, segmentação e memória virtual. Sistemas de entrada e saída. Introdução a aplicativos de JAVA e Python. Estrutura de Dados: listas, pilhas, filas, tabelas hash, árvores binárias, árvores balanceadas e algoritmos de pesquisa e ordenação. Programação orientada a objetos (POO): conceitos de orientação a objetos. Armazenamento de dados: conceitos de Storage Area Networks (SAN) e Network Attached Storage (NAS). Redundant Array of Inexpensive Disks (RAID): níveis 0, 1, 5, 6, 1+0 e 0+1. Backup: políticas de backup; tipos de backup (completo, incremental e diferencial). Redes - modelos de referência OSI e TCP/IP, arquiteturas e topologias, redes locais padrões 802.3 e 802.11. Infraestrutura: conceitos básicos de cabeamento estruturado. Tipos (UTP e STP), tipos de cabo de fibra óptica (multimodo e monomodo). Protocolos: IP, TCP, UDP, IPSec, ARP, ICMP, SNMP, SSH, SSL, DNS, DHCP, SMTP, HTTP/S, FTP, LDAP, RADIUS, H.323, RTP, RTCP, SIP, syslog e NTP; NAT e PAT; Roteadores; Comutadores (switches); Concentradores (hubs). Conceitos básicos de protocolos de roteamento; VPN. Qualidade de serviço (QoS). Segurança da Informação: conceitos básicos. Confidencialidade, disponibilidade e integridade. Vulnerabilidade, risco e ameaça. Código malicioso (malware): Vírus, worms, cavalos de Tróia, spyware, bots, adware, keyloggers, backdoors e rootkits. Criptografia de chave pública e privada, certificados digitais, assinaturas digitais, função hash. Controle de acesso: autenticação, autorização e auditoria; controle de acesso baseado em papéis (RBAC); autenticação; single sign on. Segurança em Redes: filtragem de tráfego com firewalls ou listas de controle de acesso (ACL), proxy e proxy reverso. Ataques denegação de serviço (DoS e DDoS). Sistemas de detecção de intrusão (IDS) e sistemas de prevenção de intrusão (IPS). Protocolos SSL e TLS. Mecanismos de filtragem de mensagens indesejadas (spam): listas negras, listas cinzas, filtragem baseada em regras, filtro Bayesiano e Sender Policy Framework (SPF). Gestão de segurança da informação (ISO 27001 e ISO 27002). Banco de Dados: Conceitos e fundamentos de Sistemas Gerenciadores de Banco de Dados (SGBD). Bancos de dados relacionais e distribuídos. Alta disponibilidade e balanceamento de carga. Independência de dados. Dicionário de dados. Modelagem entidade: relacionamento (ER); normalização; linguagens de definição e manipulação de dados. Princípios de Engenharia de Software: conceitos, ciclo de vida, ciclo de desenvolvimento, métodos e modelos de desenvolvimento, UML, qualidade do software, métricas e prototipagem, análise e técnicas de levantamento de requisitos e técnicas e estratégias de validação. Qualidade de Software (CMMI 1.2): conceitos básicos e objetivos; disciplinas e formas de representação; níveis de capacidade e maturidade;processos e categorias de processos. Gestão de Infraestrutura de Tecnologia da Informação: Information Technology Infrastructure Library versão 3 (ITILv3). Governança de Tecnologia da Informação: Control Objectives for Information and related Technology 5 (COBIT 5). Gestão de Projetos: Ciclo de vida de um projeto, grupos de processos, áreas de conhecimento e ferramentas para o gerenciamento de projetos."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "nome": "EAOEAR - Engenharia Elétrica (ELT)",
+      "especialidade": "Engenharia Elétrica",
+      "sigla": "ELT",
+      "vagas": {
+        "total": 2,
+        "ampla_concorrencia": 2,
+        "reservadas": 0
+      },
+      "disciplinas": [
+        {
+          "nome": "Gramática e Interpretação de Textos",
+          "tipo": "B",
+          "peso": 1,
+          "qtd_questoes": 30,
+          "topicos": [
+            {
+              "titulo": "Gramática",
+              "descricao": "Gramática: Acentuação gráfica. Ortografia. Estrutura e formação de palavras. Classes de palavras: Substantivo (classificação e flexão); Adjetivo (classificação, flexão e locução adjetiva); Artigo; Pronomes; Advérbio (classificação e locução adverbial); Preposição; Conjunções (coordenativas e subordinativas); Verbo: flexão (número, pessoa, modo, tempo, voz), classificação (regulares, irregulares, defectivos, abundantes, auxiliares e principais), conjugação e emprego do infinitivo. Numeral. Sintaxe: Período simples (termos essenciais, integrantes e acessórios da oração) e Período composto (coordenação e subordinação); Sintaxe de colocação. Concordância verbal e nominal. Regência verbal e nominal. Pontuação. Emprego do sinal indicativo de crase. Hífen. Emprego das iniciais maiúsculas. Vocativo."
+            },
+            {
+              "titulo": "Interpretação de Textos",
+              "descricao": "Interpretação Textual: Compreensão e interpretação de textos literários e não literários, textos não verbais e verbovisuais. Reconhecimento de tipos e gêneros textuais. Domínio dos mecanismos de coesão e coerência textual: emprego dos elementos de referenciação, substituição e repetição, de conectores e outros elementos de sequenciação textual. Intertextualidade. Denotação e Conotação. Análise do discurso: pressupostos, subentendidos e implícitos."
+            }
+          ]
+        },
+        {
+          "nome": "Redação",
+          "tipo": "B",
+          "peso": 1,
+          "qtd_questoes": null,
+          "topicos": [
+            {
+              "titulo": "Texto dissertativo-argumentativo",
+              "descricao": "Elaboração de texto manuscrito, dissertativo-argumentativo, em prosa, sobre assunto da atualidade, com avaliação da capacidade de expressão conforme a norma culta da Língua Portuguesa."
+            }
+          ]
+        },
+        {
+          "nome": "Engenharia Elétrica",
+          "tipo": "E",
+          "peso": 1,
+          "qtd_questoes": 30,
+          "topicos": [
+            {
+              "titulo": "Teoria de Circuitos Elétricos",
+              "descricao": "Teoria de Circuitos Elétricos: Elementos fundamentais, Leis fundamentais, teoremas e metodologias de análise de circuitos elétricos. Circuitos elétricos em C.C.. Circuitos elétricos em C.A. monofásicos e polifásicos em regime permanente. Resposta nos domínios do tempo e da frequência para circuitos com associações RL, RC e RLC, em série, paralelo e mistas. Transformadores monofásicos e trifásicos: princípio de funcionamento, modelos equivalentes, ensaios de rotina e obtenção dos parâmetros representativos. Princípio da conversão eletromecânica de energia. Máquinas de corrente contínua em regime permanente: princípio de funcionamento e modelos equivalentes das diversas configurações. Máquinas síncronas: princípio de funcionamento, modelos equivalentes e comportamento em regime permanente e transitório. Máquinas de Indução: princípio de funcionamento, modelos equivalentes e comportamento em regime permanente e transitório. Controle de velocidade de máquinas de indução. Medidas Elétricas: Sistema Internacional de Unidades (SI). Medição de corrente, tensão, potência e energia elétrica. Transdutores elétricos e de temperatura. Instalações Elétricas de B.T.e MT: dimensionamento de condutores e barramentos elétricos. Dimensionamento de condutos para condutores elétricos. Curto-circuito nas Instalações Elétricas. Seleção e especificação de transformadores de força, transformadores de potencial (TP), de corrente (TC). Paralelismo de transformadores. Geração de emergência. Segurança e proteção nas instalações elétricas. Aterramento: projeto, especificações, inspeção e medição. Proteção contra descargas atmosféricas. Sistemas de comando e proteção de circuitos elétricos. Acionamentos de máquinas elétricas. Subestações Industriais e de edificações: dimensionamento e projeto das instalações e especificações de equipamentos. Correção do fator de potência: projeto e especificações. Luminotécnica: projeto de sistemas de iluminação interna e externa. Distribuição de Energia Elétrica: redes de distribuição primária e secundária: padrões e dimensionamento da rede e equipamentos. Medição de energia elétrica: padrões de medição e tipos de Consumidores e tarifas elétricas. Proteções em Sistemas de Distribuição. Eletrônica analógica: dispositivos semicondutores: funcionamento, características e aplicações de diodos, transistores. Eletrônica digital: álgebra booleana; portas lógicas. Diagramas lógicos. Linguagens de Programação Leadder. Conversores A/D e D/A. Sistemas de Potência: curto-circuito simétrico e assimétrico: componentes simétricos e redes de sequências. Ligação à terra. Análise de sistemas e estabilidade em regime permanente e em regime transitório. Sistemas de controle: modelagem e respostas transitórias e permanentes de sistemas dinâmicos. Materiais elétricos: materiais condutores. Materiais isolantes, NR-10. Energia Solar: projeto, dimensionamento e instalação de sistemas fotovoltaicos para geração de energia."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "nome": "EAOEAR - Engenharia Eletrônica (ELN)",
+      "especialidade": "Engenharia Eletrônica",
+      "sigla": "ELN",
+      "vagas": {
+        "total": 2,
+        "ampla_concorrencia": 2,
+        "reservadas": 0
+      },
+      "disciplinas": [
+        {
+          "nome": "Gramática e Interpretação de Textos",
+          "tipo": "B",
+          "peso": 1,
+          "qtd_questoes": 30,
+          "topicos": [
+            {
+              "titulo": "Gramática",
+              "descricao": "Gramática: Acentuação gráfica. Ortografia. Estrutura e formação de palavras. Classes de palavras: Substantivo (classificação e flexão); Adjetivo (classificação, flexão e locução adjetiva); Artigo; Pronomes; Advérbio (classificação e locução adverbial); Preposição; Conjunções (coordenativas e subordinativas); Verbo: flexão (número, pessoa, modo, tempo, voz), classificação (regulares, irregulares, defectivos, abundantes, auxiliares e principais), conjugação e emprego do infinitivo. Numeral. Sintaxe: Período simples (termos essenciais, integrantes e acessórios da oração) e Período composto (coordenação e subordinação); Sintaxe de colocação. Concordância verbal e nominal. Regência verbal e nominal. Pontuação. Emprego do sinal indicativo de crase. Hífen. Emprego das iniciais maiúsculas. Vocativo."
+            },
+            {
+              "titulo": "Interpretação de Textos",
+              "descricao": "Interpretação Textual: Compreensão e interpretação de textos literários e não literários, textos não verbais e verbovisuais. Reconhecimento de tipos e gêneros textuais. Domínio dos mecanismos de coesão e coerência textual: emprego dos elementos de referenciação, substituição e repetição, de conectores e outros elementos de sequenciação textual. Intertextualidade. Denotação e Conotação. Análise do discurso: pressupostos, subentendidos e implícitos."
+            }
+          ]
+        },
+        {
+          "nome": "Redação",
+          "tipo": "B",
+          "peso": 1,
+          "qtd_questoes": null,
+          "topicos": [
+            {
+              "titulo": "Texto dissertativo-argumentativo",
+              "descricao": "Elaboração de texto manuscrito, dissertativo-argumentativo, em prosa, sobre assunto da atualidade, com avaliação da capacidade de expressão conforme a norma culta da Língua Portuguesa."
+            }
+          ]
+        },
+        {
+          "nome": "Engenharia Eletrônica",
+          "tipo": "E",
+          "peso": 1,
+          "qtd_questoes": 30,
+          "topicos": [
+            {
+              "titulo": "Circuitos Elétricos",
+              "descricao": "Circuitos Elétricos: análise de circuitos resistivos, RC, RL e RLC. Análise senoidal em regime permanente. Análise de potência em regime permanente. Circuitos polifásicos. Eletrônica Analógica: diodos e circuitos a diodos. Transistor de junção bipolar (TJB): análise DC e AC. Amplificadores de sinal a TJB. Dispositivos óptico-eletrônicos. Amplificadores diferenciais: análise DC e AC. Amplificadores operacionais: teoria básica. Amplificadores realimentados. Aplicações com amplificadores operacionais. Amplificadores de potência. Medidas elétricas: Sistema Internacional de Unidades (SI). Medição de corrente, tensão, potência e energia elétrica. Transformadores para instrumentos (TCs e TPs). Transdutores elétricos e de temperatura. Exatidão, precisão e erro de medidas. Eletrônica Digital: sistemas numéricos e códigos. FPGA: conceitos básicos. Funções lógicas e álgebra de Boole. Principais características das famílias lógicas TTL e CMOS. Circuitos lógicos combinacionais: análise e síntese. Subsistemas combinacionais integrados: conversores de código, multiplexadores e demultiplexadores, geradores e testadores de paridade, comparadores de magnitude. Aritmética digital: operações e circuitos; Multivibradores: astáveis e monoestáveis. Elementos básicos de memória: “latchs” e “Flip-flops”. Circuitos lógicos sequenciais: análise e síntese. Subsistemas sequenciais integrados: contadores e registradores. Dispositivos de memória: ROM, RAM. Dispositivos lógicos programáveis. Análise de falhas em circuitos Eletrônica Industrial: SCR, TRIAC, IGBT, dispositivos de disparo. Circuitos de controle de potência. Sensores; Arquitetura e Organização de Microcomputadores: Organização de sistemas a microprocessador: CPU, memória e Entrada/Saída (E/S). Barramentos e “interfaces” de E/S. Principais periféricos. Microprocessadores: arquitetura interna básica e noções de programação. Arquitetura Pipeline. Princípios de funcionamento e principais características. Arquitetura Superescalar: princípios de funcionamento e principais características. Sistemas de Controle: modelagem e respostas transitórias e permanentes de sistemas dinâmicos. Digramas de blocos e de fluxos de sinal. Equações e variáveis de estado. Critérios de estabilidade. Controladores PI, PD e PID: análise e síntese de controladores e compensadores. Antenas: parâmetros básicos de antenas: largura de banda, diagrama de irradiação, diretividade, ganho, resistência de irradiação, reciprocidade, polarização, impedância e área efetiva. Micro-ondas: Linha de Transmissão, guias de onda, LNA, análise de redes de micro-ondas, divisor de potência e acopladores direcionais, filtros de micro- ondas. Processamento de sinais: Sinais e sistemas discretos, amostragem de sinais contínuos, sinais aleatórios, transformada Z, transformada de fourier, resposta em frequência transformada de fourier em tempo discreto."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "nome": "EAOEAR - Engenharia Mecânica (MEC)",
+      "especialidade": "Engenharia Mecânica",
+      "sigla": "MEC",
+      "vagas": {
+        "total": 2,
+        "ampla_concorrencia": 2,
+        "reservadas": 0
+      },
+      "disciplinas": [
+        {
+          "nome": "Gramática e Interpretação de Textos",
+          "tipo": "B",
+          "peso": 1,
+          "qtd_questoes": 30,
+          "topicos": [
+            {
+              "titulo": "Gramática",
+              "descricao": "Gramática: Acentuação gráfica. Ortografia. Estrutura e formação de palavras. Classes de palavras: Substantivo (classificação e flexão); Adjetivo (classificação, flexão e locução adjetiva); Artigo; Pronomes; Advérbio (classificação e locução adverbial); Preposição; Conjunções (coordenativas e subordinativas); Verbo: flexão (número, pessoa, modo, tempo, voz), classificação (regulares, irregulares, defectivos, abundantes, auxiliares e principais), conjugação e emprego do infinitivo. Numeral. Sintaxe: Período simples (termos essenciais, integrantes e acessórios da oração) e Período composto (coordenação e subordinação); Sintaxe de colocação. Concordância verbal e nominal. Regência verbal e nominal. Pontuação. Emprego do sinal indicativo de crase. Hífen. Emprego das iniciais maiúsculas. Vocativo."
+            },
+            {
+              "titulo": "Interpretação de Textos",
+              "descricao": "Interpretação Textual: Compreensão e interpretação de textos literários e não literários, textos não verbais e verbovisuais. Reconhecimento de tipos e gêneros textuais. Domínio dos mecanismos de coesão e coerência textual: emprego dos elementos de referenciação, substituição e repetição, de conectores e outros elementos de sequenciação textual. Intertextualidade. Denotação e Conotação. Análise do discurso: pressupostos, subentendidos e implícitos."
+            }
+          ]
+        },
+        {
+          "nome": "Redação",
+          "tipo": "B",
+          "peso": 1,
+          "qtd_questoes": null,
+          "topicos": [
+            {
+              "titulo": "Texto dissertativo-argumentativo",
+              "descricao": "Elaboração de texto manuscrito, dissertativo-argumentativo, em prosa, sobre assunto da atualidade, com avaliação da capacidade de expressão conforme a norma culta da Língua Portuguesa."
+            }
+          ]
+        },
+        {
+          "nome": "Engenharia Mecânica",
+          "tipo": "E",
+          "peso": 1,
+          "qtd_questoes": 30,
+          "topicos": [
+            {
+              "titulo": "Leitura e interpretação de desenho técnico mecânico. Metrologia",
+              "descricao": "Leitura e interpretação de desenho técnico mecânico. Metrologia: erro de medição, calibração, sistemas de unidades e instrumentos de medição. Materiais de construção mecânica: propriedades. Comportamento e aplicações. Transformações de fase. Diagramas de equilíbrio. Ligas ferro-carbono. Tratamentos térmicos. Mecanismos para aumento da resistência mecânica e tenacidade dos aços- carbonos. Principais materiais metálicos e não metálicos de uso industrial. Ensaios destrutivos e não destrutivos. Resistência dos materiais: tração, compressão, força cortante e momento fletor. Cálculos de tensão e deformação. Análise das tensões e deformações. Vigas carregadas. Problemas de flexão estaticamente indeterminados. Torção e momento Torsor. Fadiga. Elementos de máquinas: definições, cálculos e especificações de: eixos, polias, redutores, engrenagens, acoplamentos, rolamentos e mancais. Elementos elásticos. Elementos de união. Processos de fabricação: usinagem, conformação mecânica, soldagem, fundição e extrusão. Corrosão: definições, corrosão química e eletroquímica. Métodos de proteção anticorrosiva. Termodinâmica: estado e propriedades termodinâmicas. Primeira e segunda lei aplicada a ciclos e processos. Gases perfeitos. Ciclos teóricos de geração de potência e refrigeração. Cálculos de rendimento. Mecânica dos fluidos: propriedades e natureza dos fluidos. Equações constitutivas da dinâmica dos fluidos. Análise dimensional e relações de semelhança. Escoamento em tubulações. Princípios de aerodinâmica. Máquinas de fluxo: princípios de funcionamento, seleção, manutenção e operação de ventiladores, compressores, turbinas e bombas centrífugas. Transferência de calor: Fundamentos e mecanismos de transferência de calor. Processos de condução. Convecção e radiação. Dilatação. Motores de combustão interna: funcionamento, componentes principais e cálculos. Trocadores de calor. Manutenção: tipos e aplicações.6.6."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "nome": "EAOEAR - Engenharia de Telecomunicações (TEL)",
+      "especialidade": "Engenharia de Telecomunicações",
+      "sigla": "TEL",
+      "vagas": {
+        "total": 2,
+        "ampla_concorrencia": 2,
+        "reservadas": 0
+      },
+      "disciplinas": [
+        {
+          "nome": "Gramática e Interpretação de Textos",
+          "tipo": "B",
+          "peso": 1,
+          "qtd_questoes": 30,
+          "topicos": [
+            {
+              "titulo": "Gramática",
+              "descricao": "Gramática: Acentuação gráfica. Ortografia. Estrutura e formação de palavras. Classes de palavras: Substantivo (classificação e flexão); Adjetivo (classificação, flexão e locução adjetiva); Artigo; Pronomes; Advérbio (classificação e locução adverbial); Preposição; Conjunções (coordenativas e subordinativas); Verbo: flexão (número, pessoa, modo, tempo, voz), classificação (regulares, irregulares, defectivos, abundantes, auxiliares e principais), conjugação e emprego do infinitivo. Numeral. Sintaxe: Período simples (termos essenciais, integrantes e acessórios da oração) e Período composto (coordenação e subordinação); Sintaxe de colocação. Concordância verbal e nominal. Regência verbal e nominal. Pontuação. Emprego do sinal indicativo de crase. Hífen. Emprego das iniciais maiúsculas. Vocativo."
+            },
+            {
+              "titulo": "Interpretação de Textos",
+              "descricao": "Interpretação Textual: Compreensão e interpretação de textos literários e não literários, textos não verbais e verbovisuais. Reconhecimento de tipos e gêneros textuais. Domínio dos mecanismos de coesão e coerência textual: emprego dos elementos de referenciação, substituição e repetição, de conectores e outros elementos de sequenciação textual. Intertextualidade. Denotação e Conotação. Análise do discurso: pressupostos, subentendidos e implícitos."
+            }
+          ]
+        },
+        {
+          "nome": "Redação",
+          "tipo": "B",
+          "peso": 1,
+          "qtd_questoes": null,
+          "topicos": [
+            {
+              "titulo": "Texto dissertativo-argumentativo",
+              "descricao": "Elaboração de texto manuscrito, dissertativo-argumentativo, em prosa, sobre assunto da atualidade, com avaliação da capacidade de expressão conforme a norma culta da Língua Portuguesa."
+            }
+          ]
+        },
+        {
+          "nome": "Engenharia de Telecomunicações",
+          "tipo": "E",
+          "peso": 1,
+          "qtd_questoes": 30,
+          "topicos": [
+            {
+              "titulo": "Cabeamento estruturado",
+              "descricao": "Cabeamento estruturado: Cabeamento estruturado para edifícios comerciais e data centers."
+            },
+            {
+              "titulo": "Princípios de Telecomunicações",
+              "descricao": "Princípios de Telecomunicações: tipo de informação em sistemas de comunicações. Elementos de um sistema de comunicações. Meios de transmissão: conceitos de banda passante e canal. Taxa de transmissão. Conceitos de modulação analógica e digital. Conceitos de multiplexação e de múltiplo acesso. Correção de erros, componentes de sistemas de comunicações. Hierarquia digital: TDM, SONET e SDH. Comunicações digitais: amostragem, quantização, relação sinal ruído, transmissão em banda base, modulação por espalhamento. Desempenho de sistemas em canal ruidoso. Receptor ótimo. Interferência entre símbolos."
+            },
+            {
+              "titulo": "Amplificadores ópticos, redes ópticas, medidas e monitoramento de desempenho. Sistema de",
+              "descricao": "Amplificadores ópticos, redes ópticas, medidas e monitoramento de desempenho. Sistema de: comunicações ópticas: componentes de sistemas de ondas luminosas, fibras ópticas, sistemas multicanal, transmissores ópticos, receptores ópticos, sistemas de ondas luminosas, cálculo de enlace óptico, multiplexação óptica: WDM, DWDM e CWDM. Redes de alta velocidade."
+            },
+            {
+              "titulo": "Telefonia e videoconferência",
+              "descricao": "Telefonia e videoconferência: conceitos de telefonia, tecnologias de voz sobre IP, sinalização telefônica: canal comum nº 7 e Q.SIG. Conceitos de RDSI. Protocolos de sinalização e comunicação multimídia (H.323 e SIP)."
+            },
+            {
+              "titulo": "Comunicação via satélite",
+              "descricao": "Comunicação via satélite: Órbitas e seus problemas: órbitas keplerianas, órbitas usáveis para satélites de comunicação, perturbações. Sinais de banda-base e qualidade de serviço. Técnicas de comunicações digitais: modulação digital, codificação de canal, modulação codificada, transmissões digitais de vídeo. Enlaces de satélite: parâmetros de antena, potência irradiada, potência recebida, densidade espectral do ruído, influência da atmosfera, performance dos enlaces. Acesso múltiplo: parâmetros e roteamento de tráfego, técnicas de acesso. Redes de satélite. Estações terrestres. Carga útil de comunicação."
+            },
+            {
+              "titulo": "Redes locais de computadores",
+              "descricao": "Redes locais de computadores: padrões da série IEEE 802.1,802.3, 802.11."
+            },
+            {
+              "titulo": "Redes de comunicações de dados",
+              "descricao": "Redes de comunicações de dados: sistema de comunicação de dados. Comutação de circuitos e pacotes. Topologias de redes de computadores. Qualidade de serviços (QoS). Tipos de serviços e qualidade de serviço (QoS). Computação na Nuvem (CloudComputing) e Software-defined Networks (SDN). Elementos de interconexão de redes de computadores (Gateways, Hubs, Switches, Roteadores). Arquitetura e protocolos de redes de comunicação: modelo OSI, redes TCP/IP, protocolo e serviços de internet. Conceito de WAN e MAN. Endereçamento IPv4 e IPv6 e encaminhamento de pacotes. Conceitos de sistemas de firewall, protocolos TCP, UDP e ICMP, modelo OSI e roteamento em redes TCP/IP, protocolos de roteamento OSPF e BGP. Roteamento estático. Protocolos de gerenciamento: SNMPvl, SNMPv2 e SNMPv3. RMON l e II. Segurança de redes: conceitos de segurança em redes. Criptografia de chave pública. Função Hash. Assinatura digital e autenticação. IPSec, SSH e SSL. Equipamentos de segurança de redes. Tradução de endereços (NAT), lista de acesso (ACL) e rede privada virtual (VPN). Padrões da série 802.16."
+            },
+            {
+              "titulo": "Sistemas de Telecomunicações",
+              "descricao": "Sistemas de Telecomunicações: sistema de transmissão HF/VHF/UHF/SHF. Cálculos de enlace rádio, atenuação e interferências. Visada direta. Mecanismos de propagação. Zona de Fresnel. Antenas: parâmetros básicos de antenas: largura de banda, diagrama de irradiação, diretividade, ganho, resistência de irradiação, reciprocidade, polarização, impedância e área efetiva. Micro-ondas: linhas de transmissão e guias de onda. Casamento e ajuste de impedância."
+            },
+            {
+              "titulo": "Sistemas de comunicações móveis. Comunicação móvel celular, o canal de comunicação móvel,",
+              "descricao": "Sistemas de comunicações móveis. Comunicação móvel celular, o canal de comunicação móvel,: técnicas e padrões de acesso múltiplo (FDMA, TDMA, CDMA, SDMA), propagação em sistemas móveis, técnicas de codificação da voz, padrões de redes celulares (AMPS, GSM, WCDMA, LTE, LTE- A). Redes sem fio WPAN e WLAN, sistemas e padrões."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "nome": "EAOEAR - Engenharia de Produção (PRU)",
+      "especialidade": "Engenharia de Produção",
+      "sigla": "PRU",
+      "vagas": {
+        "total": 2,
+        "ampla_concorrencia": 2,
+        "reservadas": 0
+      },
+      "disciplinas": [
+        {
+          "nome": "Gramática e Interpretação de Textos",
+          "tipo": "B",
+          "peso": 1,
+          "qtd_questoes": 30,
+          "topicos": [
+            {
+              "titulo": "Gramática",
+              "descricao": "Gramática: Acentuação gráfica. Ortografia. Estrutura e formação de palavras. Classes de palavras: Substantivo (classificação e flexão); Adjetivo (classificação, flexão e locução adjetiva); Artigo; Pronomes; Advérbio (classificação e locução adverbial); Preposição; Conjunções (coordenativas e subordinativas); Verbo: flexão (número, pessoa, modo, tempo, voz), classificação (regulares, irregulares, defectivos, abundantes, auxiliares e principais), conjugação e emprego do infinitivo. Numeral. Sintaxe: Período simples (termos essenciais, integrantes e acessórios da oração) e Período composto (coordenação e subordinação); Sintaxe de colocação. Concordância verbal e nominal. Regência verbal e nominal. Pontuação. Emprego do sinal indicativo de crase. Hífen. Emprego das iniciais maiúsculas. Vocativo."
+            },
+            {
+              "titulo": "Interpretação de Textos",
+              "descricao": "Interpretação Textual: Compreensão e interpretação de textos literários e não literários, textos não verbais e verbovisuais. Reconhecimento de tipos e gêneros textuais. Domínio dos mecanismos de coesão e coerência textual: emprego dos elementos de referenciação, substituição e repetição, de conectores e outros elementos de sequenciação textual. Intertextualidade. Denotação e Conotação. Análise do discurso: pressupostos, subentendidos e implícitos."
+            }
+          ]
+        },
+        {
+          "nome": "Redação",
+          "tipo": "B",
+          "peso": 1,
+          "qtd_questoes": null,
+          "topicos": [
+            {
+              "titulo": "Texto dissertativo-argumentativo",
+              "descricao": "Elaboração de texto manuscrito, dissertativo-argumentativo, em prosa, sobre assunto da atualidade, com avaliação da capacidade de expressão conforme a norma culta da Língua Portuguesa."
+            }
+          ]
+        },
+        {
+          "nome": "Engenharia de Produção",
+          "tipo": "E",
+          "peso": 1,
+          "qtd_questoes": 30,
+          "topicos": [
+            {
+              "titulo": "Programação Matemática. Introdução à otimização",
+              "descricao": "Programação Matemática. Introdução à otimização: conceitos e aplicações. Modelos de programação linear, inteira e não linear. Ferramentas computacionais para resolução de problemas matemáticos."
+            },
+            {
+              "titulo": "Modelagem, Simulação e Otimização. Conceitos de modelagem matemática e simulação de",
+              "descricao": "Modelagem, Simulação e Otimização. Conceitos de modelagem matemática e simulação de: sistemas. Aplicação de softwares de simulação em processos industriais. Técnicas de otimização: heurísticas, metaheurísticas e algoritmos."
+            },
+            {
+              "titulo": "Gestão da Manutenção. Fundamentos de manutenção industrial. Confiabilidade,",
+              "descricao": "Gestão da Manutenção. Fundamentos de manutenção industrial. Confiabilidade,: disponibilidade e mantenabilidade de equipamentos. Planejamento e controle da manutenção preventiva e corretiva."
+            },
+            {
+              "titulo": "Gestão de Sistemas de Produção e Operações. Princípios de gestão da produção",
+              "descricao": "Gestão de Sistemas de Produção e Operações. Princípios de gestão da produção: manufatura e serviços. Planejamento e controle da produção (PCP). Sistemas de produção enxuta, qualidade e melhoria contínua."
+            },
+            {
+              "titulo": "Produção Limpa, Sustentabilidade e Ecoeficiência. Práticas de produção sustentável e",
+              "descricao": "Produção Limpa, Sustentabilidade e Ecoeficiência. Práticas de produção sustentável e: ecoeficiência. Redução de resíduos, uso de energias renováveis e análise do ciclo de vida. Implementação de estratégias de sustentabilidade nas operações."
+            },
+            {
+              "titulo": "Projeto de Fábrica e Instalações Industriais. Organização industrial",
+              "descricao": "Projeto de Fábrica e Instalações Industriais. Organização industrial: fundamentos e objetivos. Projeto de layout e arranjo físico. Localização de instalações e fluxo de materiais."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
