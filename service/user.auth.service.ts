@@ -73,7 +73,7 @@ export async function loginService(body: LoginDTO) {
   };
 }
 
-export async function requestResetService(data: RequestResetDTO) {
+export async function requestResetService(data: RequestResetDTO, siteOrigin: string) {
   const parsed = requestResetSchema.parse(data);
   const user = await findUserByEmail(parsed.email);
 
@@ -85,7 +85,9 @@ export async function requestResetService(data: RequestResetDTO) {
   const expire = new Date(Date.now() + 1000 * 60 * 15);
   await saveResetToken(parsed.email, token, expire);
 
-  const link = `${process.env.APP_URL || 'http://localhost:3000'}/redefinir?token=${token}`;
+  const resetUrl = new URL('/redefinir', siteOrigin);
+  resetUrl.searchParams.set('token', token);
+  const link = resetUrl.toString();
   await sendEmail(
     parsed.email,
     'Recuperacao de senha',

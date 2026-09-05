@@ -28,7 +28,7 @@ export async function POST(
 
     // chama o service
     const link =
-      await requestResetService(body)
+      await requestResetService(body, new URL(req.url).origin)
 
 
     // retorna resposta de sucesso
