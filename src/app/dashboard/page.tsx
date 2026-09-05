@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -185,10 +185,10 @@ export default function PainelEstudante() {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-40 w-64 border-r border-white/30 bg-slate-950/90 text-white shadow-2xl shadow-slate-950/20 backdrop-blur-xl flex flex-col shrink-0 h-screen transition-transform duration-300 lg:translate-x-0 ${sidebarAberta ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`app-sidebar fixed lg:static inset-y-0 left-0 z-40 w-64 border-r border-white/30 bg-slate-950/90 text-white shadow-2xl shadow-slate-950/20 backdrop-blur-xl flex flex-col shrink-0 h-screen transition-transform duration-300 lg:translate-x-0 ${sidebarAberta ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex min-h-0 grow flex-col items-center overflow-hidden">
           <div className="w-full shrink-0 px-4 pb-3 pt-4">
-            <div className="rounded-[20px] border border-white/10 bg-white/95 px-4 py-2.5 shadow-xl shadow-sky-950/20">
+            <div className="sidebar-brand rounded-[20px] border border-white/10 bg-white/95 px-4 py-2.5 shadow-xl shadow-sky-950/20">
               <img src="/logo_azul.png" alt="Logo" className="mx-auto h-16 w-auto" />
             </div>
           </div>
@@ -220,7 +220,7 @@ export default function PainelEstudante() {
       <main className="flex-1 flex flex-col min-w-0 p-4 lg:p-6 overflow-y-auto">
 
         {/* Header */}
-        <header className="mb-6 flex shrink-0 items-center justify-between rounded-[28px] border border-white/70 bg-white/70 px-4 py-3 shadow-xl shadow-slate-200/50 backdrop-blur-xl lg:px-5">
+        <header className="app-header mb-6 flex shrink-0 items-center justify-between rounded-[28px] border border-white/70 bg-white/70 px-4 py-3 shadow-xl shadow-slate-200/50 backdrop-blur-xl lg:px-5">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarAberta(true)}
@@ -444,7 +444,7 @@ function MenuItem({ icon, label, active, onClick }: { icon: React.ReactNode; lab
 
 function HeaderIcon({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) {
   return (
-    <button onClick={onClick} className="flex flex-col items-center gap-0.5 group shrink-0">
+    <button onClick={onClick} aria-label={label} title={label} className="header-icon flex flex-col items-center gap-0.5 group shrink-0">
       <div className="text-slate-400 group-hover:text-sky-500 transition-colors">{icon}</div>
       <span className="text-[10px] lg:text-[11px] font-bold text-slate-400 uppercase tracking-tighter">{label}</span>
     </button>
