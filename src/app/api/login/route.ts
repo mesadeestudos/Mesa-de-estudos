@@ -15,7 +15,7 @@ export async function POST(req: Request) {
       primeiroAcesso: resultado.primeiroAcesso,
       assinatura,
       redirectTo: resultado.primeiroAcesso ? '/onboarding' : '/dashboard',
-    });
+    }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } });
 
     res.cookies.set(AUTH_COOKIE, resultado.token, {
       httpOnly: true,
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   } catch (err: unknown) {
     return NextResponse.json(
       { message: getErrorMessage(err) },
-      { status: 400 },
+      { status: 400, headers: { 'Cache-Control': 'private, no-store, max-age=0' } },
     );
   }
 }

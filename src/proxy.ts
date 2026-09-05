@@ -26,6 +26,11 @@ function startsWithAny(pathname: string, routes: string[]) {
   return routes.some(route => pathname === route || pathname.startsWith(`${route}/`));
 }
 
+function withoutSessionCache(response: NextResponse) {
+  response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+  return response;
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -39,7 +44,8 @@ export async function proxy(request: NextRequest) {
 
   const token = request.cookies.get('authorization')?.value;
   if (!token) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    console.warn('[auth] Acesso sem cookie de sessao', { pathname });
+    return withoutSessionCache(NextResponse.redirect(new URL('/login', request.url)));
   }
 
   try {
@@ -49,11 +55,16 @@ export async function proxy(request: NextRequest) {
     const secretKey = process.env.JWT_SECRET || 'dev-secret-change-me';
     const secret = new TextEncoder().encode(secretKey);
     await jwtVerify(token, secret);
-  } catch {
+  } catch (error: unknown) {
+    console.warn('[auth] Sessao rejeitada', {
+      pathname,
+      secretConfigured: Boolean(process.env.JWT_SECRET),
+      errorType: error instanceof Error ? error.name : 'UnknownError',
+    });
     const response = NextResponse.redirect(new URL('/login', request.url));
     response.cookies.delete('authorization');
     response.cookies.delete('subscription_status');
-    return response;
+    return withoutSessionCache(response);
   }
 
   const assinaturaObrigatoria = process.env.SUBSCRIPTION_REQUIRED === 'true';
@@ -61,10 +72,10 @@ export async function proxy(request: NextRequest) {
   if (assinaturaObrigatoria && !assinaturaAtiva && !startsWithAny(pathname, SUBSCRIPTION_FREE_ROUTES)) {
     const url = new URL('/assinatura', request.url);
     url.searchParams.set('bloqueio', 'assinatura');
-    return NextResponse.redirect(url);
+    return withoutSessionCache(NextResponse.redirect(url));
   }
 
-  return NextResponse.next();
+  return withoutSessionCache(NextResponse.next());
 }
 
 export const config = {
